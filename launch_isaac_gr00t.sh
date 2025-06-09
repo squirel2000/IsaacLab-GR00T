@@ -34,12 +34,11 @@ launch_server() {
 # Function to launch client in new terminal
 launch_client() {
     echo "Launching client in new terminal..."
-    # Wait a moment for server to initialize
-    sleep 3
+
     gnome-terminal --title="Isaac GR00T Client" --working-directory="$CLIENT_DIR" -- bash -c "
         echo 'Activating isaaclab environment and starting client...'
         conda activate isaaclab
-        ./isaaclab.sh -p scripts/gr00t_script/gr00t_infer_agent.py
+        ./isaaclab.sh -p scripts/gr00t_script/gr00t_infer_agent.py --save_img
         echo 'Client stopped. Press Enter to close terminal.'
         read
     "

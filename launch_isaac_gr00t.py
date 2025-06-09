@@ -56,9 +56,6 @@ class IsaacGrootLauncher:
         """Launch client in new terminal"""
         print("Launching client in new terminal...")
         
-        # Wait for server to initialize
-        time.sleep(3)
-        
         # Launch with gnome-terminal
         subprocess.Popen([
             'gnome-terminal',
