@@ -22,3 +22,22 @@ To launch the client and server scripts, you can use the provided `launch_isaac_
 ```bash
 ./launch_isaac_gr00t.sh
 ```
+
+## Steps to Backup (Export)  and Restore the "isaaclab" Environment
+
+Activate and export the environment to a YAML file
+
+```bash
+conda activate isaaclab
+conda env export > isaaclab_environment.yml
+```
+
+Restore (Duplicate) the Environment from Backup
+
+```bash
+conda deactivate
+conda env remove  --name isaaclab
+conda env create -f isaaclab_environment.yml -n isaaclab
+```
+
+This will create a new conda environment named "isaaclab" with the same packages and dependencies as the original environment.

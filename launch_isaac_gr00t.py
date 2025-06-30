@@ -5,13 +5,20 @@ Location: ~/Gits/IsaacLab-GR00T/launch_isaac_groot.py
 """
 
 import os
+import argparse
 import subprocess
 import time
 import psutil
 from pathlib import Path
 
+# Default arguments (matching the Python scripts' defaults)
+MODEL_PATH="output/G1_CubeStacking_Dataset_Checkpoints_fft_bs1/"
+TASK="Isaac-Stack-Cube-G1-Abs-v0"
+SAVE_IMG_FLAG=False
+
 class IsaacGrootLauncher:
-    def __init__(self):
+    def __init__(self, cli_args):
+        self.args = cli_args
         self.base_dir = Path.home() / "Gits" / "IsaacLab-GR00T"
         self.server_dir = self.base_dir / "Isaac-GR00T"
         self.client_dir = self.base_dir / "IsaacLab_ming"
@@ -31,14 +38,12 @@ class IsaacGrootLauncher:
     def launch_server(self):
         """Launch server in new terminal"""
         print("Launching server in new terminal...")
-        
-        # Command to run in the new terminal
-        server_cmd = f"""
-        cd "{self.server_dir}"
-        conda activate isaaclab
-        python scripts/inference_service_g1.py --server
-        """
-        
+
+        # Construct server command with arguments
+        server_script = "scripts/inference_service_g1.py"
+        # Only pass model_path; other arguments will use their defaults from inference_service_g1.py
+        server_args = f"--server --model_path '{self.args.model_path}'"
+
         # Launch with gnome-terminal
         subprocess.Popen([
             'gnome-terminal',
@@ -46,16 +51,25 @@ class IsaacGrootLauncher:
             f'--working-directory={self.server_dir}',
             '--',
             'bash', '-c',
-            f'echo "Activating isaaclab environment and starting server..."; '
-            f'conda activate isaaclab; '
-            f'python scripts/inference_service_g1.py --server; '
+            f'echo "Activating isaaclab environment and starting server..."; ' \
+            f'conda activate isaaclab; ' \
+            f'python {server_script} {server_args}; ' \
             f'echo "Server stopped. Press Enter to close terminal."; read'
         ])
     
     def launch_client(self):
         """Launch client in new terminal"""
         print("Launching client in new terminal...")
-        
+
+        # Construct client command with arguments
+        client_script = "scripts/gr00t_script/gr00t_infer_agent.py"
+        # Only pass task; other arguments will use their defaults from gr00t_infer_agent.py
+        client_args_list = [f"--task '{self.args.task}'"]
+        if self.args.save_img:
+            client_args_list.append("--save-img")
+
+        client_args = " ".join(client_args_list)
+
         # Launch with gnome-terminal
         subprocess.Popen([
             'gnome-terminal',
@@ -63,9 +77,9 @@ class IsaacGrootLauncher:
             f'--working-directory={self.client_dir}',
             '--',
             'bash', '-c',
-            f'echo "Activating isaaclab environment and starting client..."; '
-            f'conda activate isaaclab; '
-            f'./isaaclab.sh -p scripts/gr00t_script/gr00t_infer_agent.py; '
+            f'echo "Activating isaaclab environment and starting client..."; ' \
+            f'conda activate isaaclab; ' \
+            f'./isaaclab.sh -p {client_script} {client_args}; ' \
             f'echo "Client stopped. Press Enter to close terminal."; read'
         ])
     
@@ -108,5 +122,20 @@ class IsaacGrootLauncher:
         return True
 
 if __name__ == "__main__":
-    launcher = IsaacGrootLauncher()
+    parser = argparse.ArgumentParser(description="Launch Isaac GR00T server and client with configurable arguments.")
+
+    # Arguments for server and client, with defaults matching their original scripts
+    # inference_service_g1.py default model_path
+    parser.add_argument("--model_path", type=str, default=MODEL_PATH,
+                        help="Path to the model checkpoint directory for the server.")
+    # gr00t_infer_agent.py default task
+    parser.add_argument("--task", type=str, default=TASK,
+                        help="Name of the task for the client.")
+    # gr00t_infer_agent.py save_img flag
+    parser.add_argument("--save-img", action="store_true", default=SAVE_IMG_FLAG,
+                        help="[Client] Save RGB camera images from the simulation.")
+
+    cli_args = parser.parse_args()
+
+    launcher = IsaacGrootLauncher(cli_args)
     launcher.run()
