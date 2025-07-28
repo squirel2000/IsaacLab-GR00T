@@ -21,7 +21,7 @@ class IsaacGrootLauncher:
         self.args = cli_args
         self.base_dir = Path.home() / "Gits" / "IsaacLab-GR00T"
         self.server_dir = self.base_dir / "Isaac-GR00T"
-        self.client_dir = self.base_dir / "IsaacLab_ming"
+        self.client_dir = self.base_dir / "IsaacLab"
         
     def check_server_running(self):
         """Check if the inference server is already running"""

@@ -6,10 +6,10 @@
 # Set the base directory
 BASE_DIR="$HOME/Gits/IsaacLab-GR00T"
 SERVER_DIR="$BASE_DIR/Isaac-GR00T"
-CLIENT_DIR="$BASE_DIR/IsaacLab_ming"
+CLIENT_DIR="$BASE_DIR/IsaacLab"
 
 # Default arguments (matching the Python scripts' defaults)
-MODEL_PATH="output/G1_CubeStacking_Dataset_Checkpoints_fft_bs1/"
+MODEL_PATH="output/G1_CubeStacking_Dataset_Checkpoints_N1_5_fft_500k_ds16/"
 TASK="Isaac-Stack-Cube-G1-Abs-v0"
 SAVE_IMG_FLAG=""
 
