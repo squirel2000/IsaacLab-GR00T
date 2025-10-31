@@ -1,6 +1,31 @@
 
-# Isaac-GR00T
+# IsaacLab-GR00T
 This repository contains the code for the Isaac-GR00T project, which is designed to work with the Gr00t model. The project includes scripts for training, finetuning, and launching client-server interactions.
+
+## IsaacLab
+
+Generate the dataset for Gr00t using the `record_g1.py`, `annotate_demos_g1.py`, and `generate_dataset_g1.py` scripts for G1 that opens the drawer, pick-and-place the mug on the mat, and pour water into the mug.
+
+
+### Use data collection agent script to collect data as parquet and mp4 files (99.1% success rate for 2000 trials)
+```bash
+./isaaclab.sh -p scripts/gr00t_script/data_collect_agent.py
+```
+
+### Use isaaclab mimic method to record, annotate, and generate dataset for Gr00t (98.5% success rate for 2000 trials)
+```bash
+# Record 10 demonstrations as ./datasets/g1_cabinet_pour/g1_pour_dataset.hdf5
+./isaaclab.sh -p scripts/gr00t_script/record_g1.py --num_demos 10
+
+# Annotate the recorded demonstrations, ./datasets/g1_cabinet_pour/g1_pour_annotated.hdf5
+./isaaclab.sh -p scripts/gr00t_script/annotate_demos_g1.py
+
+# Generate the dataset in HDF5 format based on the annotated demonstrations
+./isaaclab.sh -p scripts/gr00t_script/generate_dataset_g1.py
+
+# Convert the HDF5 dataset to Parquet format and MP4 videos for Isaac-GR00T
+python ./scripts/gr00t_script/convert_hdf5_to_parquet.py
+```
 
 ## Gr00t Finetune Script
 
