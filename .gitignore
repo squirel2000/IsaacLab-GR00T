@@ -1,0 +1,9 @@
+# Project-level shared VLA datasets and fine-tuned checkpoints are intentionally
+# local artifacts. Keep only the layout documentation in git.
+/datasets/*
+!/datasets/README.md
+
+/artifacts/*
+!/artifacts/checkpoints/
+/artifacts/checkpoints/*
+!/artifacts/checkpoints/README.md

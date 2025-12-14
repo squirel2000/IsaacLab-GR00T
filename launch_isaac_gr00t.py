@@ -1,19 +1,24 @@
 #!/usr/bin/env python3
 """
 Script to launch Isaac GR00T server and client in separate terminals
-Location: ~/Gits/IsaacLab-GR00T/launch_isaac_groot.py
 """
 
-import os
 import argparse
 import subprocess
-import time
 import psutil
 from pathlib import Path
 
+# Set the base directory and script paths
+# Server
+SERVER_SCRIPT="inference_service.py"
+SERVER_CONDA_ENV="env_gr00t"
+# Client
+CLIENT_SCRIPT="gr00t_infer_agent.py"
+CLIENT_CONDA_ENV="env_isaaclab"
+
 # Default arguments (matching the Python scripts' defaults)
-MODEL_PATH="output/G1_CubeStacking_Dataset_Checkpoints_fft_bs1/"
-TASK="Isaac-Stack-Cube-G1-Abs-v0"
+MODEL_PATH="output/G1_Inspire_Cabinet_Pour_Dataset_Checkpoints_N1_5_fft/"
+TASK="Isaac-Cabinet-Pour-G1-Abs-v0"
 SAVE_IMG_FLAG=False
 
 class IsaacGrootLauncher:
@@ -28,7 +33,7 @@ class IsaacGrootLauncher:
         for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
             try:
                 cmdline = proc.info.get('cmdline', [])
-                if cmdline and any('inference_service_g1.py' in cmd and '--server' in cmdline for cmd in cmdline):
+                if cmdline and any('inference_service.py' in cmd and '--server' in cmdline for cmd in cmdline):
                     print(f"Found running server process: PID {proc.info['pid']}")
                     return True
             except (psutil.NoSuchProcess, psutil.AccessDenied):
@@ -40,9 +45,9 @@ class IsaacGrootLauncher:
         print("Launching server in new terminal...")
 
         # Construct server command with arguments
-        server_script = "scripts/inference_service_g1.py"
-        # Only pass model_path; other arguments will use their defaults from inference_service_g1.py
-        server_args = f"--server --model_path '{self.args.model_path}'"
+        server_script = f"scripts/{SERVER_SCRIPT}"
+        # Only pass model_path; other arguments will use their defaults from inference_service.py
+        server_args = f"--server --model_path '{self.args.model_path}' --embodiment_tag new_embodiment --data_config g1_can_pick_and_sort --denoising_steps 4"
 
         # Launch with gnome-terminal
         subprocess.Popen([
@@ -51,9 +56,8 @@ class IsaacGrootLauncher:
             f'--working-directory={self.server_dir}',
             '--',
             'bash', '-c',
-            f'echo "Activating isaaclab environment and starting server..."; ' \
-            f'conda activate isaaclab; ' \
-            f'python {server_script} {server_args}; ' \
+            f'echo "Activating conda environment: {SERVER_CONDA_ENV}..."; ' \
+            f'source $(conda info --base)/etc/profile.d/conda.sh && conda activate {SERVER_CONDA_ENV} && python3 -u {server_script} {server_args}; ' \
             f'echo "Server stopped. Press Enter to close terminal."; read'
         ])
     
@@ -62,9 +66,9 @@ class IsaacGrootLauncher:
         print("Launching client in new terminal...")
 
         # Construct client command with arguments
-        client_script = "scripts/gr00t_script/gr00t_infer_agent.py"
+        client_script = f"scripts/gr00t_script/{CLIENT_SCRIPT}"
         # Only pass task; other arguments will use their defaults from gr00t_infer_agent.py
-        client_args_list = [f"--task '{self.args.task}'"]
+        client_args_list = [f"--task '{self.args.task}' --filter"]
         if self.args.save_img:
             client_args_list.append("--save-img")
 
@@ -77,9 +81,8 @@ class IsaacGrootLauncher:
             f'--working-directory={self.client_dir}',
             '--',
             'bash', '-c',
-            f'echo "Activating isaaclab environment and starting client..."; ' \
-            f'conda activate isaaclab; ' \
-            f'./isaaclab.sh -p {client_script} {client_args}; ' \
+            f'echo "Activating conda environment: {CLIENT_CONDA_ENV}..."; ' \
+            f'source $(conda info --base)/etc/profile.d/conda.sh && conda activate {CLIENT_CONDA_ENV} && python3 -u {client_script} {client_args}; ' \
             f'echo "Client stopped. Press Enter to close terminal."; read'
         ])
     
@@ -125,7 +128,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Launch Isaac GR00T server and client with configurable arguments.")
 
     # Arguments for server and client, with defaults matching their original scripts
-    # inference_service_g1.py default model_path
+    # inference_service.py default model_path
     parser.add_argument("--model_path", type=str, default=MODEL_PATH,
                         help="Path to the model checkpoint directory for the server.")
     # gr00t_infer_agent.py default task

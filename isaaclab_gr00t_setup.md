@@ -36,12 +36,13 @@ This guide sets up:
 ---
 
 ### Post-Installation Driver Setup (Summary)
+```bash
 sudo apt update
 sudo apt install nvidia-driver-570
 sudo nano /etc/default/grub # Remove "nomodeset" from GRUB_CMDLINE_LINUX_DEFAULT
 sudo update-grub
 sudo reboot
-
+```
 
 ---
 
@@ -66,35 +67,50 @@ conda config --set auto_activate_base false
 ---
 
 ## 🧪 Step 2: Create and Setup IsaacLab Conda Environment
-```bash
-source ~/miniforge3/etc/profile.d/conda.sh
-conda create -y -n isaaclab python=3.10
-conda activate isaaclab
-```
 
-### Install core dependencies:
-```bash
-pip install --upgrade pip
-pip install torch torchvision torchaudio
-pip install isaacgymenvs
-```
-
-### Clone and install IsaacLab:
-```bash
-mkdir -p ~/Gits && cd ~/Gits
-git clone https://github.com/NVIDIA-Omniverse/IsaacLab.git
-cd IsaacLab
-pip install -e .
-```
+Install [IsaacSim 5.1.0 and IsaacLab 2.2.0](https://github.com/NVIDIA/Isaac-GR00T)
 
 ---
 
 ## 🤖 Step 3: Install Isaac-GR00T
+
+### Install CUDA 12.8 Toolkit 12.8:
+
+Step 1: Install CUDA 12.8 to /usr/local/cuda-12.8.
+
 ```bash
-cd ~/Gits
-git clone https://github.com/NVIDIA/Isaac-GR00T.git
-cd Isaac-GR00T
-pip install -e .
+conda deactivate && cd ~/Downloads
+wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+sudo dpkg -i cuda-keyring_1.1-1_all.deb
+sudo apt-get update
+sudo apt-get install cuda-12-8
+```
+
+Step 2: Set Up Environment Variables
+
+```bash
+nano ~/.bashrc
+
+# Add these lines at the end:
+# CUDA 12.8 Environment Variables
+export CUDA_HOME=/usr/local/cuda-12.8
+export PATH=$CUDA_HOME/bin:$PATH
+export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
+export CUDA_DEVICE_ORDER=PCI_BUS_ID
+```
+
+Step 3: Verify CUDA installation:
+```bash
+source ~/.bashrc
+nvcc --version
+```
+
+### Install [Isaac-GR00T](https://github.com/NVIDIA/Isaac-GR00T) from source.
+
+Step 4: Follow the instruction of [GR00T](https://github.com/NVIDIA/Isaac-GR00T) to install GR00T and compatible flash-attn. Verify GR00T installation:
+
+```bash
+python -c "import torch; print(f'PyTorch CUDA: {torch.version.cuda}'); print(f'CUDA Available: {torch.cuda.is_available()}'); print(f'GPU: {torch.cuda.get_device_name(0)}')"
 ```
 
 ---
