@@ -85,14 +85,31 @@ This script is designed to finetune the Gr00t model on a specific dataset. It ut
 ```bash
 cd Isaac-GR00T
 # Finetuning the Gr00t_N1.5 model on 4090
-python scripts/gr00t_finetune.py \
-  --dataset_path demo_data/G1_CubeStacking_Dataset \
-  --output_dir output/G1_CubeStacking_Dataset_Checkpoints_N1_5_fft \
+nohup python scripts/gr00t_finetune.py \
+  --dataset_path demo_data/G1_Inspire_Cabinet_Pour_Dataset \
+  --output_dir outputs/G1_Inspire_Cabinet_Pour_Dataset_Checkpoints_N1_5_fft_200k \
   --data_config g1_can_pick_and_sort \
-  --batch_size 8 --max_steps 100000 --save_steps 10000 \
+  --batch_size 16 --max_steps 200000 --save_steps 10000 \
   --tune_visual --tune_projector --tune_diffusion_model \
-  --lora_rank 1024 --lora_full_model \
-  --report_to "tensorboard" --embodiment_tag new_embodiment --video_backend torchvision_av
+  --lora_rank 0 --lora_full_model \
+  --dataloader_num_workers 12 --gradient_accumulation_steps 1 \
+  --report_to "tensorboard" --embodiment_tag new_embodiment --video_backend decord  >train.log 2>&1 &
+
+# Fine tuning the Gr00t N1.6 model on RTX 5090 (No visual and projector tuning due to memory constraints)
+nohup .venv/bin/torchrun --nproc_per_node=1 gr00t/experiment/launch_finetune.py \
+    --base_model_path "nvidia/GR00T-N1.6-3B" \
+    --dataset_path demo_data/OpenArm_CanSorting_Dataset_MoveBasket_AdjustSteps \
+    --output_dir outputs/OpenArm_CanSorting_Dataset_MoveBasket_AdjustSteps_Checkpoints_N1_6_fft_200k \
+    --embodiment-tag NEW_EMBODIMENT \
+    --modality-config-path examples/Openarm_Leaphand/modality_config.py \
+    --global-batch-size 1 --num-gpus 1 --max_steps 200000 --save_steps 10000 --save-total-limit 2 --shard-size 1024 \
+    --no-tune-visual --no-tune-projector --tune-diffusion-model \
+    --dataloader_num_workers 4 --gradient_accumulation_steps 2 --no-use-wandb \
+    --gradient-checkpointing \
+    --deepspeed-stage 3 \
+    --no-fp16 \
+    --bf16 \
+    >train.log 2>&1 &
 
 # Training the Gr00t model on GPU 1, if available (e.g., on server with 2 x H100)
 CUDA_VISIBLE_DEVICES=1 python3 scripts/gr00t_finetune.py \
@@ -101,6 +118,12 @@ CUDA_VISIBLE_DEVICES=1 python3 scripts/gr00t_finetune.py \
   --data-config unitree_g1 --embodiment_tag new_embodiment \
   --gpu-id 1 --num-gpus 1 --batch-size 32 --video-backend torchvision_av \
   --max-steps 500000 --save-steps 10000 --eval_steps 10000 --eval-args-trajs 2 --eval-args-max-steps 1300 --dataset-split-ratio "9:1" --dataloader-num-workers 4 --tune_visual --denoising_step 16
+```
+
+Tips: To retrieve the remote folder into your local output directory using rsync, you can use the following command:
+
+```bash
+rsync -avz --progress asus@192.168.32.143:/home/asus/Gits/IsaacLab-GR00T/Isaac-GR00T/output/G1_Inspire_Cabinet_Pour_Dataset_Checkpoints_N1_5_fft_200k /home/asus/Gits/IsaacLab-GR00T/Isaac-GR00T/output/
 ```
 
 ## Launch the Client and Server Scripts
@@ -112,18 +135,24 @@ To launch the client and server scripts, you can manually run the client and ser
 cd Isaac-GR00T && conda deactivate && conda activate env_gr00t
 python3 ./scripts/inference_service.py \
   --server \
-  --model_path ./output/G1_Inspire_Cabinet_Pour_Dataset_Checkpoints_N1_5_fft/ \
-  --embodiment_tag new_embodiment \
-  --data_config g1_can_pick_and_sort \
+  --model_path ./outputs/openarm_leaphand_cansorting_N15_fft_200k_dataset_0226_radomization/checkpoint-200000/ \
+  --embodiment_tag new_embodiment --data_config openarm_leaphand \
   --denoising_steps 4
+
+python3 ./scripts/inference_service.py   --server   --model_path /home/asus/Gits/IsaacLab-GR00T/Isaac-GR00T/outputs/openarm_leaphand_cansorting_N15_fft_200k_movebasket/openarm_cansorting_N15_fft_200k_visual_ds4_lr1e-4_movebasket/checkpoint-200000/   --embodiment_tag new_embodiment   --data_config openarm_leaphand   --denoising_steps 4
+
 
 # Start the client on another terminal in the "env_isaaclab" conda environment
 cd IsaacLab && conda deactivate && conda activate env_isaaclab
 python3 ./scripts/gr00t_script/gr00t_infer_agent.py \
-  --task "Isaac-Cabinet-Pour-G1-Abs-v0" \
-  --save_dir ./output/G1_Inspire_Cabinet_Pour_Dataset_Checkpoints_N1_5_fft_lowpass/ \
+  --task "Isaac-Can-Sorting-OpenArm-DexHand-v0" \
+  --save_dir ./outputs/openarm_leaphand_cansorting_N15_fft_200k_movebasket/ \
   --max_eps_num 2000 \
+  --save_video \
+  --openarm_hand_type "leaphand_right" \
   --filter
+
+ python3 ./scripts/gr00t_script/gr00t_infer_agent.py   --task "Isaac-Can-Sorting-OpenArm-DexHand-v0"   --save_dir ./outputs/openarmeaphando6_cansorting_N15_fft_200k_movebasket/   --max_eps_num 10 --save_video
 ```
 
 Or you can use the provided `launch_isaac_gr00t.py` script. This script will set up the environment and start the necessary processes.
@@ -134,7 +163,52 @@ python3 ./launch_isaac_gr00t.py \
   --task "Isaac-Cabinet-Pour-G1-Abs-v0" 
 ```
 
-## Steps to Backup (Export)  and Restore the "isaaclab" Environment
+## Check the trainging metrics in Tensorboard
+
+To monitor the training metrics during the finetuning process, you can use TensorBoard. After starting your finetuning script with the `--report_to "tensorboard"` flag, you can launch TensorBoard to visualize the metrics.
+
+```bash
+tensorboard --logdir ./outputs
+```
+
+Then, open your web browser and navigate to `http://localhost:6006/` to view the TensorBoard dashboard.
+
+
+## Source Code Analysis and Customization
+
+### Client-Server Interaction
+
+The following diagram illustrates the interaction between the [PolicyClient, PolicyServer](Isaac-GR00T/gr00t/policy/server_client.py), and the [Policy (Model)](Isaac-GR00T/gr00t/policy/policy.py) during the inference process:
+
+```Text
++-------------------+         +-------------------+         +-------------------+
+|                   |         |                   |         |                   |
+|   PolicyClient    | <-----> |   PolicyServer    | <-----> |   Policy (Model)  |
+|                   |         |                   |         |                   |
++-------------------+         +-------------------+         +-------------------+
+        |                             |                              |
+        | 1. call_endpoint()          |                              |
+        |---------------------------->|                              |
+        |                             | 2. recv & deserialize        |
+        |                             | 3. endpoint lookup           |
+        |                             | 4. handler.handler(**data)   |
+        |                             |----------------------------->|
+        |                             |                              | 5. get_action()
+        |                             |                              |    (inference)
+        |                             |<-----------------------------|
+        |                             | 6. serialize & send result   |
+        |<----------------------------|                              |
+        | 7. deserialize & return     |                              |
+        v                             v                              v
+```
+
+Key Syntax and Concepts:
+- `Endpoint Registration - @self.register_endpoint("get_action", self.policy.get_action)`: Registers the policy's get_action method as the handler for the "get_action" endpoint.
+- `Handler Invocation - handler.handler(**request.get("data", {}))`: Unpacks the data dictionary and calls the handler with named arguments (e.g., observation=..., options=...).
+- `Data Serialization:` Uses MsgPack for efficient binary serialization, with custom handling for numpy arrays and custom classes.
+- `ZeroMQ Communication:` Uses REQ/REP sockets for request-response messaging between client and server
+
+## Steps to Backup (Export) and Restore the "isaaclab" Environment
 
 Activate and export the environment to a YAML file
 
