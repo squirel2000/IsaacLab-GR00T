@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Launch StarVLA server and IsaacLab client in separate terminals."""
+"""Launch a policy server and IsaacLab client in separate terminals."""
 
 import argparse
 import json
@@ -12,40 +12,40 @@ import psutil
 
 
 BASE_DIR = Path(__file__).resolve().parent
-STARVLA_CONFIG = BASE_DIR / "IsaacLab/scripts/gr00t_script/policy_configs/starvla_openarm_o6.json"
-
-SERVER = {
-    "dir": BASE_DIR / "starVLA",
-    "script": "deployment/model_server/server_policy.py",
-    "conda_env": "starVLA",
-    "title": "StarVLA Server",
+POLICY_CONFIGS = {
+    "starvla": BASE_DIR / "IsaacLab/scripts/gr00t_script/policy_configs/starvla_openarm_o6.json",
+    "gr00t": BASE_DIR / "IsaacLab/scripts/gr00t_script/policy_configs/gr00t_n15_openarm_o6.json",
 }
 
 CLIENT = {
     "dir": BASE_DIR / "IsaacLab",
     "script": "scripts/gr00t_script/gr00t_infer_agent.py",
     "conda_env": "env_isaaclab",
-    "title": "IsaacLab StarVLA Client",
-}
-
-DEFAULTS = {
-    "task": "Isaac-Can-Sorting-OpenArm-DexHand-v0",
-    "model_path": BASE_DIR / "starVLA/results/Checkpoints/openarm_o6_qwengroot_right_only_bs16_lr5e5_wd1e5/final_model/pytorch_model.pt",
-    "policy_config": STARVLA_CONFIG,
-    "max_eps_num": 50,
+    "title": "IsaacLab Client",
 }
 
 
-def load_policy_config(path):
+def load_json(path):
     with Path(path).open("r", encoding="utf-8") as f:
         return json.load(f)
 
 
-def server_running(port):
+def server(policy, cfg):
+    if policy == "starvla":
+        return {"dir": Path(cfg["starvla_repo"]), "script": "deployment/model_server/server_policy.py", "conda_env": "starVLA", "title": "StarVLA Server"}
+    return {"dir": BASE_DIR / "Isaac-GR00T", "script": "scripts/inference_service.py", "conda_env": "env_gr00t", "title": "Isaac GR00T Server"}
+
+
+def server_running(policy, port):
+    token = "server_policy.py" if policy == "starvla" else "inference_service.py"
     for proc in psutil.process_iter(["cmdline"]):
         try:
             cmd = proc.info.get("cmdline") or []
-            if any("server_policy.py" in c for c in cmd) and str(port) in cmd:
+            if not any(token in c for c in cmd):
+                continue
+            if policy == "gr00t" and "--server" in cmd:
+                return True
+            if policy == "starvla" and str(port) in cmd:
                 return True
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             pass
@@ -54,41 +54,55 @@ def server_running(port):
 
 def launch_in_terminal(cfg, command):
     subprocess.Popen([
-        "gnome-terminal",
-        f"--title={cfg['title']}",
-        f"--working-directory={cfg['dir']}",
-        "--",
-        "bash", "-c",
-        f"source $(conda info --base)/etc/profile.d/conda.sh && "
-        f"conda activate {cfg['conda_env']} && {shlex.join(command)}; "
+        "gnome-terminal", f"--title={cfg['title']}", f"--working-directory={cfg['dir']}", "--", "bash", "-c",
+        f"source $(conda info --base)/etc/profile.d/conda.sh && conda activate {cfg['conda_env']} && {shlex.join(command)}; "
         f'echo "Stopped. Press Enter to close."; read',
     ])
 
 
+def server_args(policy, cfg, model_path):
+    if policy == "starvla":
+        args = ["python", "-u", "deployment/model_server/server_policy.py", "--ckpt_path", str(model_path), "--port", str(cfg["port"]), "--idle_timeout", str(cfg.get("idle_timeout", -1))]
+        return args + (["--use_bf16"] if cfg.get("use_bf16", True) else [])
+    return ["python3", "-u", "scripts/inference_service.py", "--server", "--model_path", str(model_path), "--embodiment_tag", cfg["embodiment_tag"], "--data_config", cfg["data_config"], "--denoising_steps", str(cfg["denoising_steps"]), "--port", str(cfg["port"])]
+
+
+def client_args(policy, cfg, config_path, max_eps_num, save_video):
+    args = ["python3", "-u", CLIENT["script"], "--task", cfg["task"], "--policy", policy, "--policy_config", str(config_path), "--host", cfg["host"], "--port", str(cfg["port"]), "--max_eps_num", str(max_eps_num), "--openarm_hand_type", cfg.get("openarm_hand_type", "linkerhand_o6"), "--filter"]
+    if policy == "gr00t":
+        args += ["--gr00t_ver", cfg.get("version", "N1.5")]
+    if save_video:
+        args.append("--save_video")
+    return args
+
+
 def main():
-    p = argparse.ArgumentParser(description="Launch StarVLA server and IsaacLab client.")
-    p.add_argument("--model-path", type=Path, default=DEFAULTS["model_path"], help="[Server] StarVLA .pt checkpoint.")
-    p.add_argument("--policy-config", type=Path, default=DEFAULTS["policy_config"], help="[Client] Policy adapter JSON.")
-    p.add_argument("--max-eps-num", type=int, default=DEFAULTS["max_eps_num"], help="[Client] Max episodes.")
-    p.add_argument("--save-video", action="store_true", help="[Client] Save rollout video.")
+    p = argparse.ArgumentParser(description="Launch policy server and IsaacLab client.")
+    p.add_argument("--policy", choices=sorted(POLICY_CONFIGS), default="gr00t", help="Policy backend to launch. Default: gr00t.")
+    p.add_argument("--policy-config", type=Path, help="Policy JSON. Defaults to the selected policy config.")
+    p.add_argument("--model-path", type=Path, help="Override checkpoint/model path from the policy JSON.")
+    p.add_argument("--max-eps-num", type=int, default=10, help="[Client] Max episodes. Default: 10.")
+    p.add_argument("--save-video", action="store_true", help="[Client] Save rollout video. Default: False.")
     args = p.parse_args()
 
-    policy_cfg = load_policy_config(args.policy_config)
-    for path in (SERVER["dir"], CLIENT["dir"], args.model_path, args.policy_config, Path(policy_cfg["stats_path"])):
-        if not path.exists():
+    config_path = args.policy_config or POLICY_CONFIGS[args.policy]
+    policy_cfg = load_json(config_path)
+    model_path = args.model_path or Path(policy_cfg["model_path"])
+    server_cfg = server(args.policy, policy_cfg)
+
+    required = [server_cfg["dir"], CLIENT["dir"], config_path, model_path]
+    if args.policy == "starvla":
+        required.append(Path(policy_cfg["stats_path"]))
+    for path in required:
+        if not Path(path).exists():
             sys.exit(f"Error: path not found: {path}")
 
-    server_args = ["python", "-u", SERVER["script"], "--ckpt_path", str(args.model_path), "--port", str(policy_cfg["port"]), "--idle_timeout", "-1", "--use_bf16"]
-    client_args = ["python3", "-u", CLIENT["script"], "--task", DEFAULTS["task"], "--policy", "starvla", "--policy_config", str(args.policy_config), "--host", policy_cfg["host"], "--port", str(policy_cfg["port"]), "--max_eps_num", str(args.max_eps_num), "--openarm_hand_type", "linkerhand_o6", "--filter"]
-    if args.save_video:
-        client_args.append("--save_video")
-
-    if server_running(policy_cfg["port"]):
-        print("StarVLA server already running — skipping server launch.")
+    if server_running(args.policy, policy_cfg["port"]):
+        print(f"{args.policy} server already running - skipping server launch.")
     else:
-        launch_in_terminal(SERVER, server_args)
+        launch_in_terminal(server_cfg, server_args(args.policy, policy_cfg, model_path))
 
-    launch_in_terminal(CLIENT, client_args)
+    launch_in_terminal(CLIENT, client_args(args.policy, policy_cfg, config_path, args.max_eps_num, args.save_video))
 
 
 if __name__ == "__main__":
