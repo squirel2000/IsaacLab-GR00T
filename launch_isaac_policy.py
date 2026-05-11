@@ -63,6 +63,8 @@ def launch_in_terminal(cfg, command):
 def server_args(policy, cfg, model_path):
     if policy == "starvla":
         args = ["python", "-u", "deployment/model_server/server_policy.py", "--ckpt_path", str(model_path), "--port", str(cfg["port"]), "--idle_timeout", str(cfg.get("idle_timeout", -1))]
+        if "denoising_steps" in cfg:
+            args += ["--denoising_steps", str(cfg["denoising_steps"])]
         return args + (["--use_bf16"] if cfg.get("use_bf16", True) else [])
     return ["python3", "-u", "scripts/inference_service.py", "--server", "--model_path", str(model_path), "--embodiment_tag", cfg["embodiment_tag"], "--data_config", cfg["data_config"], "--denoising_steps", str(cfg["denoising_steps"]), "--port", str(cfg["port"])]
 
