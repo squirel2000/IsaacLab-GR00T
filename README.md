@@ -27,6 +27,18 @@ Generate the dataset for Gr00t using the `record_g1.py`, `annotate_demos_g1.py`,
 python ./scripts/gr00t_script/convert_hdf5_to_parquet.py
 ```
 
+## Shared Project Storage
+
+Project-level VLA fine-tuning datasets and fine-tuned checkpoints are stored at the root so Isaac-GR00T, StarVLA, and future VLA backends can reuse the same assets:
+
+```text
+datasets/<dataset_name>
+artifacts/checkpoints/gr00t/<run_name>
+artifacts/checkpoints/starvla/<run_name>
+```
+
+You can override these locations with `VLA_DATASETS_ROOT` and `VLA_CHECKPOINTS_ROOT`. Upstream demo data, simulator assets, rollout logs, TensorBoard runs, and analysis outputs should stay in their owning repositories unless they become shared fine-tuning datasets or checkpoints.
+
 ## Human Demonstration Collection on IsaacLab
 
 To collect human demonstrations for GR00T on G1 that opens the drawer, pick-and-place the mug on the mat, and pour water into the mug, you can adjust the poses in the following script [constants.py](./IsaacLab/scripts/gr00t_script/utils/constants.py):
@@ -73,7 +85,7 @@ python ./scripts/gr00t_script/convert_hdf5_to_parquet.py
    ```
    For example:
    ```bash
-   python scripts/utils/generate_dataset_meta.py datasets/gr00t_collection/G1_Inspire_Cabinet_Pour_Dataset
+   python scripts/utils/generate_dataset_meta.py ../datasets/G1_Inspire_Cabinet_Pour_Dataset
    ```
    This will create `info.json` and `episodes.jsonl` files in the `meta` directory of your dataset root.
 
@@ -86,8 +98,8 @@ This script is designed to finetune the Gr00t model on a specific dataset. It ut
 cd Isaac-GR00T
 # Finetuning the Gr00t_N1.5 model on 4090
 nohup python scripts/gr00t_finetune.py \
-  --dataset_path demo_data/G1_Inspire_Cabinet_Pour_Dataset \
-  --output_dir outputs/G1_Inspire_Cabinet_Pour_Dataset_Checkpoints_N1_5_fft_200k \
+  --dataset_path ../datasets/G1_Inspire_Cabinet_Pour_Dataset \
+  --output_dir ../artifacts/checkpoints/gr00t/G1_Inspire_Cabinet_Pour_Dataset_Checkpoints_N1_5_fft_200k \
   --data_config g1_can_pick_and_sort \
   --batch_size 16 --max_steps 200000 --save_steps 10000 \
   --tune_visual --tune_projector --tune_diffusion_model \
@@ -98,8 +110,8 @@ nohup python scripts/gr00t_finetune.py \
 # Fine tuning the Gr00t N1.6 model on RTX 5090 (No visual and projector tuning due to memory constraints)
 nohup .venv/bin/torchrun --nproc_per_node=1 gr00t/experiment/launch_finetune.py \
     --base_model_path "nvidia/GR00T-N1.6-3B" \
-    --dataset_path demo_data/OpenArm_CanSorting_Dataset_MoveBasket_AdjustSteps \
-    --output_dir outputs/OpenArm_CanSorting_Dataset_MoveBasket_AdjustSteps_Checkpoints_N1_6_fft_200k \
+    --dataset_path ../datasets/OpenArm_CanSorting_Dataset_MoveBasket_AdjustSteps \
+    --output_dir ../artifacts/checkpoints/gr00t/OpenArm_CanSorting_Dataset_MoveBasket_AdjustSteps_Checkpoints_N1_6_fft_200k \
     --embodiment-tag NEW_EMBODIMENT \
     --modality-config-path examples/Openarm_Leaphand/modality_config.py \
     --global-batch-size 1 --num-gpus 1 --max_steps 200000 --save_steps 10000 --save-total-limit 2 --shard-size 1024 \
@@ -123,7 +135,7 @@ CUDA_VISIBLE_DEVICES=1 python3 scripts/gr00t_finetune.py \
 Tips: To retrieve the remote folder into your local output directory using rsync, you can use the following command:
 
 ```bash
-rsync -avz --progress asus@192.168.32.143:/home/asus/Gits/IsaacLab-GR00T/Isaac-GR00T/output/G1_Inspire_Cabinet_Pour_Dataset_Checkpoints_N1_5_fft_200k /home/asus/Gits/IsaacLab-GR00T/Isaac-GR00T/output/
+rsync -avz --progress asus@192.168.32.143:/home/asus/Gits/IsaacLab-GR00T/artifacts/checkpoints/gr00t/G1_Inspire_Cabinet_Pour_Dataset_Checkpoints_N1_5_fft_200k ./artifacts/checkpoints/gr00t/
 ```
 
 ## Launch the Client and Server Scripts
@@ -135,11 +147,11 @@ To launch the client and server scripts, you can manually run the client and ser
 cd Isaac-GR00T && conda deactivate && conda activate env_gr00t
 python3 ./scripts/inference_service.py \
   --server \
-  --model_path ./outputs/openarm_leaphand_cansorting_N15_fft_200k_dataset_0226_radomization/checkpoint-200000/ \
+  --model_path ../artifacts/checkpoints/gr00t/openarm_leaphand_cansorting_N15_fft_200k_dataset_0226_radomization/checkpoint-200000/ \
   --embodiment_tag new_embodiment --data_config openarm_leaphand \
   --denoising_steps 4
 
-python3 ./scripts/inference_service.py   --server   --model_path /home/asus/Gits/IsaacLab-GR00T/Isaac-GR00T/outputs/openarm_leaphand_cansorting_N15_fft_200k_movebasket/openarm_cansorting_N15_fft_200k_visual_ds4_lr1e-4_movebasket/checkpoint-200000/   --embodiment_tag new_embodiment   --data_config openarm_leaphand   --denoising_steps 4
+python3 ./scripts/inference_service.py   --server   --model_path ../artifacts/checkpoints/gr00t/openarm_leaphand_cansorting_N15_fft_200k_movebasket/openarm_cansorting_N15_fft_200k_visual_ds4_lr1e-4_movebasket/checkpoint-200000/   --embodiment_tag new_embodiment   --data_config openarm_leaphand   --denoising_steps 4
 
 
 # Start the client on another terminal in the "env_isaaclab" conda environment
@@ -168,7 +180,7 @@ python3 ./launch_isaac_gr00t.py \
 To monitor the training metrics during the finetuning process, you can use TensorBoard. After starting your finetuning script with the `--report_to "tensorboard"` flag, you can launch TensorBoard to visualize the metrics.
 
 ```bash
-tensorboard --logdir ./outputs
+tensorboard --logdir ../artifacts/checkpoints/gr00t
 ```
 
 Then, open your web browser and navigate to `http://localhost:6006/` to view the TensorBoard dashboard.
