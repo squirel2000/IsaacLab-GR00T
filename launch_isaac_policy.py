@@ -12,6 +12,13 @@ import psutil
 
 from project_paths import project_root, resolve_project_path
 
+# Example of usage:
+# python launch_isaac_policy.py \
+#     --policy starvla \
+#     --model-path /home/asus/Gits/IsaacLab-GR00T/artifacts/checkpoints/gr00t/openarm_linkerhando6_cansorting_N15_fft_20k_dataset_0408_rtc \
+#     --max-eps-num 50 \
+#     --save-video
+
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = project_root(BASE_DIR)
@@ -27,6 +34,11 @@ CLIENT = {
     "title": "IsaacLab Client",
 }
 
+SERVERS = {
+    "starvla": {"script": "deployment/model_server/server_policy.py", "conda_env": "starVLA",   "title": "StarVLA Server"},
+    "gr00t":   {"script": "scripts/inference_service.py",             "conda_env": "env_gr00t", "title": "Isaac GR00T Server"},
+}
+
 
 def load_json(path):
     with Path(path).open("r", encoding="utf-8") as f:
@@ -34,9 +46,9 @@ def load_json(path):
 
 
 def server(policy, cfg):
-    if policy == "starvla":
-        return {"dir": resolve_project_path(cfg["starvla_repo"], PROJECT_ROOT), "script": "deployment/model_server/server_policy.py", "conda_env": "starVLA", "title": "StarVLA Server"}
-    return {"dir": PROJECT_ROOT / "Isaac-GR00T", "script": "scripts/inference_service.py", "conda_env": "env_gr00t", "title": "Isaac GR00T Server"}
+    s = SERVERS[policy].copy()
+    s["dir"] = resolve_project_path(cfg["starvla_repo"], PROJECT_ROOT) if policy == "starvla" else PROJECT_ROOT / "Isaac-GR00T"
+    return s
 
 
 def server_running(policy, port):
@@ -72,8 +84,17 @@ def server_args(policy, cfg, model_path):
     return ["python3", "-u", "scripts/inference_service.py", "--server", "--model_path", str(model_path), "--embodiment_tag", cfg["embodiment_tag"], "--data_config", cfg["data_config"], "--denoising_steps", str(cfg["denoising_steps"]), "--port", str(cfg["port"])]
 
 
-def client_args(policy, cfg, config_path, max_eps_num, save_video):
-    args = ["python3", "-u", CLIENT["script"], "--task", cfg["task"], "--policy", policy, "--policy_config", str(config_path), "--host", cfg["host"], "--port", str(cfg["port"]), "--max_eps_num", str(max_eps_num), "--openarm_hand_type", cfg.get("openarm_hand_type", "linkerhand_o6"), "--filter"]
+def client_args(policy, cfg, config_path, max_eps_num, save_video, save_dir):
+    args = ["python3", "-u", CLIENT["script"], 
+            "--task", cfg["task"], 
+            "--policy", policy, 
+            "--policy_config", str(config_path), 
+            "--host", cfg["host"], 
+            "--port", str(cfg["port"]), 
+            "--max_eps_num", str(max_eps_num), 
+            "--openarm_hand_type", cfg.get("openarm_hand_type", "linkerhand_o6"), 
+            "--filter", 
+            "--save_dir", str(save_dir)]
     if policy == "gr00t":
         args += ["--gr00t_ver", cfg.get("version", "N1.5")]
     if save_video:
@@ -84,30 +105,35 @@ def client_args(policy, cfg, config_path, max_eps_num, save_video):
 def main():
     p = argparse.ArgumentParser(description="Launch policy server and IsaacLab client.")
     p.add_argument("--policy", choices=sorted(POLICY_CONFIGS), default="gr00t", help="Policy backend to launch. Default: gr00t.")
-    p.add_argument("--policy-config", type=Path, help="Policy JSON. Defaults to the selected policy config.")
     p.add_argument("--model-path", type=Path, help="Override checkpoint/model path from the policy JSON.")
-    p.add_argument("--max-eps-num", type=int, default=100, help="[Client] Max episodes. Default: 10.")
+    p.add_argument("--max-eps-num", type=int, default=100, help="[Client] Max episodes. Default: 100.")
     p.add_argument("--save-video", action="store_true", help="[Client] Save rollout video. Default: False.")
     args = p.parse_args()
 
-    config_path = args.policy_config or POLICY_CONFIGS[args.policy]
-    policy_cfg = load_json(config_path)
+    # Load policy config and determine model path and server config
+    policy_cfg = load_json(POLICY_CONFIGS[args.policy])
     model_path = resolve_project_path(args.model_path or policy_cfg["model_path"], PROJECT_ROOT)
     server_cfg = server(args.policy, policy_cfg)
 
-    required = [server_cfg["dir"], CLIENT["dir"], config_path, model_path]
+    # Determine save_dir if not provided (one-liner)
+    save_dir = f"IsaacLab/output/infer_record/{Path(model_path).name}"
+
+    # Check required paths before launching anything
+    required = [server_cfg["dir"], CLIENT["dir"], POLICY_CONFIGS[args.policy], model_path]
     if args.policy == "starvla":
         required.append(resolve_project_path(policy_cfg["stats_path"], PROJECT_ROOT))
     for path in required:
         if not Path(path).exists():
             sys.exit(f"Error: path not found: {path}")
 
+    # Launch a server if not already running (to avoid accidentally launching multiple servers)
     if server_running(args.policy, policy_cfg["port"]):
         print(f"{args.policy} server already running - skipping server launch.")
     else:
         launch_in_terminal(server_cfg, server_args(args.policy, policy_cfg, model_path))
 
-    launch_in_terminal(CLIENT, client_args(args.policy, policy_cfg, config_path, args.max_eps_num, args.save_video))
+    # Launch the client
+    launch_in_terminal(CLIENT, client_args(args.policy, policy_cfg, POLICY_CONFIGS[args.policy], args.max_eps_num, args.save_video, save_dir),)
 
 
 if __name__ == "__main__":
