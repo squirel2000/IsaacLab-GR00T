@@ -14,23 +14,24 @@ Pipeline (every stage survives a local disconnect):
 
 Usage (PowerShell):
     $env:PEGASUS_PASSWORD = 'eksncl#20260410_PE'
-    python run_finetune.py run         # start training, then monitor + download
-    python run_finetune.py monitor     # re-attach + stream the full live log after a disconnect
-    python run_finetune.py watch       # compact one-line status, refreshed every POLL_SECONDS
-    python run_finetune.py download    # (re)download + verify the latest run's artifact
-    python run_finetune.py status      # print current server-side status
-    python run_finetune.py selftest    # validate the whole pipeline with a tiny dummy job
-    python run_finetune.py stop        # kill the detached job of the latest run
+    python run_finetune.py run    (r)   # start training, then monitor + download
+    python run_finetune.py monitor(m)   # re-attach + stream the full live log after a disconnect
+    python run_finetune.py watch  (w)   # compact one-line status, refreshed every POLL_SECONDS
+    python run_finetune.py download(d)  # (re)download + verify the latest run's artifact
+    python run_finetune.py status (st)  # print current server-side status
+    python run_finetune.py selftest(t)  # validate the whole pipeline with a tiny dummy job
+    python run_finetune.py stop   (x)   # kill the detached job of the latest run
+    python run_finetune.py start  (s)   # launch only (no monitor/download)
 
 Edit the CONFIG block below to change the command / parameters / paths.
 """
-import argparse, json, os, re, shlex, sys, time, datetime, pathlib
+import argparse, json, os, re, shlex, sys, tempfile, time, datetime, pathlib
 import pegasus as pg
 
 # ===========================================================================
 #  CONFIG  -- edit here
 # ===========================================================================
-# How to enter the conda env on this box (env is a path-based env, activate by path):
+# If the conda env is a path-based env, activate by path:
 CONDA_ACTIVATE = ('eval "$(/home/gallop/miniforge3/bin/conda shell.bash hook)" && '
                   'conda activate /data/VLA/tingying/envs/gr00t_n1d5')
 
@@ -39,14 +40,12 @@ TRAIN_CWD = "/data/VLA/tingying/IsaacLab-GR00T/Isaac-GR00T"
 DATASET_PATH = "/data/VLA/datasets/OpenArm_O6_CanSorting_Dataset_0408"
 
 # Where the training writes its checkpoints:
-OUTPUT_DIR = ("/data/VLA/experiments/openarmlinkerhando6-can-sorting-checkpoints/"
-              "new_embodiment/N1_5_100k_dataset_0408_rtc_stage1")
+OUTPUT_DIR = ("/data/VLA/experiments/openarmlinkerhando6-can-sorting-checkpoints/new_embodiment/N1_5_100k_dataset_0408_rtc_stage1")
 
 # Total training steps -- MUST match --max-steps below.  The final checkpoint is
 # named checkpoint-<MAX_STEPS>; that is the one we keep after cleanup.
 MAX_STEPS = 100000
 
-# The fine-tuning command (exactly as you would type it after activating the env).
 TRAIN_CMD = (
     f"TOKENIZERS_PARALLELISM=false CUDA_VISIBLE_DEVICES=0 OPENBLAS_NUM_THREADS=4 OMP_NUM_THREADS=4 MPLBACKEND=Agg "
     f"python3 scripts/gr00t_finetune.py "
@@ -67,7 +66,6 @@ KEEP_CHECKPOINT = f"checkpoint-{MAX_STEPS}"               # e.g. checkpoint-1000
 CLEANUP_CMD = (f"find . -maxdepth 1 -type d -name 'checkpoint-*' "
                f"! -name {shlex.quote(KEEP_CHECKPOINT)} -exec rm -rf {{}} +")
 
-# Zip: created in the PARENT of OUTPUT_DIR, archiving the output dir by name.
 ZIP_PARENT = os.path.dirname(OUTPUT_DIR)
 ZIP_NAME = os.path.basename(OUTPUT_DIR) + ".zip"          # N1_5_100k_..._stage1.zip
 ZIP_CMD = f"rm -f {shlex.quote(ZIP_NAME)} && zip -r -y {shlex.quote(ZIP_NAME)} " \
@@ -76,17 +74,14 @@ ZIP_CMD = f"rm -f {shlex.quote(ZIP_NAME)} && zip -r -y {shlex.quote(ZIP_NAME)} "
 # Local download destination (the verified .zip lands here):
 LOCAL_DIR = r"D:\tmp\IsaacLab-GR00T\artifacts\checkpoints"
 
-# Server-side scratch dir for run state/logs.  Lives in YOUR private folder
-# (not the shared /data/VLA), and must NOT be hidden (Jupyter hides dot-dirs).
+# Server-side scratch dir for run state/logs.
 STATE_ROOT = "/data/VLA/tingying/pegasus_runs"
 
-POLL_SECONDS = 30           # how often monitor polls the server
+POLL_SECONDS = 30
 # ===========================================================================
 
 
-def q(p):
-    """shlex.quote shortcut -- safely embed a path/string inside a shell command."""
-    return shlex.quote(p)
+q = shlex.quote
 
 
 def wrapper_script(cfg, state_abs):
@@ -301,7 +296,7 @@ def selftest_config():
         zip_parent=base,
         zip_name="dummy_output.zip",
         zip_cmd="rm -f dummy_output.zip && zip -r -y dummy_output.zip dummy_output/",
-        local_dir=os.path.join(os.environ.get("TEMP", "/tmp"), "pegasus_selftest"),
+        local_dir=os.path.join(tempfile.gettempdir(), "pegasus_selftest"),
         run_name="_selftest",
         poll=3,
     )
@@ -321,6 +316,10 @@ def _tmp_write(content, name):
 
 def main():
     """CLI entry point: connect to the server, then dispatch the chosen sub-command."""
+    _ALIASES = {"r": "run", "s": "start", "m": "monitor", "w": "watch",
+                "d": "download", "st": "status", "x": "stop", "t": "selftest"}
+    if len(sys.argv) > 1 and sys.argv[1] in _ALIASES:
+        sys.argv[1] = _ALIASES[sys.argv[1]]
     ap = argparse.ArgumentParser(description=__doc__,            # the module docstring above
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("cmd", nargs="?", default="run",

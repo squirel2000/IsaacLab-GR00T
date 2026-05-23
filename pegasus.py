@@ -28,7 +28,7 @@ CLI:
 import argparse, base64, hashlib, json, os, ssl, sys, time, uuid, pathlib
 
 BASE = os.environ.get("PEGASUS_BASE", "https://service-cpu-bdml.asus.com/pegasus")
-PEGASUS_PASSWORD = 'eksncl#20260410_PE' 
+PEGASUS_PASSWORD = os.environ.get("PEGASUS_PASSWORD", "eksncl#20260410_PE")
 
 # --------------------------------------------------------------------------- #
 #  Session / auth
@@ -122,7 +122,10 @@ def rm(s, path, _verbose=True):
     info = s.get(f"{BASE}/api/contents/{path}")
     if info.status_code == 200 and info.json()["type"] == "directory":
         for c in info.json()["content"]:                 # API refuses non-empty dirs
-            rm(s, c["path"], _verbose=False)
+            if c["type"] == "directory":
+                rm(s, c["path"], _verbose=False)
+            else:
+                s.delete(f"{BASE}/api/contents/{relpath(c['path'])}", headers=_xsrf(s)).raise_for_status()
     r = s.delete(f"{BASE}/api/contents/{path}", headers=_xsrf(s))
     if r.status_code not in (204, 200):
         r.raise_for_status()
@@ -136,8 +139,7 @@ def _ensure_remote_dir(s, path):
     cur = ""
     for part in [p for p in path.split("/") if p]:
         cur = f"{cur}/{part}".lstrip("/")
-        if s.get(f"{BASE}/api/contents/{cur}").status_code != 200:
-            s.put(f"{BASE}/api/contents/{cur}", headers=_xsrf(s), json={"type": "directory"})
+        s.put(f"{BASE}/api/contents/{cur}", headers=_xsrf(s), json={"type": "directory"})
 
 
 def put_file(s, local, remote):
@@ -215,12 +217,13 @@ def download_resumable(s, remote, local, expected_sha256=None,
             if r.status_code in (401, 403):
                 r.close(); relogin(s); continue           # session expired -> re-auth
             r.raise_for_status()
+            done = pos
             with open(local, "ab") as f:                  # append: keep what we already have
                 for blk in r.iter_content(chunk):
                     if blk:
                         f.write(blk)
+                        done += len(blk)
                         if progress:
-                            done = local.stat().st_size
                             rate = done / max(time.time() - t0, 1e-3) / 1e6
                             sys.stdout.write(f"\r  {done/1e9:6.2f} / {total/1e9:.2f} GB "
                                              f"({100*done/total:5.1f}%)  {rate:6.1f} MB/s   ")
@@ -278,8 +281,9 @@ def _open_ws(s, kid, timeout):
 
 def _exec(s, code, timeout, on_stream=None):
     """Run `code` in a fresh kernel, gather its stream output, then delete the kernel."""
-    kid = s.post(f"{BASE}/api/kernels", headers=_xsrf(s),
-                 json={"name": "python3"}).json()["id"]
+    r = s.post(f"{BASE}/api/kernels", headers=_xsrf(s), json={"name": "python3"})
+    r.raise_for_status()
+    kid = r.json()["id"]
     ws = _open_ws(s, kid, timeout)
     mid = uuid.uuid4().hex
     ws.send(json.dumps({
@@ -314,12 +318,23 @@ def _exec(s, code, timeout, on_stream=None):
     return "".join(buf)
 
 
+def _parse_rc(out):
+    """Split __PEGASUS_RC__ sentinel from captured output; return (clean_text, exit_code)."""
+    rc, lines = 0, []
+    for line in out.splitlines(keepends=True):
+        if line.startswith("__PEGASUS_RC__="):
+            rc = int(line.split("=", 1)[1])
+        else:
+            lines.append(line)
+    return "".join(lines), rc
+
+
 def run(s, command, timeout=86400):
     """Run a bash command on the server, streaming stdout/stderr live. Returns exit code."""
     code = ("import subprocess,sys\n"
             "p=subprocess.Popen(['bash','-lc'," + repr(command) + "],"
             "stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,bufsize=1)\n"
-            "[print(l,end='',flush=True) for l in p.stdout]\n"     # flush per line -> live
+            "for l in p.stdout: print(l,end='',flush=True)\n"      # flush per line -> live
             "print('\\n__PEGASUS_RC__=%d'%p.wait())\n")            # sentinel carries exit code
 
     def emit(t):                                           # stream live, but hide the sentinel
@@ -328,11 +343,7 @@ def run(s, command, timeout=86400):
         if t:
             sys.stdout.write(t); sys.stdout.flush()
 
-    out = _exec(s, code, timeout, on_stream=emit)
-    rc = 0
-    for line in out.splitlines():
-        if line.startswith("__PEGASUS_RC__="):
-            rc = int(line.split("=", 1)[1])
+    _, rc = _parse_rc(_exec(s, code, timeout, on_stream=emit))
     return rc
 
 
@@ -344,14 +355,7 @@ def sh(s, command, timeout=300):
             "print(r.stdout,end='')\n"
             "print(r.stderr,end='')\n"
             "print('__PEGASUS_RC__=%d'%r.returncode)\n")
-    out = _exec(s, code, timeout)
-    rc, lines = 0, []
-    for line in out.splitlines(keepends=True):
-        if line.startswith("__PEGASUS_RC__="):
-            rc = int(line.split("=", 1)[1])
-        else:
-            lines.append(line)
-    return "".join(lines), rc
+    return _parse_rc(_exec(s, code, timeout))
 
 
 # --------------------------------------------------------------------------- #
