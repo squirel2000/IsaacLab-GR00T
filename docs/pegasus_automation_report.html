@@ -1,0 +1,2057 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pegasus 遠端自動化 · 完整教學報告</title>
+<style>
+  :root{
+    --bg:#0b0e14; --bg2:#0e131c; --panel:#121826; --panel2:#161d2e; --panel3:#1b2438;
+    --line:#243049; --line2:#2e3b58;
+    --tx:#e7edf6; --tx2:#aab6c9; --tx3:#7f8da6;
+    --cyan:#38bdf8; --cyan2:#22d3ee; --violet:#a78bfa; --green:#34d399;
+    --amber:#fbbf24; --red:#fb7185; --blue:#60a5fa; --pink:#f472b6;
+    --mono:ui-monospace,"Cascadia Code","JetBrains Mono",Consolas,"Courier New",monospace;
+    --sans:"Segoe UI",system-ui,-apple-system,"Noto Sans TC","Microsoft JhengHei",sans-serif;
+    --nav-w:282px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth; scroll-padding-top:84px}
+  body{margin:0;background:radial-gradient(1200px 700px at 80% -10%,#15203a 0%,transparent 55%),
+        radial-gradient(1000px 600px at -10% 10%,#16122e 0%,transparent 50%),var(--bg);
+        color:var(--tx);font-family:var(--sans);line-height:1.65;font-size:15.5px;-webkit-font-smoothing:antialiased}
+  a{color:var(--cyan);text-decoration:none}
+  ::selection{background:rgba(56,189,248,.3)}
+
+  /* progress + topbar */
+  #progress{position:fixed;top:0;left:0;height:3px;width:0;z-index:60;
+            background:linear-gradient(90deg,var(--cyan),var(--violet),var(--pink))}
+  header.top{position:fixed;top:0;left:0;right:0;height:60px;z-index:50;display:flex;align-items:center;
+             gap:14px;padding:0 20px;background:rgba(11,14,20,.72);backdrop-filter:blur(12px);
+             border-bottom:1px solid var(--line)}
+  header.top .logo{width:30px;height:30px;flex:0 0 auto}
+  header.top h1{font-size:15px;font-weight:650;margin:0;letter-spacing:.2px}
+  header.top .sub{color:var(--tx3);font-size:12.5px;margin-left:2px}
+  header.top .host{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--tx2);
+        background:var(--panel2);border:1px solid var(--line);padding:5px 11px;border-radius:999px}
+  .host b{color:var(--green)}
+  #navToggle{display:none;background:var(--panel2);border:1px solid var(--line);color:var(--tx);
+             border-radius:9px;padding:7px 10px;font-size:16px;cursor:pointer}
+
+  /* layout */
+  .wrap{display:flex;max-width:1480px;margin:0 auto;padding-top:60px}
+  nav.side{position:sticky;top:60px;align-self:flex-start;width:var(--nav-w);flex:0 0 var(--nav-w);
+           height:calc(100vh - 60px);overflow-y:auto;padding:22px 14px 60px 22px;border-right:1px solid var(--line)}
+  nav.side .grp{font-size:11px;text-transform:uppercase;letter-spacing:1.4px;color:var(--tx3);
+                margin:18px 10px 7px}
+  nav.side a{display:flex;gap:10px;align-items:center;color:var(--tx2);padding:7px 12px;border-radius:9px;
+             font-size:13.7px;border:1px solid transparent;transition:.15s}
+  nav.side a .n{font-family:var(--mono);font-size:11px;color:var(--tx3);width:20px;text-align:right}
+  nav.side a:hover{background:var(--panel);color:var(--tx)}
+  nav.side a.active{background:linear-gradient(90deg,rgba(56,189,248,.16),rgba(167,139,250,.06));
+                    color:#fff;border-color:var(--line2)}
+  nav.side a.active .n{color:var(--cyan)}
+
+  main{flex:1;min-width:0;padding:14px 46px 120px;max-width:1040px}
+  section{padding-top:34px;margin-bottom:26px;scroll-margin-top:80px}
+  h2.sec{font-size:25px;margin:6px 0 4px;letter-spacing:.2px;display:flex;align-items:center;gap:12px}
+  h2.sec .idx{font-family:var(--mono);font-size:14px;color:var(--bg);background:linear-gradient(135deg,var(--cyan),var(--violet));
+        width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-weight:700}
+  h3{font-size:17.5px;margin:26px 0 8px;color:#fff}
+  h4{font-size:14.5px;margin:18px 0 6px;color:var(--tx);letter-spacing:.3px}
+  p{color:var(--tx2);margin:9px 0}
+  .lead{font-size:16.5px;color:var(--tx);max-width:78ch}
+  hr.div{border:0;border-top:1px solid var(--line);margin:30px 0}
+  code.ic{font-family:var(--mono);font-size:.88em;background:var(--panel2);border:1px solid var(--line);
+          padding:1.5px 6px;border-radius:6px;color:#cfe8ff}
+  strong{color:#fff}
+  .muted{color:var(--tx3)}
+
+  /* hero */
+  .hero{position:relative;border:1px solid var(--line);border-radius:20px;overflow:hidden;
+        background:linear-gradient(135deg,#101728,#0c1119 60%);padding:34px 34px 30px;margin-bottom:8px}
+  .hero h1{font-size:33px;margin:0 0 6px;letter-spacing:.3px;line-height:1.18}
+  .hero h1 span{background:linear-gradient(90deg,var(--cyan),var(--violet) 60%,var(--pink));
+                -webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p{font-size:16px;color:var(--tx2);max-width:74ch}
+  .chips{display:flex;flex-wrap:wrap;gap:9px;margin-top:18px}
+  .chip{font-size:12.5px;color:var(--tx);background:var(--panel2);border:1px solid var(--line2);
+        padding:6px 12px;border-radius:999px;display:flex;align-items:center;gap:7px}
+  .chip .dot{width:8px;height:8px;border-radius:50%}
+  .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:22px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:14px 16px}
+  .stat .v{font-size:22px;font-weight:700;font-family:var(--mono)}
+  .stat .k{font-size:12px;color:var(--tx3);margin-top:2px}
+
+  /* cards / callouts */
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .card h4{margin-top:0}
+  .callout{border-radius:12px;padding:13px 16px 13px 15px;margin:14px 0;border:1px solid var(--line);
+           background:var(--panel2);position:relative;border-left-width:4px}
+  .callout.tip{border-left-color:var(--green)} .callout.warn{border-left-color:var(--amber)}
+  .callout.danger{border-left-color:var(--red)} .callout.info{border-left-color:var(--cyan)}
+  .callout .t{font-weight:650;font-size:13.5px;margin-bottom:3px;display:flex;gap:8px;align-items:center}
+  .callout.tip .t{color:var(--green)}.callout.warn .t{color:var(--amber)}
+  .callout.danger .t{color:var(--red)}.callout.info .t{color:var(--cyan)}
+  .callout p{margin:4px 0;color:var(--tx2);font-size:14px}
+
+  /* figure / svg */
+  figure.fig{margin:20px 0;background:linear-gradient(180deg,var(--panel),#0f1521);
+             border:1px solid var(--line);border-radius:16px;padding:18px 18px 8px;overflow:hidden}
+  figure.fig svg{width:100%;height:auto;display:block}
+  figure.fig figcaption{color:var(--tx3);font-size:12.5px;text-align:center;padding:10px 6px 6px;
+             border-top:1px dashed var(--line);margin-top:8px}
+  figcaption b{color:var(--tx2)}
+
+  /* code blocks */
+  .code-block{margin:14px 0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#0a0e16}
+  .code-block .cbhead{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--panel2);
+                      border-bottom:1px solid var(--line)}
+  .code-block .cbhead .lang{font-family:var(--mono);font-size:10.5px;letter-spacing:1px;text-transform:uppercase;
+         color:var(--bg);padding:2px 8px;border-radius:6px;font-weight:700}
+  .lang.bash{background:var(--green)} .lang.python{background:var(--cyan)} .lang.powershell{background:var(--blue)}
+  .lang.http{background:var(--violet)} .lang.json{background:var(--amber)} .lang.text{background:var(--tx3)}
+  .code-block .cbhead .title{font-size:12.5px;color:var(--tx2)}
+  .code-block .cbhead .copy{margin-left:auto;background:var(--panel3);border:1px solid var(--line2);color:var(--tx2);
+         font-size:11.5px;padding:4px 10px;border-radius:7px;cursor:pointer;transition:.15s}
+  .code-block .cbhead .copy:hover{color:#fff;border-color:var(--cyan)}
+  .code-block pre{margin:0;padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.62}
+  pre code{font-family:inherit}
+  /* token colors */
+  .t-cm{color:#5f6e86;font-style:italic}.t-str{color:#7ee787}.t-kw{color:#ff9ec7;font-weight:600}
+  .t-bi{color:#79c0ff}.t-cmd{color:#ffd479}.t-num{color:#d2a8ff}.t-var{color:#5ec8ff}
+  .t-flag{color:#f0a868}.t-dec{color:#c792ea}.t-op{color:#8aa0c0}
+
+  /* tables */
+  table.ref{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px;overflow:hidden;
+            border:1px solid var(--line);border-radius:12px}
+  table.ref th{background:var(--panel2);text-align:left;padding:10px 13px;color:var(--tx2);font-weight:600;
+               border-bottom:1px solid var(--line);font-size:12.5px;letter-spacing:.3px}
+  table.ref td{padding:9px 13px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--tx2)}
+  table.ref tr:last-child td{border-bottom:0}
+  table.ref tr:hover td{background:rgba(56,189,248,.04)}
+  table.ref td code,table.ref th code{font-family:var(--mono);font-size:12.4px;color:#cfe8ff}
+  table.ref td.k{font-family:var(--mono);color:#ffd479;white-space:nowrap}
+
+  /* timeline */
+  .timeline{position:relative;margin:18px 0 8px;padding-left:30px}
+  .timeline::before{content:"";position:absolute;left:9px;top:6px;bottom:6px;width:2px;
+        background:linear-gradient(var(--cyan),var(--violet),var(--pink))}
+  .step{position:relative;margin-bottom:14px}
+  .step::before{content:"";position:absolute;left:-26px;top:16px;width:13px;height:13px;border-radius:50%;
+        background:var(--bg);border:2px solid var(--cyan);box-shadow:0 0 0 4px rgba(56,189,248,.12)}
+  .step.warn::before{border-color:var(--amber);box-shadow:0 0 0 4px rgba(251,191,36,.12)}
+  .step.win::before{border-color:var(--green);box-shadow:0 0 0 4px rgba(52,211,153,.12)}
+  .step details{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .step summary{list-style:none;cursor:pointer;padding:12px 16px;display:flex;align-items:center;gap:12px}
+  .step summary::-webkit-details-marker{display:none}
+  .step .tag{font-family:var(--mono);font-size:10.5px;padding:2px 8px;border-radius:5px;font-weight:700;flex:0 0 auto}
+  .tag.probe{background:rgba(56,189,248,.16);color:var(--cyan)}
+  .tag.gotcha{background:rgba(251,191,36,.16);color:var(--amber)}
+  .tag.win{background:rgba(52,211,153,.16);color:var(--green)}
+  .step .stitle{font-weight:600;color:#fff;font-size:14.5px}
+  .step .arrow{margin-left:auto;color:var(--tx3);transition:.2s}
+  .step details[open] .arrow{transform:rotate(90deg)}
+  .step .body{padding:0 16px 14px;border-top:1px solid var(--line)}
+  .step .body p:first-child{margin-top:11px}
+
+  .pill-row{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+  .pill{font-family:var(--mono);font-size:12px;background:var(--panel2);border:1px solid var(--line2);
+        padding:5px 11px;border-radius:8px;color:var(--tx)}
+  .pill b{color:var(--cyan)}
+
+  .toolbar{display:flex;gap:8px;margin:6px 0 0}
+  .btn{background:var(--panel2);border:1px solid var(--line2);color:var(--tx2);font-size:12.5px;
+       padding:6px 13px;border-radius:8px;cursor:pointer}
+  .btn:hover{color:#fff;border-color:var(--cyan)}
+
+  details.src>summary{cursor:pointer;list-style:none;padding:12px 16px;background:var(--panel2);
+       border:1px solid var(--line);border-radius:12px;display:flex;align-items:center;gap:12px;font-weight:600}
+  details.src>summary::-webkit-details-marker{display:none}
+  details.src[open]>summary{border-radius:12px 12px 0 0;border-bottom:0}
+  details.src .filemeta{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--tx3)}
+
+  #toTop{position:fixed;right:22px;bottom:22px;width:42px;height:42px;border-radius:12px;z-index:40;
+         background:var(--panel2);border:1px solid var(--line2);color:var(--tx);cursor:pointer;
+         display:none;place-items:center;font-size:18px}
+  #toTop:hover{border-color:var(--cyan)}
+
+  footer{border-top:1px solid var(--line);margin-top:50px;padding:24px 0 10px;color:var(--tx3);font-size:13px}
+
+  @media(max-width:1080px){
+    nav.side{position:fixed;left:0;top:60px;background:var(--bg2);z-index:45;transform:translateX(-100%);
+             transition:.25s;box-shadow:18px 0 40px rgba(0,0,0,.5)}
+    nav.side.open{transform:none}
+    #navToggle{display:block}
+    main{padding:14px 20px 120px}
+    .stat-row{grid-template-columns:repeat(2,1fr)}
+    .g2,.g3{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div id="progress"></div>
+
+<header class="top">
+  <svg class="logo" viewBox="0 0 48 48" fill="none"><defs>
+    <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs>
+    <path d="M24 3l18 10v22L24 45 6 35V13z" stroke="url(#lg)" stroke-width="2.2" fill="rgba(56,189,248,.07)"/>
+    <path d="M16 30V18l8 5 8-5v12" stroke="url(#lg)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+  </svg>
+  <button id="navToggle" aria-label="menu">☰</button>
+  <h1>Pegasus 遠端自動化</h1><span class="sub">· 完整指令與架構教學</span>
+  <span class="host">user <b>gallop</b> @ <b>pa-jp-v1</b> · 2×H100</span>
+</header>
+
+<div class="wrap">
+<nav class="side" id="nav">
+  <div class="grp">入門</div>
+  <a href="#overview"><span class="n">00</span>總覽 Overview</a>
+  <a href="#architecture"><span class="n">01</span>系統架構</a>
+  <a href="#journey"><span class="n">02</span>探索歷程 (side chat)</a>
+  <div class="grp">核心概念與語法</div>
+  <a href="#auth"><span class="n">03</span>登入與 XSRF</a>
+  <a href="#tls"><span class="n">04</span>TLS / 內部 CA</a>
+  <a href="#api"><span class="n">05</span>Jupyter REST API</a>
+  <a href="#exec"><span class="n">06</span>遠端執行 (kernel WS)</a>
+  <a href="#detached"><span class="n">07</span>Detached 存活</a>
+  <a href="#download"><span class="n">08</span>續傳下載 + 驗證</a>
+  <div class="grp">整合與實戰</div>
+  <a href="#pipeline"><span class="n">09</span>Fine-tune 流程</a>
+  <a href="#cli"><span class="n">10</span>CLI 指令手冊</a>
+  <a href="#source"><span class="n">11</span>完整原始碼</a>
+  <a href="#gotchas"><span class="n">12</span>踩雷與教訓</a>
+</nav>
+
+<main>
+
+<!-- ===================== OVERVIEW ===================== -->
+<section id="overview" style="padding-top:8px">
+  <div class="hero">
+    <h1>把一台只有網頁的雲端機器，<br><span>變成可程式化的訓練叢集</span></h1>
+    <p>MIS 提供的 <code class="ic">service-cpu-bdml.asus.com/pegasus</code> 表面上只是一個密碼網頁，
+       實際上是一台 <strong>Jupyter Server</strong>。本報告完整記錄如何用它的 REST API + kernel WebSocket
+       打造「<strong>上傳 → 遠端執行 → 壓縮 → 斷線可續傳下載 → 完整性驗證</strong>」的全自動 GR00T fine-tuning 流程，
+       並逐項拆解每一條指令的語法。</p>
+    <div class="chips">
+      <span class="chip"><span class="dot" style="background:var(--green)"></span>Jupyter Server 2.17</span>
+      <span class="chip"><span class="dot" style="background:var(--cyan)"></span>Python requests + websocket-client</span>
+      <span class="chip"><span class="dot" style="background:var(--violet)"></span>truststore 驗證式 TLS</span>
+      <span class="chip"><span class="dot" style="background:var(--amber)"></span>setsid detached 存活</span>
+      <span class="chip"><span class="dot" style="background:var(--pink)"></span>HTTP Range 續傳</span>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><div class="v" style="color:var(--cyan)">2×H100</div><div class="k">遠端 GPU (80GB PCIe)</div></div>
+      <div class="stat"><div class="v" style="color:var(--violet)">~18 GB</div><div class="k">checkpoint zip 體積</div></div>
+      <div class="stat"><div class="v" style="color:var(--green)">2 支</div><div class="k">交付腳本</div></div>
+      <div class="stat"><div class="v" style="color:var(--amber)">9 個</div><div class="k">關鍵踩雷點</div></div>
+    </div>
+  </div>
+
+  <h3>交付了什麼</h3>
+  <div class="grid g2">
+    <div class="card">
+      <h4 style="color:var(--cyan)">pegasus.py — 底層函式庫 + CLI</h4>
+      <p>封裝登入、TLS、上傳、下載、遠端執行。可單獨當命令列工具：
+        <code class="ic">ls / put / get / rm / mkdir / run</code>。</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--violet)">run_finetune.py — 流程編排器</h4>
+      <p>把訓練包成伺服器端 detached 工作，並做監控、清理、壓縮、續傳下載與驗證：
+        <code class="ic">run / monitor / download / status / stop / selftest</code>。</p>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <div class="t">如何閱讀本報告</div>
+    <p>左側 03–08 是「核心概念」，每節都有一張<strong>架構圖</strong>＋對應的<strong>指令語法拆解</strong>；
+       09–10 是把這些概念組起來的實戰流程；11 是兩支腳本的完整原始碼；02 與 12 則記錄了真實的除錯過程。
+       所有程式碼區塊右上角都可一鍵複製。</p>
+  </div>
+</section>
+
+<!-- ===================== ARCHITECTURE ===================== -->
+<section id="architecture">
+  <h2 class="sec"><span class="idx">01</span>系統架構</h2>
+  <p class="lead">本機 (Windows) 透過 HTTPS 連到 nginx 後方的 Jupyter Server。Jupyter 暴露三個我們會用到的介面：
+     <b style="color:var(--cyan)">Contents API</b>（檔案）、<b style="color:var(--amber)">Kernels + WebSocket</b>（執行程式）、
+     <b style="color:var(--violet)">/files</b>（原始檔案下載，支援續傳）。三者都共用同一組登入 Cookie。</p>
+
+  <figure class="fig">
+    <svg viewBox="0 0 960 470" role="img" aria-label="系統架構圖">
+      <defs>
+        <linearGradient id="aLocal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#16233f"/><stop offset="1" stop-color="#101626"/></linearGradient>
+        <linearGradient id="aRemote" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1d1a37"/><stop offset="1" stop-color="#121024"/></linearGradient>
+        <linearGradient id="aCyan" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0ea5e9"/><stop offset="1" stop-color="#22d3ee"/></linearGradient>
+        <linearGradient id="aAmber" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f59e0b"/><stop offset="1" stop-color="#fbbf24"/></linearGradient>
+        <linearGradient id="aViolet" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b5cf6"/><stop offset="1" stop-color="#c084fc"/></linearGradient>
+        <linearGradient id="aGreen" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#10b981"/><stop offset="1" stop-color="#34d399"/></linearGradient>
+        <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="5" stdDeviation="8" flood-color="#000" flood-opacity=".45"/></filter>
+        <marker id="arr" markerWidth="11" markerHeight="11" refX="8" refY="5.5" orient="auto"><path d="M1,1 L9,5.5 L1,10" fill="none" stroke="#7f8da6" stroke-width="1.6"/></marker>
+      </defs>
+
+      <!-- LOCAL panel -->
+      <rect x="20" y="40" width="270" height="380" rx="18" fill="url(#aLocal)" stroke="#2a3a5c" filter="url(#soft)"/>
+      <text x="40" y="72" fill="#cfe0ff" font-size="14" font-weight="700">你的 Windows PC</text>
+      <text x="40" y="90" fill="#7f8da6" font-size="11">D:\Gits\IsaacLab-GR00T</text>
+      <!-- python boxes -->
+      <rect x="40" y="108" width="230" height="58" rx="11" fill="#0e1626" stroke="#28406a"/>
+      <circle cx="64" cy="137" r="11" fill="url(#aCyan)"/><text x="64" y="141" text-anchor="middle" font-size="11" fill="#06121f" font-weight="700">py</text>
+      <text x="86" y="132" fill="#e7edf6" font-size="12.5" font-weight="600">run_finetune.py</text>
+      <text x="86" y="149" fill="#8b949e" font-size="10.5">流程編排</text>
+      <rect x="40" y="176" width="230" height="58" rx="11" fill="#0e1626" stroke="#28406a"/>
+      <circle cx="64" cy="205" r="11" fill="url(#aViolet)"/><text x="64" y="209" text-anchor="middle" font-size="11" fill="#06121f" font-weight="700">py</text>
+      <text x="86" y="200" fill="#e7edf6" font-size="12.5" font-weight="600">pegasus.py</text>
+      <text x="86" y="217" fill="#8b949e" font-size="10.5">requests · websocket-client</text>
+      <!-- truststore -->
+      <rect x="40" y="252" width="230" height="50" rx="11" fill="#161226" stroke="#3a2e63"/>
+      <text x="56" y="274" font-size="14">🔐</text>
+      <text x="80" y="273" fill="#d6c7ff" font-size="12" font-weight="600">truststore</text>
+      <text x="80" y="289" fill="#8b949e" font-size="10.5">借用 Windows 憑證庫驗證 TLS</text>
+      <!-- artifacts -->
+      <rect x="40" y="320" width="230" height="76" rx="11" fill="#0e1626" stroke="#28406a"/>
+      <text x="56" y="345" font-size="14">📦</text>
+      <text x="80" y="344" fill="#e7edf6" font-size="12" font-weight="600">下載目的地</text>
+      <text x="56" y="368" fill="#9fb0c9" font-size="10.5" font-family="ui-monospace,monospace">D:\tmp\IsaacLab-GR00T\</text>
+      <text x="56" y="383" fill="#9fb0c9" font-size="10.5" font-family="ui-monospace,monospace">artifacts\checkpoints\</text>
+
+      <!-- link -->
+      <line x1="290" y1="200" x2="430" y2="200" stroke="#7f8da6" stroke-width="1.6" marker-end="url(#arr)" stroke-dasharray="5 4"/>
+      <line x1="430" y1="250" x2="290" y2="250" stroke="#7f8da6" stroke-width="1.6" marker-end="url(#arr)" stroke-dasharray="5 4"/>
+      <rect x="312" y="150" width="96" height="26" rx="8" fill="#0c1119" stroke="#2a3a5c"/>
+      <text x="360" y="167" text-anchor="middle" fill="#9fb0c9" font-size="11" font-weight="600">HTTPS 443</text>
+      <text x="360" y="232" text-anchor="middle" fill="#5f6e86" font-size="10">TLS 由 ASUS 內部 CA 簽發</text>
+
+      <!-- REMOTE panel -->
+      <rect x="430" y="40" width="510" height="380" rx="18" fill="url(#aRemote)" stroke="#3a2e63" filter="url(#soft)"/>
+      <text x="452" y="72" fill="#e2d6ff" font-size="14" font-weight="700">Pegasus 伺服器</text>
+      <text x="452" y="90" fill="#7f8da6" font-size="11">nginx → Jupyter Server 2.17 (base path /pegasus)</text>
+      <rect x="452" y="104" width="466" height="30" rx="8" fill="#0c1119" stroke="#2a3a5c"/>
+      <text x="468" y="124" fill="#9fb0c9" font-size="11">nginx 反向代理 · 密碼登入 · 共用 session cookie</text>
+
+      <!-- three surfaces -->
+      <g>
+        <rect x="452" y="150" width="150" height="92" rx="12" fill="#0e1626" stroke="url(#aCyan)" stroke-opacity=".7"/>
+        <text x="468" y="174" fill="#7fdcff" font-size="12" font-weight="700">Contents API</text>
+        <text x="468" y="194" fill="#9fb0c9" font-size="10" font-family="ui-monospace,monospace">/api/contents</text>
+        <text x="468" y="212" fill="#8b949e" font-size="10">上傳 / 列檔 / 刪除</text>
+        <text x="468" y="228" fill="#8b949e" font-size="10">PUT · GET · DELETE</text>
+      </g>
+      <g>
+        <rect x="613" y="150" width="150" height="92" rx="12" fill="#1a1530" stroke="url(#aAmber)" stroke-opacity=".7"/>
+        <text x="629" y="174" fill="#ffd479" font-size="12" font-weight="700">Kernels + WS</text>
+        <text x="629" y="194" fill="#9fb0c9" font-size="10" font-family="ui-monospace,monospace">/api/kernels</text>
+        <text x="629" y="212" fill="#8b949e" font-size="10">執行任意程式碼</text>
+        <text x="629" y="228" fill="#8b949e" font-size="10">WebSocket 串流</text>
+      </g>
+      <g>
+        <rect x="774" y="150" width="144" height="92" rx="12" fill="#161226" stroke="url(#aViolet)" stroke-opacity=".7"/>
+        <text x="790" y="174" fill="#d6c7ff" font-size="12" font-weight="700">/files</text>
+        <text x="790" y="194" fill="#9fb0c9" font-size="10" font-family="ui-monospace,monospace">/files/&lt;path&gt;</text>
+        <text x="790" y="212" fill="#8b949e" font-size="10">原始檔下載</text>
+        <text x="790" y="228" fill="#8b949e" font-size="10">Range 續傳</text>
+      </g>
+
+      <!-- the box -->
+      <rect x="452" y="262" width="466" height="138" rx="13" fill="#0c1322" stroke="#28406a"/>
+      <text x="468" y="286" fill="#cfe0ff" font-size="12.5" font-weight="700">pa-jp-v1 · /data</text>
+      <!-- GPUs -->
+      <rect x="468" y="300" width="120" height="44" rx="9" fill="#0a1f1a" stroke="url(#aGreen)" stroke-opacity=".8"/>
+      <text x="528" y="320" text-anchor="middle" fill="#7df0c8" font-size="11" font-weight="700">H100 #0</text>
+      <text x="528" y="336" text-anchor="middle" fill="#8b949e" font-size="9.5">80 GB</text>
+      <rect x="598" y="300" width="120" height="44" rx="9" fill="#0a1f1a" stroke="url(#aGreen)" stroke-opacity=".8"/>
+      <text x="658" y="320" text-anchor="middle" fill="#7df0c8" font-size="11" font-weight="700">H100 #1</text>
+      <text x="658" y="336" text-anchor="middle" fill="#8b949e" font-size="9.5">80 GB</text>
+      <!-- conda -->
+      <rect x="730" y="300" width="172" height="44" rx="9" fill="#161226" stroke="#3a2e63"/>
+      <text x="746" y="320" fill="#d6c7ff" font-size="11" font-weight="600">conda env (path)</text>
+      <text x="746" y="335" fill="#8b949e" font-size="9" font-family="ui-monospace,monospace">/data/VLA/tingying/envs/gr00t_n1d5</text>
+      <text x="468" y="368" fill="#9fb0c9" font-size="10" font-family="ui-monospace,monospace">Isaac-GR00T · datasets · experiments(checkpoints)</text>
+      <text x="468" y="385" fill="#5f6e86" font-size="10">磁碟 /data：2.0T（剩 ~596G）</text>
+
+      <line x1="527" y1="242" x2="527" y2="262" stroke="#3a527f" stroke-width="1.4"/>
+      <line x1="688" y1="242" x2="688" y2="262" stroke="#3a527f" stroke-width="1.4"/>
+      <line x1="846" y1="242" x2="846" y2="262" stroke="#3a527f" stroke-width="1.4"/>
+    </svg>
+    <figcaption><b>圖 1</b> · 整體架構：本機 Python 透過三個 Jupyter 介面操作遠端 H100 機器，TLS 以 truststore 驗證 ASUS 內部 CA。</figcaption>
+  </figure>
+
+  <div class="callout tip">
+    <div class="t">關鍵心智模型</div>
+    <p>整套自動化只靠三件事：<strong>一組登入 Cookie</strong> + <strong>一個 <code class="ic">_xsrf</code> token</strong> + <strong>三個 HTTP/WS 端點</strong>。
+       理解這點，後面所有指令都只是它們的組合。</p>
+  </div>
+</section>
+
+<!-- ===================== JOURNEY ===================== -->
+<section id="journey">
+  <h2 class="sec"><span class="idx">02</span>探索歷程 · side chat</h2>
+  <p class="lead">這一節重現真實的偵錯過程——每一步「為什麼這樣試、結果學到什麼」。展開即可看到當時實際下的指令。</p>
+  <div class="toolbar"><button class="btn" id="expandJourney">全部展開</button><button class="btn" id="collapseJourney">全部收合</button></div>
+
+  <div class="timeline" id="journey-tl">
+    <div class="step"><details><summary><span class="tag probe">PROBE</span><span class="stitle">這到底是什麼服務？用 curl 看 header</span><span class="arrow">▶</span></summary>
+      <div class="body">
+        <p>先不登入，純看 HTTP 回應。發現 <code class="ic">301</code> 轉址到 <code class="ic">/pegasus/</code>，Server 是 <code class="ic">nginx</code>，
+           且 CSP <code class="ic">frame-ancestors</code> 指向 <code class="ic">daa.asus.com</code>（內部平台）。</p>
+        <script type="text/plain" class="cb" data-lang="bash" data-title="探測 HTTP header">curl -sS -I --max-time 30 https://service-cpu-bdml.asus.com/pegasus
+# HTTP/1.1 301 Moved Permanently
+# Server: nginx
+# Location: https://service-cpu-bdml.asus.com/pegasus/
+# Content-Security-Policy: frame-ancestors https://daa.asus.com/ ...</script>
+        <p>跟著轉址抓內容，HTML <code class="ic">&lt;title&gt;Jupyter Server&lt;/title&gt;</code> 與密碼表單現形 → <strong>這是 Jupyter Server</strong>。</p>
+      </div></details></div>
+
+    <div class="step win"><details><summary><span class="tag win">WIN</span><span class="stitle">用密碼登入拿到 session cookie</span><span class="arrow">▶</span></summary>
+      <div class="body">
+        <p>Jupyter 登入是兩步：先 GET 拿 <code class="ic">_xsrf</code> cookie，再 POST 密碼 + <code class="ic">_xsrf</code>。成功回 <code class="ic">302 → /pegasus/tree</code> 並種下登入 cookie。詳見 <a href="#auth">§03</a>。</p>
+      </div></details></div>
+
+    <div class="step warn"><details><summary><span class="tag gotcha">GOTCHA</span><span class="stitle">curl 對 PUT 上傳 segfault</span><span class="arrow">▶</span></summary>
+      <div class="body">
+        <p>在 sandbox 用 <code class="ic">curl -X PUT --data @body.json</code> 上傳時 curl 直接 <code class="ic">Segmentation fault</code>。
+           與其和 curl build 纏鬥，直接改用 Python（後續要交付的也是 Python），更穩也更貼近成品。</p>
+      </div></details></div>
+
+    <div class="step warn"><details><summary><span class="tag gotcha">GOTCHA</span><span class="stitle">/tmp 不一致：bash 的 /tmp ≠ Windows python 的 /tmp</span><span class="arrow">▶</span></summary>
+      <div class="body">
+        <p>Write 寫到 bash 的 <code class="ic">/tmp</code>，但 <code class="ic">python3</code> 解析到 Windows 版，把 <code class="ic">/tmp</code> 當成 <code class="ic">%TEMP%</code>，找不到檔案。
+           結論：在 Windows 上一律走 PowerShell + 明確 Windows 路徑。</p>
+      </div></details></div>
+
+    <div class="step warn"><details><summary><span class="tag gotcha">GOTCHA</span><span class="stitle">SSL：self-signed certificate in chain</span><span class="arrow">▶</span></summary>
+      <div class="body">
+        <p>從 Windows 連線時 <code class="ic">requests</code> 報 <code class="ic">CERTIFICATE_VERIFY_FAILED</code>。檢查憑證鏈發現是
+           <code class="ic">ASUSTEK 2016 Service CA1</code>（內部 CA），不在 Python 的 certifi 信任清單。
+           解法是 <code class="ic">truststore</code> 改用 Windows 信任庫，見 <a href="#tls">§04</a>。</p>
+      </div></details></div>
+
+    <div class="step win"><details><summary><span class="tag win">WIN</span><span class="stitle">確認可上傳/下載/執行任意程式</span><span class="arrow">▶</span></summary>
+      <div class="body">
+        <p>完整跑通：list / 上傳（含二進位，MD5 round-trip 吻合）/ 下載 / 刪除 / 透過 kernel WebSocket 執行 shell。
+           探測到 <code class="ic">gallop@pa-jp-v1</code>、<code class="ic">/data</code>、Python 3.12、<strong>2×H100</strong>。</p>
+      </div></details></div>
+
+    <div class="step warn"><details><summary><span class="tag gotcha">GOTCHA</span><span class="stitle">大檔下載：/files 回 403</span><span class="arrow">▶</span></summary>
+      <div class="body">
+        <p>Contents API 用 base64 整檔載入記憶體，對 18GB 不可行。改用原始端點 <code class="ic">/files/&lt;path&gt;</code> 卻回 403（被導去登入頁）。
+           加上 <code class="ic">?_xsrf=&lt;token&gt;</code> 後即通過，且回應帶 <code class="ic">Accept-Ranges: bytes</code> → <strong>支援續傳</strong>！見 <a href="#download">§08</a>。</p>
+      </div></details></div>
+
+    <div class="step warn"><details><summary><span class="tag gotcha">GOTCHA</span><span class="stitle">monitor 一直 404：Jupyter 隱藏 dot 目錄</span><span class="arrow">▶</span></summary>
+      <div class="body">
+        <p>把狀態檔放在 <code class="ic">.pegasus_runs</code>（dot 開頭）→ <code class="ic">/files</code> 一律 404，因為 Jupyter 預設 <code class="ic">allow_hidden=False</code>。
+           改用非隱藏目錄 <code class="ic">pegasus_runs</code> 立刻正常。</p>
+      </div></details></div>
+
+    <div class="step warn"><details><summary><span class="tag gotcha">GOTCHA</span><span class="stitle">conda 在 bash -lc 找不到；env 是「路徑型」</span><span class="arrow">▶</span></summary>
+      <div class="body">
+        <p>非互動 <code class="ic">bash -lc</code> 下 <code class="ic">conda: command not found</code>；而且 <code class="ic">gr00t_n1d5</code> 不在預設 envs，按名稱 activate 會失敗。
+           正解：先 <code class="ic">eval "$(... conda shell.bash hook)"</code>，再用<strong>完整路徑</strong> activate。見 <a href="#detached">§07</a>。</p>
+      </div></details></div>
+
+    <div class="step win"><details><summary><span class="tag win">WIN</span><span class="stitle">驗證 detached 工作能在 kernel 被刪後存活</span><span class="arrow">▶</span></summary>
+      <div class="body">
+        <p>關鍵實驗：用 <code class="ic">setsid</code> 啟動背景工作後<strong>立刻刪掉 kernel</strong>，再用 <code class="ic">/files</code> 觀察 log——工作仍持續寫到完成。
+           這證明長時間訓練不會因為斷線/關 kernel 而中斷，是整個設計的基石。</p>
+      </div></details></div>
+
+    <div class="step win"><details><summary><span class="tag win">WIN</span><span class="stitle">selftest 端到端通過</span><span class="arrow">▶</span></summary>
+      <div class="body">
+        <p>用假工作（造 12MB 隨機檔 + 假 checkpoint）跑完整流程：啟動→監控→<code class="ic">rm -rf checkpoint-9*</code>（正確保留 100000）→zip→sha256→
+           續傳下載→<strong>sha256 與大小皆吻合</strong>。流程機制全數驗證。</p>
+      </div></details></div>
+  </div>
+</section>
+
+<!-- ===================== AUTH ===================== -->
+<section id="auth">
+  <h2 class="sec"><span class="idx">03</span>登入與 XSRF token</h2>
+  <p class="lead">Jupyter 的密碼登入是 <strong>兩段式</strong>：① GET 登入頁讓伺服器種下 <code class="ic">_xsrf</code> cookie；
+     ② POST 密碼 + <code class="ic">_xsrf</code>。之後所有「會改變狀態」的請求（PUT/POST/DELETE）都要帶 <code class="ic">X-XSRFToken</code> header。</p>
+
+  <figure class="fig">
+    <svg viewBox="0 0 920 250" role="img" aria-label="登入流程">
+      <defs>
+        <marker id="arr2" markerWidth="11" markerHeight="11" refX="8" refY="5.5" orient="auto"><path d="M1,1 L9,5.5 L1,10" fill="none" stroke="#38bdf8" stroke-width="1.7"/></marker>
+        <marker id="arr2b" markerWidth="11" markerHeight="11" refX="8" refY="5.5" orient="auto"><path d="M1,1 L9,5.5 L1,10" fill="none" stroke="#34d399" stroke-width="1.7"/></marker>
+      </defs>
+      <rect x="30" y="40" width="150" height="170" rx="13" fill="#101626" stroke="#28406a"/>
+      <text x="105" y="70" text-anchor="middle" fill="#cfe0ff" font-size="13" font-weight="700">Client</text>
+      <text x="105" y="88" text-anchor="middle" fill="#7f8da6" font-size="10">requests.Session()</text>
+      <rect x="740" y="40" width="150" height="170" rx="13" fill="#161226" stroke="#3a2e63"/>
+      <text x="815" y="70" text-anchor="middle" fill="#e2d6ff" font-size="13" font-weight="700">Jupyter</text>
+      <text x="815" y="88" text-anchor="middle" fill="#7f8da6" font-size="10">/pegasus/login</text>
+
+      <line x1="180" y1="118" x2="738" y2="118" stroke="#38bdf8" stroke-width="1.8" marker-end="url(#arr2)"/>
+      <rect x="300" y="98" width="320" height="22" rx="7" fill="#0c1119"/>
+      <text x="312" y="113" fill="#7fdcff" font-size="11" font-family="ui-monospace,monospace">① GET /login</text>
+      <text x="455" y="113" fill="#8b949e" font-size="10">→ 回應 Set-Cookie: _xsrf=...</text>
+
+      <line x1="180" y1="162" x2="738" y2="162" stroke="#38bdf8" stroke-width="1.8" marker-end="url(#arr2)"/>
+      <rect x="250" y="142" width="420" height="22" rx="7" fill="#0c1119"/>
+      <text x="262" y="157" fill="#7fdcff" font-size="11" font-family="ui-monospace,monospace">② POST /login</text>
+      <text x="385" y="157" fill="#8b949e" font-size="10">body: _xsrf + password (form-urlencoded)</text>
+
+      <line x1="738" y1="196" x2="182" y2="196" stroke="#34d399" stroke-width="1.8" marker-end="url(#arr2b)"/>
+      <rect x="300" y="176" width="330" height="22" rx="7" fill="#0c1119"/>
+      <text x="312" y="191" fill="#7df0c8" font-size="11" font-family="ui-monospace,monospace">302 → /tree</text>
+      <text x="430" y="191" fill="#8b949e" font-size="10">Set-Cookie: username-...（登入態）</text>
+    </svg>
+    <figcaption><b>圖 2</b> · 兩段式登入。Session 物件自動保存 cookie；之後寫入類請求要附 <b>X-XSRFToken</b>。</figcaption>
+  </figure>
+
+  <h3>用 curl 走一遍（理解原理）</h3>
+  <script type="text/plain" class="cb" data-lang="bash" data-title="curl + cookie jar 登入">BASE="https://service-cpu-bdml.asus.com/pegasus"
+# ① 取得 _xsrf cookie，存進 cookie jar (cj.txt)
+curl -sS -c cj.txt "$BASE/login" -o /dev/null
+XSRF=$(grep _xsrf cj.txt | awk '{print $7}')        # 從 cookie 檔抽出 token
+
+# ② 帶著 cookie 送出密碼；密碼含 # 用 --data-urlencode 安全編碼
+curl -sS -b cj.txt -c cj.txt -i \
+  --data-urlencode "_xsrf=$XSRF" \
+  --data-urlencode "password=eksncl#..." \
+  "$BASE/login?next=%2Fpegasus%2Ftree"
+# → HTTP/1.1 302 Found ; Location: /pegasus/tree</script>
+
+  <table class="ref">
+    <tr><th>語法</th><th>意義</th></tr>
+    <tr><td class="k">-c cj.txt</td><td>把回應的 Set-Cookie <strong>寫入</strong> cookie jar 檔（<code>--cookie-jar</code>）。</td></tr>
+    <tr><td class="k">-b cj.txt</td><td>請求時<strong>讀取</strong>並送出 cookie jar 內的 cookie（<code>--cookie</code>）。</td></tr>
+    <tr><td class="k">--data-urlencode</td><td>把欄位做 URL 編碼後當 POST body；密碼裡的 <code>#</code>、<code>&amp;</code> 等才不會被誤解。</td></tr>
+    <tr><td class="k">-sS</td><td><code>-s</code> 安靜（不顯示進度），<code>-S</code> 但仍顯示錯誤。</td></tr>
+    <tr><td class="k">-i</td><td>輸出包含 HTTP 回應標頭（才看得到 302 與 Location）。</td></tr>
+  </table>
+
+  <h3>Python 版（成品採用）</h3>
+  <script type="text/plain" class="cb" data-lang="python" data-title="pegasus.py · login()">import requests
+BASE = "https://service-cpu-bdml.asus.com/pegasus"
+s = requests.Session()                 # Session 會自動保存/帶上 cookie
+
+def login(s, password):
+    s.get(f"{BASE}/login").raise_for_status()          # ① 取得 _xsrf cookie
+    r = s.post(f"{BASE}/login",
+               data={"_xsrf": s.cookies.get("_xsrf"),  # ② 送出 _xsrf + 密碼
+                     "password": password},
+               allow_redirects=False)                  # 不自動跟隨 302，才能檢查狀態碼
+    assert r.status_code in (302, 200)
+    return s
+
+def xsrf_headers(s):                    # 寫入類請求(PUT/POST/DELETE)要帶這個 header
+    return {"X-XSRFToken": s.cookies.get("_xsrf")}</script>
+
+  <div class="callout danger">
+    <div class="t">安全：密碼來源</div>
+    <p>目前 <code class="ic">pegasus.py</code> 頂端用 <code class="ic">PEGASUS_PASSWORD</code> 常數帶密碼（方便，但會寫進檔案——本報告已隱去其值）。
+       若要避免把密碼 commit 進 git，建議留空改用互動輸入（<code class="ic">getpass</code>），或改回環境變數。密碼帶日期/_PE 字尾，研判會<strong>定期輪替</strong>。</p>
+  </div>
+</section>
+
+<!-- ===================== TLS ===================== -->
+<section id="tls">
+  <h2 class="sec"><span class="idx">04</span>TLS：內部 CA 與 truststore</h2>
+  <p class="lead">站台憑證由 <strong>ASUSTEK 2016 Service CA1</strong> 簽發——這張 CA 已存在 Windows 憑證庫，但 Python 的
+     <code class="ic">requests</code> 預設用自己的 <code class="ic">certifi</code> 清單，不讀 OS 憑證庫，因此會驗證失敗。</p>
+
+  <figure class="fig">
+    <svg viewBox="0 0 920 260" role="img" aria-label="TLS 信任鏈">
+      <defs>
+        <marker id="arr3" markerWidth="11" markerHeight="11" refX="8" refY="5.5" orient="auto"><path d="M1,1 L9,5.5 L1,10" fill="none" stroke="#a78bfa" stroke-width="1.7"/></marker>
+        <linearGradient id="okG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#10b981"/><stop offset="1" stop-color="#34d399"/></linearGradient>
+        <linearGradient id="noG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ef4444"/><stop offset="1" stop-color="#fb7185"/></linearGradient>
+      </defs>
+      <!-- bad path -->
+      <text x="40" y="42" fill="#fb7185" font-size="12.5" font-weight="700">✗ 預設行為（驗證失敗）</text>
+      <rect x="40" y="54" width="150" height="48" rx="11" fill="#101626" stroke="#2a3a5c"/>
+      <text x="115" y="74" text-anchor="middle" fill="#cfe0ff" font-size="11.5" font-weight="600">requests</text>
+      <text x="115" y="90" text-anchor="middle" fill="#8b949e" font-size="9.5">certifi 清單</text>
+      <line x1="190" y1="78" x2="300" y2="78" stroke="url(#noG)" stroke-width="2"/>
+      <text x="245" y="70" text-anchor="middle" fill="#fb7185" font-size="16">⛌</text>
+      <rect x="300" y="54" width="180" height="48" rx="11" fill="#1a1320" stroke="#5b2330"/>
+      <text x="390" y="74" text-anchor="middle" fill="#ffb4c0" font-size="11" font-weight="600">ASUS 內部 CA</text>
+      <text x="390" y="90" text-anchor="middle" fill="#8b949e" font-size="9.5">不在 certifi → CERT_VERIFY_FAILED</text>
+
+      <!-- good path -->
+      <text x="40" y="150" fill="#34d399" font-size="12.5" font-weight="700">✓ truststore（驗證成功）</text>
+      <rect x="40" y="162" width="150" height="56" rx="11" fill="#101626" stroke="#28406a"/>
+      <text x="115" y="184" text-anchor="middle" fill="#cfe0ff" font-size="11.5" font-weight="600">requests</text>
+      <text x="115" y="200" text-anchor="middle" fill="#8b949e" font-size="9.5">inject_into_ssl()</text>
+      <line x1="190" y1="190" x2="290" y2="190" stroke="url(#okG)" stroke-width="2" marker-end="url(#arr3)"/>
+      <rect x="300" y="162" width="180" height="56" rx="11" fill="#101a14" stroke="#1f6e4d"/>
+      <text x="390" y="184" text-anchor="middle" fill="#7df0c8" font-size="11" font-weight="600">Windows 憑證庫</text>
+      <text x="390" y="200" text-anchor="middle" fill="#8b949e" font-size="9.5">已含 ASUSTEK 2016 Service CA1</text>
+      <line x1="480" y1="190" x2="580" y2="190" stroke="url(#okG)" stroke-width="2" marker-end="url(#arr3)"/>
+      <rect x="590" y="162" width="170" height="56" rx="11" fill="#101a14" stroke="#1f6e4d"/>
+      <text x="675" y="184" text-anchor="middle" fill="#7df0c8" font-size="11" font-weight="600">驗證通過 ✓</text>
+      <text x="675" y="200" text-anchor="middle" fill="#8b949e" font-size="9.5">不需要 verify=False</text>
+
+      <text x="800" y="120" text-anchor="middle" font-size="40">🔐</text>
+      <text x="800" y="150" text-anchor="middle" fill="#9fb0c9" font-size="10">CN=service-cpu-bdml</text>
+      <text x="800" y="165" text-anchor="middle" fill="#5f6e86" font-size="9.5">→ 2028 到期</text>
+    </svg>
+    <figcaption><b>圖 3</b> · <b>truststore</b> 讓 Python 改用作業系統信任庫，安全地接受 ASUS 內部 CA，避免關閉驗證。</figcaption>
+  </figure>
+
+  <div class="grid g2">
+    <div>
+      <h4>檢視憑證（PowerShell）</h4>
+      <script type="text/plain" class="cb" data-lang="powershell" data-title="抓 TLS 憑證的簽發者">$req = [Net.HttpWebRequest]::Create(
+  "https://service-cpu-bdml.asus.com/pegasus/")
+$req.ServerCertificateValidationCallback = { $true }
+try { $req.GetResponse() } catch {}
+$c = [Security.Cryptography.X509Certificates.X509Certificate2]`
+       $req.ServicePoint.Certificate
+"Issuer : $($c.Issuer)"
+# Issuer : CN=ASUSTEK 2016 Service CA1, DC=corpnet, DC=asus</script>
+    </div>
+    <div>
+      <h4>啟用 truststore</h4>
+      <script type="text/plain" class="cb" data-lang="powershell" data-title="安裝並驗證">pip install truststore
+python -c "import truststore; truststore.inject_into_ssl(); `
+import requests; print(requests.get(
+'https://service-cpu-bdml.asus.com/pegasus/login').status_code)"
+# 200  →  驗證式 TLS OK</script>
+    </div>
+  </div>
+
+  <h4>成品如何選擇：優先安全、必要時退讓</h4>
+  <script type="text/plain" class="cb" data-lang="python" data-title="pegasus.py · make_session()">def make_session(insecure=False):
+    if not insecure:
+        try:
+            import truststore
+            truststore.inject_into_ssl()       # 借用 OS 憑證庫（含 ASUS CA）
+        except ImportError:                    # 沒裝 truststore 才退而求其次
+            insecure = True
+    import requests, urllib3
+    s = requests.Session()
+    if insecure:
+        urllib3.disable_warnings()
+        s.verify = False                       # 最後手段：關閉驗證（會失去 MITM 防護）
+    s._insecure = insecure
+    return s</script>
+</section>
+
+<!-- ===================== API ===================== -->
+<section id="api">
+  <h2 class="sec"><span class="idx">05</span>Jupyter REST API：檔案操作</h2>
+  <p class="lead">檔案的增刪查改都走 <strong>Contents API</strong>（<code class="ic">/api/contents/&lt;path&gt;</code>）。路徑相對於 Jupyter 根目錄，
+     而此處根目錄對應伺服器的 <code class="ic">/data</code>，所以 <code class="ic">/data/VLA/foo</code> 在 API 中寫作 <code class="ic">VLA/foo</code>。</p>
+
+  <figure class="fig">
+    <svg viewBox="0 0 920 220" role="img" aria-label="Contents API 動作">
+      <defs><linearGradient id="cG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0e1626"/><stop offset="1" stop-color="#0a0f1a"/></linearGradient></defs>
+      <g font-family="ui-monospace,monospace">
+        <rect x="30" y="46" width="205" height="128" rx="13" fill="url(#cG)" stroke="#1f6e4d"/>
+        <text x="48" y="74" fill="#7df0c8" font-size="13" font-weight="700" font-family="Segoe UI">列出 / 讀取</text>
+        <text x="48" y="100" fill="#79c0ff" font-size="11.5">GET /api/contents/&lt;p&gt;</text>
+        <text x="48" y="122" fill="#8b949e" font-size="10.5">?content=1 連同內容</text>
+        <text x="48" y="144" fill="#8b949e" font-size="10.5">回 JSON：name/size/type</text>
+        <text x="48" y="162" fill="#8b949e" font-size="10.5">format: text | base64</text>
+
+        <rect x="255" y="46" width="205" height="128" rx="13" fill="url(#cG)" stroke="#2a5ea0"/>
+        <text x="273" y="74" fill="#79c0ff" font-size="13" font-weight="700" font-family="Segoe UI">上傳 / 建檔</text>
+        <text x="273" y="100" fill="#79c0ff" font-size="11.5">PUT /api/contents/&lt;p&gt;</text>
+        <text x="273" y="122" fill="#8b949e" font-size="10.5">body: {type,format,content}</text>
+        <text x="273" y="144" fill="#8b949e" font-size="10.5">文字→text；二進位→base64</text>
+        <text x="273" y="162" fill="#ffd479" font-size="10.5">需 X-XSRFToken</text>
+
+        <rect x="480" y="46" width="205" height="128" rx="13" fill="url(#cG)" stroke="#7a3b8f"/>
+        <text x="498" y="74" fill="#d6c7ff" font-size="13" font-weight="700" font-family="Segoe UI">建目錄</text>
+        <text x="498" y="100" fill="#79c0ff" font-size="11.5">PUT /api/contents/&lt;d&gt;</text>
+        <text x="498" y="122" fill="#8b949e" font-size="10.5">body: {type:"directory"}</text>
+        <text x="498" y="150" fill="#8b949e" font-size="10.5">自動逐層建立父目錄</text>
+
+        <rect x="705" y="46" width="185" height="128" rx="13" fill="url(#cG)" stroke="#8f3b4a"/>
+        <text x="723" y="74" fill="#ffb4c0" font-size="13" font-weight="700" font-family="Segoe UI">刪除</text>
+        <text x="723" y="100" fill="#79c0ff" font-size="11.5">DELETE /contents/&lt;p&gt;</text>
+        <text x="723" y="122" fill="#8b949e" font-size="10.5">非空目錄回 400</text>
+        <text x="723" y="144" fill="#8b949e" font-size="10.5">→ 先遞迴刪子項</text>
+        <text x="723" y="162" fill="#ffd479" font-size="10.5">需 X-XSRFToken</text>
+      </g>
+    </svg>
+    <figcaption><b>圖 4</b> · Contents API 四種動作。寫入類動作（PUT/DELETE）都要帶 <b>X-XSRFToken</b> header。</figcaption>
+  </figure>
+
+  <div class="grid g2">
+    <div>
+      <h4>列檔 / 上傳 / 下載 / 刪除</h4>
+      <script type="text/plain" class="cb" data-lang="python" data-title="Contents API 基本操作">H = {"X-XSRFToken": s.cookies.get("_xsrf")}
+
+# 列出根目錄
+s.get(f"{BASE}/api/contents/").json()["content"]
+
+# 上傳文字檔
+s.put(f"{BASE}/api/contents/storage/a.txt", headers=H,
+      json={"type":"file","format":"text","content":"hi"})
+
+# 上傳二進位（base64）
+import base64
+s.put(f"{BASE}/api/contents/storage/a.bin", headers=H,
+      json={"type":"file","format":"base64",
+            "content":base64.b64encode(data).decode()})
+
+# 下載（小檔可用 ?content=1）
+s.get(f"{BASE}/api/contents/storage/a.txt",
+      params={"content":"1"}).json()["content"]
+
+# 刪除
+s.delete(f"{BASE}/api/contents/storage/a.txt", headers=H)</script>
+    </div>
+    <div>
+      <h4>遞迴刪除（API 不刪非空目錄）</h4>
+      <script type="text/plain" class="cb" data-lang="python" data-title="pegasus.py · rm()">def rm(s, path, _verbose=True):
+    info = s.get(f"{BASE}/api/contents/{path}")
+    if info.status_code == 200 and \
+       info.json()["type"] == "directory":
+        for c in info.json()["content"]:   # 先刪子項
+            rm(s, c["path"], _verbose=False)
+    r = s.delete(f"{BASE}/api/contents/{path}",
+                 headers={"X-XSRFToken": s.cookies.get("_xsrf")})
+    if r.status_code not in (204, 200):
+        r.raise_for_status()</script>
+      <div class="callout warn">
+        <div class="t">注意</div>
+        <p>對非空目錄直接 DELETE 會回 <code class="ic">400 Bad Request</code>，必須先遞迴清空子項。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== EXEC ===================== -->
+<section id="exec">
+  <h2 class="sec"><span class="idx">06</span>遠端執行：kernel + WebSocket</h2>
+  <p class="lead">要在伺服器上跑程式，就建立一個 Python kernel，透過 WebSocket 送出 <code class="ic">execute_request</code> 訊息，
+     再串接回傳的 <code class="ic">stream</code> 訊息即可即時看到輸出。我們在 kernel 裡用 <code class="ic">subprocess</code> 包一層 bash，等於拿到 shell。</p>
+
+  <figure class="fig">
+    <svg viewBox="0 0 920 300" role="img" aria-label="kernel WebSocket 執行序列">
+      <defs>
+        <marker id="ax" markerWidth="11" markerHeight="11" refX="8" refY="5.5" orient="auto"><path d="M1,1 L9,5.5 L1,10" fill="none" stroke="#fbbf24" stroke-width="1.7"/></marker>
+        <marker id="axb" markerWidth="11" markerHeight="11" refX="8" refY="5.5" orient="auto"><path d="M1,1 L9,5.5 L1,10" fill="none" stroke="#34d399" stroke-width="1.7"/></marker>
+      </defs>
+      <line x1="120" y1="60" x2="120" y2="270" stroke="#28406a" stroke-width="1.5"/>
+      <line x1="800" y1="60" x2="800" y2="270" stroke="#3a2e63" stroke-width="1.5"/>
+      <rect x="55" y="40" width="130" height="30" rx="9" fill="#101626" stroke="#28406a"/><text x="120" y="60" text-anchor="middle" fill="#cfe0ff" font-size="12" font-weight="700">Client</text>
+      <rect x="735" y="40" width="130" height="30" rx="9" fill="#161226" stroke="#3a2e63"/><text x="800" y="60" text-anchor="middle" fill="#e2d6ff" font-size="12" font-weight="700">Jupyter kernel</text>
+
+      <line x1="120" y1="96" x2="798" y2="96" stroke="#fbbf24" stroke-width="1.7" marker-end="url(#ax)"/>
+      <text x="135" y="90" fill="#ffd479" font-size="11" font-family="ui-monospace,monospace">POST /api/kernels  → {id}</text>
+      <line x1="120" y1="132" x2="798" y2="132" stroke="#fbbf24" stroke-width="1.7" marker-end="url(#ax)"/>
+      <text x="135" y="126" fill="#ffd479" font-size="11" font-family="ui-monospace,monospace">WS connect /api/kernels/{id}/channels</text>
+      <line x1="120" y1="168" x2="798" y2="168" stroke="#fbbf24" stroke-width="1.7" marker-end="url(#ax)"/>
+      <text x="135" y="162" fill="#ffd479" font-size="11" font-family="ui-monospace,monospace">send execute_request {code}</text>
+
+      <line x1="800" y1="204" x2="122" y2="204" stroke="#34d399" stroke-width="1.7" marker-end="url(#axb)"/>
+      <text x="200" y="198" fill="#7df0c8" font-size="11" font-family="ui-monospace,monospace">stream 訊息（stdout 逐段）× N</text>
+      <line x1="800" y1="240" x2="122" y2="240" stroke="#34d399" stroke-width="1.7" marker-end="url(#axb)"/>
+      <text x="320" y="234" fill="#7df0c8" font-size="11" font-family="ui-monospace,monospace">status: idle（執行結束）</text>
+      <line x1="120" y1="270" x2="798" y2="270" stroke="#fb7185" stroke-width="1.7" marker-end="url(#ax)"/>
+      <text x="135" y="264" fill="#ffb4c0" font-size="11" font-family="ui-monospace,monospace">DELETE /api/kernels/{id}（用完即拋）</text>
+    </svg>
+    <figcaption><b>圖 5</b> · 一次遠端執行的訊息序列。WebSocket 需附 <b>Cookie</b> 與 <b>X-XSRFToken</b> header 認證。</figcaption>
+  </figure>
+
+  <h4>execute_request 訊息結構與串流接收</h4>
+  <script type="text/plain" class="cb" data-lang="python" data-title="建 kernel → WebSocket → 執行 → 串流">import json, uuid
+from websocket import create_connection
+
+kid = s.post(f"{BASE}/api/kernels", headers=H,
+             json={"name":"python3"}).json()["id"]
+
+# WebSocket 用 wss://，並在 header 帶上 Cookie + XSRF 做認證
+cookie = "; ".join(f"{c.name}={c.value}" for c in s.cookies)
+ws = create_connection(
+    BASE.replace("https://","wss://") + f"/api/kernels/{kid}/channels",
+    header=[f"Cookie: {cookie}", f"X-XSRFToken: {s.cookies.get('_xsrf')}"])
+
+mid = uuid.uuid4().hex
+ws.send(json.dumps({
+    "header": {"msg_id": mid, "username":"auto", "session": uuid.uuid4().hex,
+               "msg_type":"execute_request", "version":"5.3"},
+    "parent_header": {}, "metadata": {},
+    "content": {"code": "print('hello from kernel')", "silent": False,
+                "store_history": False, "allow_stdin": False, "stop_on_error": True},
+    "channel": "shell"}))
+
+while True:                                  # 接收回傳訊息
+    m = json.loads(ws.recv())
+    if m.get("parent_header",{}).get("msg_id") != mid: continue   # 只認自己的回覆
+    if m["msg_type"] == "stream":            # stdout / stderr 逐段
+        print(m["content"]["text"], end="")
+    if m["msg_type"] == "status" and m["content"]["execution_state"] == "idle":
+        break                                # 執行完畢
+ws.close()
+s.delete(f"{BASE}/api/kernels/{kid}", headers=H)   # 釋放 kernel</script>
+
+  <table class="ref">
+    <tr><th>欄位 / 語法</th><th>作用</th></tr>
+    <tr><td class="k">msg_type: execute_request</td><td>要求 kernel 執行 <code>content.code</code> 內的程式。</td></tr>
+    <tr><td class="k">parent_header.msg_id</td><td>回傳訊息會帶上原請求的 <code>msg_id</code>；用它過濾「屬於自己的」訊息。</td></tr>
+    <tr><td class="k">msg_type: stream</td><td>stdout/stderr 的即時輸出，可能分多段送達。</td></tr>
+    <tr><td class="k">status: idle</td><td>該次執行結束的訊號（執行中為 <code>busy</code>）。</td></tr>
+    <tr><td class="k">stop_on_error: true</td><td>遇到例外即停止後續執行。</td></tr>
+  </table>
+
+  <h4>包成兩個好用的函式：run（串流）與 sh（擷取）</h4>
+  <p>成品把上面流程封裝起來，並在 kernel 內用 <code class="ic">subprocess</code> 跑 <code class="ic">bash -lc</code>，等於取得遠端 shell；
+     再用一行哨兵 <code class="ic">__PEGASUS_RC__=&lt;code&gt;</code> 把退出碼帶回來。</p>
+  <script type="text/plain" class="cb" data-lang="python" data-title="pegasus.py · run() / sh()">def run(s, command, timeout=86400):
+    """即時串流 stdout/stderr，回傳 exit code。適合互動式長指令。"""
+    code = ("import subprocess,sys\n"
+            "p=subprocess.Popen(['bash','-lc'," + repr(command) + "],"
+            "stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,bufsize=1)\n"
+            "[print(l,end='',flush=True) for l in p.stdout]\n"   # 逐行 flush → 即時
+            "print('\\n__PEGASUS_RC__=%d'%p.wait())\n")          # 哨兵帶回退出碼
+    ...
+
+def sh(s, command, timeout=300):
+    """一次擷取輸出，回傳 (stdout_text, exit_code)。適合快速查詢/狀態檢查。"""
+    ...</script>
+</section>
+
+<!-- ===================== DETACHED ===================== -->
+<section id="detached">
+  <h2 class="sec"><span class="idx">07</span>Detached 執行：讓訓練不怕斷線</h2>
+  <p class="lead">100k steps 的訓練要跑很久，<strong>不能</strong>靠一直開著 WebSocket。解法是把工作用
+     <code class="ic">setsid</code> 丟進<strong>獨立的 session</strong>，輸出導向檔案、放到背景；如此即使啟動它的 kernel 被刪、本機斷線，工作仍持續。</p>
+
+  <figure class="fig">
+    <svg viewBox="0 0 920 280" role="img" aria-label="detached 存活">
+      <defs>
+        <marker id="ad" markerWidth="11" markerHeight="11" refX="8" refY="5.5" orient="auto"><path d="M1,1 L9,5.5 L1,10" fill="none" stroke="#34d399" stroke-width="1.7"/></marker>
+        <linearGradient id="dG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#10b981"/><stop offset="1" stop-color="#34d399"/></linearGradient>
+      </defs>
+      <!-- kernel -->
+      <rect x="40" y="50" width="190" height="86" rx="13" fill="#1a1530" stroke="#3a2e63"/>
+      <text x="135" y="80" text-anchor="middle" fill="#ffd479" font-size="12.5" font-weight="700">kernel（短暫）</text>
+      <text x="135" y="102" text-anchor="middle" fill="#8b949e" font-size="10">nohup setsid bash wrapper.sh &amp;</text>
+      <text x="135" y="120" text-anchor="middle" fill="#8b949e" font-size="10">啟動後即可關閉 ✕</text>
+      <text x="248" y="98" font-size="22" fill="#fb7185">✕</text>
+
+      <line x1="230" y1="93" x2="330" y2="93" stroke="#34d399" stroke-width="1.8" marker-end="url(#ad)"/>
+      <!-- detached session -->
+      <rect x="330" y="40" width="250" height="200" rx="14" fill="#101a14" stroke="#1f6e4d"/>
+      <text x="455" y="66" text-anchor="middle" fill="#7df0c8" font-size="12.5" font-weight="700">獨立 session（setsid）</text>
+      <rect x="350" y="80" width="210" height="40" rx="9" fill="#0c130f" stroke="#28503c"/>
+      <text x="455" y="105" text-anchor="middle" fill="#cfe0ff" font-size="11">wrapper.sh：訓練 → 清理 → zip</text>
+      <rect x="350" y="128" width="210" height="34" rx="9" fill="#0c130f" stroke="#28503c"/>
+      <text x="455" y="150" text-anchor="middle" fill="#9fb0c9" font-size="10.5" font-family="ui-monospace,monospace">&gt; run.log 2&gt;&amp;1</text>
+      <rect x="350" y="170" width="210" height="34" rx="9" fill="#0c130f" stroke="#28503c"/>
+      <text x="455" y="192" text-anchor="middle" fill="#9fb0c9" font-size="10.5" font-family="ui-monospace,monospace">status: RUNNING → DONE</text>
+      <text x="455" y="226" text-anchor="middle" fill="#5f6e86" font-size="10">不在 kernel 的 process group → 不受其死亡影響</text>
+
+      <!-- client polling -->
+      <line x1="580" y1="120" x2="690" y2="120" stroke="#34d399" stroke-width="1.8" marker-end="url(#ad)" stroke-dasharray="5 4"/>
+      <rect x="690" y="74" width="190" height="120" rx="13" fill="#101626" stroke="#28406a"/>
+      <text x="785" y="100" text-anchor="middle" fill="#cfe0ff" font-size="12.5" font-weight="700">Client 監控</text>
+      <text x="785" y="124" text-anchor="middle" fill="#8b949e" font-size="10">定時讀 /files：</text>
+      <text x="785" y="142" text-anchor="middle" fill="#9fb0c9" font-size="10" font-family="ui-monospace,monospace">run.log + status</text>
+      <text x="785" y="166" text-anchor="middle" fill="#8b949e" font-size="10">無狀態輪詢</text>
+      <text x="785" y="182" text-anchor="middle" fill="#8b949e" font-size="10">可隨時重連</text>
+    </svg>
+    <figcaption><b>圖 6</b> · <b>setsid</b> 把工作放進新 session；kernel 死亡或本機斷線都不影響，客戶端只是定時輪詢 log。</figcaption>
+  </figure>
+
+  <h4>進入 conda 環境（兩個坑都在這）</h4>
+  <script type="text/plain" class="cb" data-lang="bash" data-title="正確的 conda 啟動方式">## 坑 1：非互動 bash -lc 下沒有 conda 函式 → 先載入 hook
+## 坑 2：gr00t_n1d5 不在預設 envs（路徑型）→ 用「完整路徑」activate
+eval "$(/home/gallop/miniforge3/bin/conda shell.bash hook)" && \
+conda activate /data/VLA/tingying/envs/gr00t_n1d5
+python3 -c "import torch; print(torch.cuda.is_available(), torch.cuda.device_count())"
+# True 2</script>
+
+  <h4>detached 啟動指令逐字拆解</h4>
+  <script type="text/plain" class="cb" data-lang="bash" data-title="啟動並記錄 PID">cd "$STATE" && : > run.log && \
+nohup setsid bash wrapper.sh </dev/null >/dev/null 2>&1 & \
+echo $! > wrapper.pid</script>
+  <table class="ref">
+    <tr><th>片段</th><th>意義</th></tr>
+    <tr><td class="k">: &gt; run.log</td><td><code>:</code> 是 no-op，<code>&gt; run.log</code> 把 log 檔清空/建立。</td></tr>
+    <tr><td class="k">nohup</td><td>忽略 SIGHUP（掛斷訊號），終端關閉也不會殺掉行程。</td></tr>
+    <tr><td class="k">setsid</td><td>在<strong>新的 session</strong> 啟動行程，脫離原 process group——這是能在 kernel 死後存活的關鍵。</td></tr>
+    <tr><td class="k">&lt;/dev/null</td><td>stdin 接空裝置，避免行程因等待輸入而卡住。</td></tr>
+    <tr><td class="k">&gt;/dev/null 2&gt;&amp;1</td><td>外層 stdout/stderr 丟棄（真正的日誌由 wrapper 內部寫入 run.log）。<code>2&gt;&amp;1</code> 把 stderr 併入 stdout。</td></tr>
+    <tr><td class="k">&amp;（單個）</td><td>放到背景執行，指令立即返回。</td></tr>
+    <tr><td class="k">echo $! &gt; wrapper.pid</td><td><code>$!</code> 是剛背景化行程的 PID；存檔以便日後 <code>stop</code> 用。</td></tr>
+  </table>
+
+  <div class="callout tip">
+    <div class="t">為什麼 setsid 後 PID == PGID</div>
+    <p>setsid 建立的行程是新 session/group 的領導者，PID 即 PGID。要中止整棵行程樹只需對<strong>負的 PID</strong> 送訊號：
+       <code class="ic">kill -TERM -$PID</code>（負號代表整個 process group）。</p>
+  </div>
+</section>
+
+<!-- ===================== DOWNLOAD ===================== -->
+<section id="download">
+  <h2 class="sec"><span class="idx">08</span>續傳下載 + 完整性驗證</h2>
+  <p class="lead">checkpoint zip 約 <strong>18 GB</strong>，下載中途斷線是常態。原始端點 <code class="ic">/files/&lt;path&gt;?_xsrf=&lt;token&gt;</code> 支援
+     <code class="ic">Accept-Ranges: bytes</code>，因此可用 HTTP <strong>Range</strong> 從中斷點續傳，最後再比對<strong>大小 + sha256</strong>。</p>
+
+  <figure class="fig">
+    <svg viewBox="0 0 920 250" role="img" aria-label="續傳下載">
+      <defs>
+        <linearGradient id="barG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#22d3ee"/></linearGradient>
+        <marker id="adl" markerWidth="11" markerHeight="11" refX="8" refY="5.5" orient="auto"><path d="M1,1 L9,5.5 L1,10" fill="none" stroke="#a78bfa" stroke-width="1.7"/></marker>
+      </defs>
+      <text x="40" y="50" fill="#cfe0ff" font-size="12.5" font-weight="700">遠端 18 GB 檔案</text>
+      <rect x="40" y="62" width="840" height="34" rx="9" fill="#0c1119" stroke="#28406a"/>
+      <rect x="42" y="64" width="430" height="30" rx="7" fill="url(#barG)"/>
+      <line x1="472" y1="56" x2="472" y2="104" stroke="#fb7185" stroke-width="2" stroke-dasharray="4 3"/>
+      <text x="472" y="120" text-anchor="middle" fill="#fb7185" font-size="11">✕ 斷線於此 (pos)</text>
+      <text x="250" y="84" text-anchor="middle" fill="#06121f" font-size="12" font-weight="700">已下載 → 寫入本機(append)</text>
+      <text x="676" y="84" text-anchor="middle" fill="#7f8da6" font-size="11">尚未下載</text>
+
+      <rect x="40" y="150" width="400" height="74" rx="12" fill="#161226" stroke="#3a2e63"/>
+      <text x="60" y="176" fill="#d6c7ff" font-size="12" font-weight="700">續傳請求</text>
+      <text x="60" y="200" fill="#9fb0c9" font-size="11" font-family="ui-monospace,monospace">GET /files/...?_xsrf=...</text>
+      <text x="60" y="216" fill="#9fb0c9" font-size="11" font-family="ui-monospace,monospace">Range: bytes=&lt;pos&gt;-   → 206</text>
+
+      <line x1="440" y1="187" x2="520" y2="187" stroke="#a78bfa" stroke-width="1.8" marker-end="url(#adl)"/>
+      <rect x="525" y="150" width="355" height="74" rx="12" fill="#101a14" stroke="#1f6e4d"/>
+      <text x="545" y="176" fill="#7df0c8" font-size="12" font-weight="700">完成後驗證</text>
+      <text x="545" y="200" fill="#9fb0c9" font-size="11">① 本機大小 == 遠端 Content-Length</text>
+      <text x="545" y="216" fill="#9fb0c9" font-size="11">② 本機 sha256 == 伺服器算出的 sha256</text>
+    </svg>
+    <figcaption><b>圖 7</b> · 斷線後讀取本機已寫入大小作為 <b>pos</b>，用 <b>Range: bytes=pos-</b> 續傳；全部完成再雙重驗證。</figcaption>
+  </figure>
+
+  <h4>探測 Range 支援（決定設計的關鍵一步）</h4>
+  <script type="text/plain" class="cb" data-lang="python" data-title="確認 /files 支援續傳">u = f"{BASE}/files/VLA/some.bin"
+xsrf = s.cookies.get("_xsrf")
+# 普通 GET：看是否有 Accept-Ranges
+r = s.get(u, params={"_xsrf": xsrf}, stream=True)
+print(r.status_code, r.headers.get("Accept-Ranges"))   # 200 bytes
+# Range GET：206 + Content-Range 代表支援續傳
+r = s.get(u, params={"_xsrf": xsrf}, headers={"Range":"bytes=1000000-"}, stream=True)
+print(r.status_code, r.headers.get("Content-Range"))    # 206 bytes 1000000-.../...</script>
+
+  <h4>成品的可續傳下載函式</h4>
+  <script type="text/plain" class="cb" data-lang="python" data-title="pegasus.py · download_resumable()（節錄）">def remote_size(s, rel):                 # 用 Range 0-0 問出總長度
+    r = s.get(files_url(rel), params={"_xsrf": s.cookies.get("_xsrf")},
+              headers={"Range":"bytes=0-0"}, stream=True)
+    return int(r.headers["Content-Range"].split("/")[-1])   # bytes 0-0/TOTAL
+
+def download_resumable(s, remote, local, expected_sha256=None, chunk=1<<20):
+    total = remote_size(s, rel)
+    while True:
+        pos = local.stat().st_size if local.exists() else 0   # 已下載多少
+        if pos >= total: break                                # 下載完成
+        try:
+            r = s.get(files_url(rel), params={"_xsrf": s.cookies.get("_xsrf")},
+                      headers={"Range": f"bytes={pos}-"}, stream=True)  # 從 pos 續傳
+            with open(local, "ab") as f:                      # ab = 附加寫入
+                for blk in r.iter_content(chunk):
+                    if blk: f.write(blk)
+        except (requests.RequestException, ssl.SSLError, OSError):
+            time.sleep(min(30, 2**attempt)); continue         # 斷線→指數退避後重試
+    assert local.stat().st_size == total                      # ① 大小驗證
+    if expected_sha256:
+        assert sha256_file(local) == expected_sha256          # ② 雜湊驗證</script>
+
+  <table class="ref">
+    <tr><th>語法</th><th>意義</th></tr>
+    <tr><td class="k">Range: bytes=pos-</td><td>請求從第 <code>pos</code> 個 byte 到結尾；伺服器回 <code>206 Partial Content</code>。</td></tr>
+    <tr><td class="k">Content-Range: .../TOTAL</td><td>回應標頭，斜線後是檔案總長度，用來得知 100% 是多少。</td></tr>
+    <tr><td class="k">open(local, "ab")</td><td>以二進位<strong>附加</strong>模式開檔，新資料接在已下載內容後面。</td></tr>
+    <tr><td class="k">iter_content(chunk)</td><td>串流分塊讀取，避免整檔載入記憶體。</td></tr>
+    <tr><td class="k">2 ** attempt</td><td>指數退避（1,2,4,8…秒，上限 30），避免斷線時狂打伺服器。</td></tr>
+  </table>
+</section>
+
+<!-- ===================== PIPELINE ===================== -->
+<section id="pipeline">
+  <h2 class="sec"><span class="idx">09</span>Fine-tuning 全流程</h2>
+  <p class="lead">把前面所有概念組起來：<code class="ic">run_finetune.py</code> 產生一支 <code class="ic">wrapper.sh</code> 上傳到伺服器，detached 執行；
+     本機只負責監控與下載。每一階段都能在斷線後重新接上。</p>
+
+  <figure class="fig">
+    <svg viewBox="0 0 960 430" role="img" aria-label="fine-tune 流程">
+      <defs>
+        <marker id="ap" markerWidth="12" markerHeight="12" refX="8" refY="5.5" orient="auto"><path d="M1,1 L9,5.5 L1,10" fill="none" stroke="#8aa0c0" stroke-width="1.7"/></marker>
+        <linearGradient id="pSrv" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1a1530"/><stop offset="1" stop-color="#11101f"/></linearGradient>
+        <linearGradient id="pCli" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#102036"/><stop offset="1" stop-color="#0c1320"/></linearGradient>
+        <linearGradient id="stepG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0ea5e9"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient>
+      </defs>
+
+      <!-- client lane -->
+      <rect x="20" y="30" width="920" height="120" rx="14" fill="url(#pCli)" stroke="#28406a"/>
+      <text x="40" y="56" fill="#7fdcff" font-size="13" font-weight="700">本機 run_finetune.py</text>
+      <!-- server lane -->
+      <rect x="20" y="170" width="920" height="240" rx="14" fill="url(#pSrv)" stroke="#3a2e63"/>
+      <text x="40" y="196" fill="#d6c7ff" font-size="13" font-weight="700">伺服器 wrapper.sh（detached）</text>
+
+      <!-- client steps -->
+      <g font-family="Segoe UI">
+        <rect x="46" y="74" width="150" height="56" rx="11" fill="#0c1320" stroke="#2a5ea0"/>
+        <text x="121" y="98" text-anchor="middle" fill="#cfe0ff" font-size="12" font-weight="700">start</text>
+        <text x="121" y="116" text-anchor="middle" fill="#8b949e" font-size="10">上傳 wrapper · 啟動</text>
+
+        <rect x="396" y="74" width="150" height="56" rx="11" fill="#0c1320" stroke="#2a5ea0"/>
+        <text x="471" y="98" text-anchor="middle" fill="#cfe0ff" font-size="12" font-weight="700">monitor</text>
+        <text x="471" y="116" text-anchor="middle" fill="#8b949e" font-size="10">輪詢 log/status（可重連）</text>
+
+        <rect x="744" y="74" width="170" height="56" rx="11" fill="#0c1320" stroke="#2a5ea0"/>
+        <text x="829" y="98" text-anchor="middle" fill="#cfe0ff" font-size="12" font-weight="700">download</text>
+        <text x="829" y="116" text-anchor="middle" fill="#8b949e" font-size="10">續傳 + sha256 驗證</text>
+      </g>
+
+      <!-- server steps -->
+      <g font-family="Segoe UI">
+        <rect x="46" y="240" width="138" height="58" rx="11" fill="#161226" stroke="#3a2e63"/>
+        <text x="115" y="264" text-anchor="middle" fill="#d6c7ff" font-size="11.5" font-weight="700">conda activate</text>
+        <text x="115" y="282" text-anchor="middle" fill="#8b949e" font-size="9.5">完整路徑 env</text>
+
+        <rect x="214" y="240" width="138" height="58" rx="11" fill="#161226" stroke="#3a2e63"/>
+        <text x="283" y="264" text-anchor="middle" fill="#d6c7ff" font-size="11.5" font-weight="700">訓練 100k</text>
+        <text x="283" y="282" text-anchor="middle" fill="#8b949e" font-size="9.5">gr00t_finetune.py</text>
+
+        <rect x="382" y="240" width="138" height="58" rx="11" fill="#161226" stroke="#3a2e63"/>
+        <text x="451" y="260" text-anchor="middle" fill="#ffb4c0" font-size="11.5" font-weight="700">cleanup</text>
+        <text x="451" y="278" text-anchor="middle" fill="#8b949e" font-size="9.5">find ... ! -name</text>
+        <text x="451" y="292" text-anchor="middle" fill="#7df0c8" font-size="9.5">只留 checkpoint-100000</text>
+
+        <rect x="550" y="240" width="138" height="58" rx="11" fill="#161226" stroke="#3a2e63"/>
+        <text x="619" y="264" text-anchor="middle" fill="#ffd479" font-size="11.5" font-weight="700">zip</text>
+        <text x="619" y="282" text-anchor="middle" fill="#8b949e" font-size="9.5">zip -r -y out.zip</text>
+
+        <rect x="718" y="240" width="138" height="58" rx="11" fill="#161226" stroke="#3a2e63"/>
+        <text x="787" y="260" text-anchor="middle" fill="#7df0c8" font-size="11.5" font-weight="700">sha256 + size</text>
+        <text x="787" y="278" text-anchor="middle" fill="#8b949e" font-size="9.5">寫入 status</text>
+        <text x="787" y="292" text-anchor="middle" fill="#7df0c8" font-size="9.5">DONE</text>
+
+        <!-- status files -->
+        <rect x="46" y="330" width="810" height="48" rx="10" fill="#0c1119" stroke="#28406a"/>
+        <text x="60" y="350" fill="#9fb0c9" font-size="11" font-weight="600">狀態檔（client 透過 /files 讀取）</text>
+        <text x="60" y="368" fill="#9fb0c9" font-size="10" font-family="ui-monospace,monospace">run.log · status(RUNNING→DONE/FAILED) · zip.sha256 · zip.size · zip.path</text>
+      </g>
+
+      <!-- arrows client -->
+      <line x1="196" y1="102" x2="394" y2="102" stroke="#8aa0c0" stroke-width="1.6" marker-end="url(#ap)"/>
+      <line x1="546" y1="102" x2="742" y2="102" stroke="#8aa0c0" stroke-width="1.6" marker-end="url(#ap)"/>
+      <!-- arrows server -->
+      <line x1="184" y1="269" x2="212" y2="269" stroke="#8aa0c0" stroke-width="1.6" marker-end="url(#ap)"/>
+      <line x1="352" y1="269" x2="380" y2="269" stroke="#8aa0c0" stroke-width="1.6" marker-end="url(#ap)"/>
+      <line x1="520" y1="269" x2="548" y2="269" stroke="#8aa0c0" stroke-width="1.6" marker-end="url(#ap)"/>
+      <line x1="688" y1="269" x2="716" y2="269" stroke="#8aa0c0" stroke-width="1.6" marker-end="url(#ap)"/>
+      <!-- cross-lane -->
+      <line x1="121" y1="130" x2="115" y2="238" stroke="#34d399" stroke-width="1.6" marker-end="url(#ap)" stroke-dasharray="5 4"/>
+      <text x="138" y="190" fill="#7df0c8" font-size="10">啟動 detached</text>
+      <line x1="471" y1="130" x2="471" y2="328" stroke="#60a5fa" stroke-width="1.6" marker-end="url(#ap)" stroke-dasharray="5 4"/>
+      <text x="486" y="160" fill="#9fb0c9" font-size="10">輪詢狀態檔</text>
+      <line x1="829" y1="328" x2="829" y2="132" stroke="#a78bfa" stroke-width="1.6" marker-end="url(#ap)" stroke-dasharray="5 4"/>
+      <text x="844" y="200" fill="#d6c7ff" font-size="10">DONE 後下載 zip</text>
+    </svg>
+    <figcaption><b>圖 8</b> · 三個本機階段（藍）對應伺服器端 wrapper 的五個步驟（紫），靠 <b>/files</b> 上的狀態檔解耦——任何一段斷線都能重連續做。</figcaption>
+  </figure>
+
+  <h4>伺服器端 wrapper.sh（由腳本自動產生）</h4>
+  <script type="text/plain" class="cb" data-lang="bash" data-title="wrapper.sh 的核心邏輯（簡化示意）">#!/bin/bash
+STATE="/data/VLA/tingying/pegasus_runs/<runid>"      # 私有工作區
+echo RUNNING > "$STATE/status"
+{
+  eval "$(/home/gallop/miniforge3/bin/conda shell.bash hook)"
+  conda activate /data/VLA/tingying/envs/gr00t_n1d5 || { echo FAILED_CONDA > "$STATE/status"; exit 11; }
+  cd /data/VLA/tingying/IsaacLab-GR00T/Isaac-GR00T
+  TOKENIZERS_PARALLELISM=false CUDA_VISIBLE_DEVICES=0 python3 scripts/gr00t_finetune.py ...
+  rc=$?; if [ $rc -ne 0 ]; then echo "FAILED_TRAIN:$rc" > "$STATE/status"; exit $rc; fi
+
+  cd <output_dir>                                              # 清理：只留最終 checkpoint
+  find . -maxdepth 1 -type d -name 'checkpoint-*' ! -name checkpoint-100000 -exec rm -rf {} +
+  cd <output_parent>; rm -f out.zip && zip -r -y out.zip out/   # 壓縮
+  sha256sum out.zip | awk '{print $1}' > "$STATE/zip.sha256"    # 記錄雜湊
+  stat -c %s out.zip > "$STATE/zip.size"                        # 記錄大小
+  echo DONE > "$STATE/status"
+} >> "$STATE/run.log" 2>&1</script>
+
+  <div class="callout warn">
+    <div class="t">清理層級：請務必確認</div>
+    <p>checkpoint 實際在<strong>內層 output dir</strong>，所以 cleanup 進到 output dir 內執行，並改用 <code class="ic">find</code> 依
+       <code class="ic">MAX_STEPS</code> 推導的最終 checkpoint 名稱來保留：<strong>只留 <code class="ic">checkpoint-100000</code>、刪掉其餘所有 <code class="ic">checkpoint-*</code></strong>（不管中間步數編號為何）。改 <code class="ic">--max-steps</code> 時只要同步改 <code class="ic">MAX_STEPS</code>。selftest 已驗證。</p>
+  </div>
+  <div class="callout danger">
+    <div class="t">同名舊結果會被覆蓋</div>
+    <p>伺服器上該 output dir 已存在一次完成的 run（<code class="ic">checkpoint-100000</code> + 18GB zip）。執行 <code class="ic">run</code> 會覆蓋它。
+       要保留請先在 CONFIG 改 output dir 名稱。</p>
+  </div>
+</section>
+
+<!-- ===================== CLI ===================== -->
+<section id="cli">
+  <h2 class="sec"><span class="idx">10</span>CLI 指令手冊</h2>
+
+  <h3>環境準備（一次性）</h3>
+  <script type="text/plain" class="cb" data-lang="powershell" data-title="安裝套件 + 設定密碼">pip install requests websocket-client truststore
+cd D:\Gits\IsaacLab-GR00T
+# 密碼設定方式（擇一）：
+#   A. 直接在 pegasus.py 頂端的 PEGASUS_PASSWORD 常數填入（目前採用，方便但會寫進檔案）
+#   B. 留空 PEGASUS_PASSWORD → 執行時互動輸入（getpass，不回顯，最安全）
+#   C. 改回環境變數：把 connect() 換成 os.environ.get("PEGASUS_PASSWORD")，再 $env:PEGASUS_PASSWORD='...'</script>
+
+  <h3>pegasus.py — 通用檔案/執行工具</h3>
+  <table class="ref">
+    <tr><th>指令</th><th>說明</th></tr>
+    <tr><td class="k">python pegasus.py ls [REMOTE_DIR]</td><td>列出遠端目錄（路徑相對 /data，例如 <code>VLA/experiments</code>）。</td></tr>
+    <tr><td class="k">python pegasus.py put LOCAL REMOTE</td><td>上傳檔案或<strong>整個資料夾</strong>（遞迴，自動建目錄、自動辨識二進位）。</td></tr>
+    <tr><td class="k">python pegasus.py get REMOTE LOCAL</td><td>下載檔案或資料夾，檔案走<strong>續傳</strong>並驗證大小。</td></tr>
+    <tr><td class="k">python pegasus.py rm REMOTE</td><td>遞迴刪除。</td></tr>
+    <tr><td class="k">python pegasus.py mkdir REMOTE_DIR</td><td>建立目錄。</td></tr>
+    <tr><td class="k">python pegasus.py run "CMD"</td><td>遠端執行 bash 指令，<strong>即時串流</strong>輸出；也可 <code>--file script.sh</code>。</td></tr>
+  </table>
+  <script type="text/plain" class="cb" data-lang="powershell" data-title="pegasus.py 範例">python pegasus.py ls storage
+python pegasus.py put .\Datasets\mydata storage/mydata
+python pegasus.py get VLA/experiments/.../run.zip D:\tmp\run.zip
+python pegasus.py run "cd /data && nvidia-smi"
+# 注意：run 內含 $ 時，PowerShell 用單引號或反引號跳脫，避免被先解讀</script>
+
+  <h3>run_finetune.py — Fine-tuning 編排器</h3>
+  <table class="ref">
+    <tr><th>指令</th><th>說明</th></tr>
+    <tr><td class="k">python run_finetune.py run</td><td>啟動訓練(detached) → 監控 → 完成後清理+壓縮 → 續傳下載+驗證（一條龍）。</td></tr>
+    <tr><td class="k">python run_finetune.py monitor</td><td>斷線後重新接回監控（接著自動下載）。</td></tr>
+    <tr><td class="k">python run_finetune.py download</td><td>只重跑下載+驗證（可續傳）。</td></tr>
+    <tr><td class="k">python run_finetune.py status</td><td>查看伺服器端目前狀態。</td></tr>
+    <tr><td class="k">python run_finetune.py stop</td><td>中止該次 detached 訓練（kill 整個 process group）。</td></tr>
+    <tr><td class="k">python run_finetune.py selftest</td><td>用假工作演練整條流程（約 10 秒，不碰真實訓練）。</td></tr>
+  </table>
+  <div class="callout tip">
+    <div class="t">建議第一次這樣做</div>
+    <p>① <code class="ic">python run_finetune.py selftest</code> 確認連線與流程 → ② 檢視 <code class="ic">run_finetune.py</code> 最上方 CONFIG 的指令與路徑 →
+       ③ <code class="ic">python run_finetune.py run</code> 正式啟動。啟動後可關掉視窗，日後用 <code class="ic">monitor</code> 接回。</p>
+  </div>
+</section>
+
+<!-- ===================== SOURCE ===================== -->
+<section id="source">
+  <h2 class="sec"><span class="idx">11</span>完整原始碼</h2>
+  <p class="lead">兩支腳本的完整內容（與 repo 中檔案同步）。可一鍵複製。<span class="muted">註：<code class="ic">pegasus.py</code> 頂端的密碼值在此報告中已隱去為 <code class="ic">'eksncl#...'</code>。</span></p>
+  <div class="toolbar"><button class="btn" id="expandSrc">展開全部</button><button class="btn" id="collapseSrc">收合全部</button></div>
+
+  <details class="src srcfile" style="margin-top:12px">
+    <summary>📄 pegasus.py<span class="filemeta">底層函式庫 + CLI（密碼值已隱去）</span></summary>
+    <script type="text/plain" class="cb" data-lang="python" data-title="pegasus.py" data-plain="1">#!/usr/bin/env python3
+"""Automation client for the Pegasus Jupyter server (service-cpu-bdml.asus.com/pegasus).
+
+Library + CLI for upload / download / remote-exec against the password-protected
+Jupyter server, so the web UI is no longer the only way to move data or run scripts.
+
+Auth:   set the password in the environment (never hard-code it):
+            PowerShell:  $env:PEGASUS_PASSWORD = 'eksncl#...'
+        otherwise it is prompted interactively.
+
+TLS:    the server uses an internal "ASUSTEK 2016 Service CA1" certificate that lives
+        in the Windows trust store.  This client uses `truststore` to validate against
+        that store, so verified TLS works without --insecure.   pip install truststore
+
+Paths:  the Jupyter root maps to the server's /data, so a server file
+        /data/VLA/tingying/foo.zip is addressed here as "VLA/tingying/foo.zip".
+        Helpers accept either form (a leading "/data/" is stripped automatically).
+
+CLI:
+    python pegasus.py ls   [REMOTE_DIR]
+    python pegasus.py put  LOCAL REMOTE          # file or directory (recursive)
+    python pegasus.py get  REMOTE LOCAL          # file or directory (resumable + verified)
+    python pegasus.py rm   REMOTE                # recursive
+    python pegasus.py mkdir REMOTE_DIR
+    python pegasus.py run  "shell command ..."   # streams stdout/stderr live
+    python pegasus.py run  --file local_script.sh
+"""
+import argparse, base64, hashlib, json, os, ssl, sys, time, uuid, pathlib
+
+BASE = os.environ.get("PEGASUS_BASE", "https://service-cpu-bdml.asus.com/pegasus")
+PEGASUS_PASSWORD = 'eksncl#...'    # <-- 報告中已隱去；實際檔案內為真實密碼（或留空走互動輸入）
+
+
+# --------------------------------------------------------------------------- #
+#  Session / auth
+# --------------------------------------------------------------------------- #
+def make_session(insecure=False):
+    """Create a requests.Session with TLS validated via the OS trust store
+    (truststore); falls back to unverified TLS only if truststore is missing."""
+    if not insecure:
+        try:
+            import truststore
+            truststore.inject_into_ssl()          # validate via OS trust store (has ASUS CA)
+        except ImportError:
+            sys.stderr.write("warning: `truststore` not installed; using --insecure.\n"
+                             "         pip install truststore   (for verified TLS)\n")
+            insecure = True
+    import requests, urllib3
+    s = requests.Session()
+    if insecure:
+        urllib3.disable_warnings()
+        s.verify = False
+    s._insecure = insecure
+    s._password = None
+    return s
+
+
+def login(s, password):
+    """Two-step Jupyter login: GET to obtain the _xsrf cookie, then POST the password."""
+    s.get(f"{BASE}/login").raise_for_status()
+    r = s.post(f"{BASE}/login",
+               data={"_xsrf": s.cookies.get("_xsrf"), "password": password},
+               allow_redirects=False)            # keep the 302 so we can check it
+    if r.status_code not in (302, 200) or s.cookies.get("username-service-cpu-bdml-asus-com") is None:
+        raise SystemExit("login failed: check PEGASUS_PASSWORD")
+    s._password = password                        # cached so relogin() can re-auth later
+    return s
+
+
+def connect(insecure=False, password=None):
+    """One-shot: build a session and log in using PEGASUS_PASSWORD (or prompt)."""
+    import getpass
+    pw = password or PEGASUS_PASSWORD or getpass.getpass("Pegasus password: ")
+    return login(make_session(insecure), pw)
+
+
+def relogin(s):
+    """Re-authenticate with the cached password after the session cookie expires."""
+    if not s._password:
+        raise SystemExit("session expired and no cached password to re-login")
+    return login(s, s._password)
+
+
+def _xsrf(s):
+    """Header dict carrying the XSRF token, required on every PUT/POST/DELETE."""
+    return {"X-XSRFToken": s.cookies.get("_xsrf")}
+
+
+def relpath(p):
+    """Normalise a server path to one relative to the Jupyter root (/data)."""
+    p = str(p).replace("\\", "/").lstrip("/")
+    if p.startswith("data/"):
+        p = p[len("data/"):]
+    return p
+
+
+def files_url(rel):
+    """Build the raw /files download URL (Range-capable) for a server path."""
+    return f"{BASE}/files/{relpath(rel)}"
+
+
+# --------------------------------------------------------------------------- #
+#  Contents API:  ls / mkdir / rm / upload
+# --------------------------------------------------------------------------- #
+def ls(s, path=""):
+    """Print a directory listing (directories first) for a server path."""
+    r = s.get(f"{BASE}/api/contents/{relpath(path)}"); r.raise_for_status()
+    for c in sorted(r.json()["content"], key=lambda x: (x["type"] != "directory", x["name"])):
+        size = "" if c["size"] is None else f"{c['size']:>14,}"
+        print(f"{'d' if c['type']=='directory' else '-'} {size}  {c['path']}")
+
+
+def mkdir(s, path):
+    """Create a single directory on the server."""
+    r = s.put(f"{BASE}/api/contents/{relpath(path)}", headers=_xsrf(s),
+              json={"type": "directory"}); r.raise_for_status()
+    print("mkdir", r.json()["path"])
+
+
+def rm(s, path, _verbose=True):
+    """Delete a server file or directory, recursing first (the API refuses non-empty dirs)."""
+    path = relpath(path)
+    info = s.get(f"{BASE}/api/contents/{path}")
+    if info.status_code == 200 and info.json()["type"] == "directory":
+        for c in info.json()["content"]:                 # API refuses non-empty dirs
+            rm(s, c["path"], _verbose=False)
+    r = s.delete(f"{BASE}/api/contents/{path}", headers=_xsrf(s))
+    if r.status_code not in (204, 200):
+        r.raise_for_status()
+    if _verbose:
+        print("removed", path)
+
+
+def _ensure_remote_dir(s, path):
+    """Create every missing parent directory along a server path."""
+    path = relpath(path)
+    cur = ""
+    for part in [p for p in path.split("/") if p]:
+        cur = f"{cur}/{part}".lstrip("/")
+        if s.get(f"{BASE}/api/contents/{cur}").status_code != 200:
+            s.put(f"{BASE}/api/contents/{cur}", headers=_xsrf(s), json={"type": "directory"})
+
+
+def put_file(s, local, remote):
+    """Upload one local file to the server (text, or base64 if it is binary)."""
+    remote = relpath(remote)
+    data = pathlib.Path(local).read_bytes()
+    try:
+        body = {"type": "file", "format": "text", "content": data.decode("utf-8")}
+    except UnicodeDecodeError:                            # not UTF-8 -> send as base64
+        body = {"type": "file", "format": "base64",
+                "content": base64.b64encode(data).decode("ascii")}
+    _ensure_remote_dir(s, "/".join(remote.split("/")[:-1]))
+    s.put(f"{BASE}/api/contents/{remote}", headers=_xsrf(s), json=body).raise_for_status()
+    print(f"put  {local}  ->  {remote}  ({len(data):,} B)")
+
+
+def put(s, local, remote):
+    """Upload a single file, or recursively upload a whole local directory."""
+    p = pathlib.Path(local)
+    if p.is_dir():
+        for f in sorted(p.rglob("*")):
+            if f.is_file():
+                put_file(s, str(f), f"{relpath(remote).rstrip('/')}/{f.relative_to(p).as_posix()}")
+    else:
+        put_file(s, local, remote)
+
+
+# --------------------------------------------------------------------------- #
+#  Resumable, verified download via the raw /files endpoint (HTTP Range)
+# --------------------------------------------------------------------------- #
+def remote_size(s, rel):
+    """Return a server file's total byte size, probed with a Range 0-0 request."""
+    rel = relpath(rel)
+    r = s.get(files_url(rel), params={"_xsrf": s.cookies.get("_xsrf")},
+              headers={"Range": "bytes=0-0"}, stream=True, timeout=(30, 60))
+    if r.status_code in (401, 403):
+        r.close(); relogin(s); return remote_size(s, rel)
+    if r.status_code == 206:
+        total = int(r.headers["Content-Range"].split("/")[-1])   # "bytes 0-0/TOTAL"
+    elif r.status_code == 200:
+        total = int(r.headers.get("Content-Length", 0))
+    else:
+        r.close(); r.raise_for_status()
+    r.close()
+    return total
+
+
+def sha256_file(path, chunk=1 << 20):
+    """Compute the SHA-256 of a local file, reading it in 1 MiB chunks."""
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for blk in iter(lambda: f.read(chunk), b""):
+            h.update(blk)
+    return h.hexdigest()
+
+
+def download_resumable(s, remote, local, expected_sha256=None,
+                       chunk=1 << 20, progress=True):
+    """Download remote (server path) -> local, resuming on disconnect, then verify
+    size and (optionally) sha256.  Survives broken connections."""
+    import requests
+    rel = relpath(remote)
+    local = pathlib.Path(local)
+    local.parent.mkdir(parents=True, exist_ok=True)
+    total = remote_size(s, rel)
+    attempt = 0
+    t0 = time.time()
+    while True:
+        pos = local.stat().st_size if local.exists() else 0   # bytes already on disk
+        if pos >= total:
+            break
+        try:
+            r = s.get(files_url(rel), params={"_xsrf": s.cookies.get("_xsrf")},
+                      headers={"Range": f"bytes={pos}-"}, stream=True, timeout=(30, 120))
+            if r.status_code in (401, 403):
+                r.close(); relogin(s); continue           # session expired -> re-auth
+            r.raise_for_status()
+            with open(local, "ab") as f:                  # append: keep what we already have
+                for blk in r.iter_content(chunk):
+                    if blk:
+                        f.write(blk)
+                        if progress:
+                            done = local.stat().st_size
+                            rate = done / max(time.time() - t0, 1e-3) / 1e6
+                            sys.stdout.write(f"\r  {done/1e9:6.2f} / {total/1e9:.2f} GB "
+                                             f"({100*done/total:5.1f}%)  {rate:6.1f} MB/s   ")
+                            sys.stdout.flush()
+            r.close()
+            attempt = 0
+        except (requests.exceptions.RequestException, ssl.SSLError, OSError) as e:
+            attempt += 1
+            wait = min(30, 2 ** attempt)                  # exponential backoff, capped at 30s
+            sys.stdout.write(f"\n  ! transfer interrupted ({type(e).__name__}); "
+                             f"resume in {wait}s (try {attempt})\n")
+            time.sleep(wait)
+    if progress:
+        sys.stdout.write("\n")
+    actual = local.stat().st_size
+    if actual != total:                                   # (1) size check
+        raise SystemExit(f"size mismatch: got {actual:,}, expected {total:,}")
+    if expected_sha256:                                   # (2) hash check
+        got = sha256_file(local)
+        if got.lower() != expected_sha256.lower():
+            raise SystemExit(f"sha256 mismatch:\n  got      {got}\n  expected {expected_sha256}")
+        print(f"  sha256 OK  {got}")
+    print(f"  verified {actual:,} bytes  ->  {local}")
+    return actual
+
+
+def get_file(s, remote, local):
+    """Download a single server file (resumable + size-verified)."""
+    download_resumable(s, remote, local, progress=True)
+
+
+def get(s, remote, local):
+    """Download a server file, or recursively a whole server directory."""
+    remote = relpath(remote)
+    r = s.get(f"{BASE}/api/contents/{remote}")
+    if r.status_code == 200 and r.json()["type"] == "directory":
+        for c in r.json()["content"]:
+            get(s, c["path"], os.path.join(local, c["name"]))
+    else:
+        get_file(s, remote, local)
+
+
+# --------------------------------------------------------------------------- #
+#  Remote execution via a transient kernel websocket
+# --------------------------------------------------------------------------- #
+def _open_ws(s, kid, timeout):
+    """Open an authenticated WebSocket to a kernel's message channels."""
+    from websocket import create_connection
+    cookie = "; ".join(f"{c.name}={c.value}" for c in s.cookies)
+    sslopt = {"cert_reqs": ssl.CERT_NONE} if getattr(s, "_insecure", False) else None
+    return create_connection(BASE.replace("https://", "wss://") + f"/api/kernels/{kid}/channels",
+                             header=[f"Cookie: {cookie}", f"X-XSRFToken: {s.cookies.get('_xsrf')}"],
+                             timeout=timeout, sslopt=sslopt)
+
+
+def _exec(s, code, timeout, on_stream=None):
+    """Run `code` in a fresh kernel, gather its stream output, then delete the kernel."""
+    kid = s.post(f"{BASE}/api/kernels", headers=_xsrf(s),
+                 json={"name": "python3"}).json()["id"]
+    ws = _open_ws(s, kid, timeout)
+    mid = uuid.uuid4().hex
+    ws.send(json.dumps({
+        "header": {"msg_id": mid, "username": "auto", "session": uuid.uuid4().hex,
+                   "msg_type": "execute_request", "version": "5.3"},
+        "parent_header": {}, "metadata": {},
+        "content": {"code": code, "silent": False, "store_history": False,
+                    "user_expressions": {}, "allow_stdin": False, "stop_on_error": True},
+        "channel": "shell"}))
+    buf = []
+    try:
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            msg = json.loads(ws.recv())
+            if msg.get("parent_header", {}).get("msg_id") != mid:   # ignore other messages
+                continue
+            mt, c = msg["msg_type"], msg["content"]
+            if mt == "stream":                          # stdout / stderr chunks
+                buf.append(c["text"])
+                if on_stream:
+                    on_stream(c["text"])
+            elif mt == "error":
+                tb = "\n".join(c["traceback"])
+                buf.append(tb)
+                if on_stream:
+                    on_stream(tb + "\n")
+            elif mt == "status" and c["execution_state"] == "idle":  # execution finished
+                break
+    finally:
+        ws.close()
+        s.delete(f"{BASE}/api/kernels/{kid}", headers=_xsrf(s))      # always free the kernel
+    return "".join(buf)
+
+
+def run(s, command, timeout=86400):
+    """Run a bash command on the server, streaming stdout/stderr live. Returns exit code."""
+    code = ("import subprocess,sys\n"
+            "p=subprocess.Popen(['bash','-lc'," + repr(command) + "],"
+            "stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,bufsize=1)\n"
+            "[print(l,end='',flush=True) for l in p.stdout]\n"     # flush per line -> live
+            "print('\\n__PEGASUS_RC__=%d'%p.wait())\n")            # sentinel carries exit code
+
+    def emit(t):                                           # stream live, but hide the sentinel
+        if "__PEGASUS_RC__=" in t:
+            t = t.split("__PEGASUS_RC__=")[0].rstrip("\n")
+        if t:
+            sys.stdout.write(t); sys.stdout.flush()
+
+    out = _exec(s, code, timeout, on_stream=emit)
+    rc = 0
+    for line in out.splitlines():
+        if line.startswith("__PEGASUS_RC__="):
+            rc = int(line.split("=", 1)[1])
+    return rc
+
+
+def sh(s, command, timeout=300):
+    """Run a bash command, capture output. Returns (stdout_text, exit_code). Non-streaming."""
+    code = ("import subprocess\n"
+            "r=subprocess.run(['bash','-lc'," + repr(command) + "],"
+            "capture_output=True,text=True)\n"
+            "print(r.stdout,end='')\n"
+            "print(r.stderr,end='')\n"
+            "print('__PEGASUS_RC__=%d'%r.returncode)\n")
+    out = _exec(s, code, timeout)
+    rc, lines = 0, []
+    for line in out.splitlines(keepends=True):
+        if line.startswith("__PEGASUS_RC__="):
+            rc = int(line.split("=", 1)[1])
+        else:
+            lines.append(line)
+    return "".join(lines), rc
+
+
+# --------------------------------------------------------------------------- #
+#  CLI
+# --------------------------------------------------------------------------- #
+def main():
+    """CLI entry point: parse arguments, log in, then dispatch the chosen command."""
+    ap = argparse.ArgumentParser(description="Pegasus Jupyter automation client")
+    ap.add_argument("--insecure", action="store_true",
+                    help="skip TLS verification (only if truststore is unavailable)")
+    sub = ap.add_subparsers(dest="cmd", required=True, metavar="COMMAND")
+
+    p = sub.add_parser("ls", help="list a remote directory")
+    p.add_argument("path", nargs="?", default="",
+                   help="remote dir relative to /data (default: root)")
+
+    p = sub.add_parser("put", help="upload a file or directory (recursive)")
+    p.add_argument("local", help="local file or folder to upload")
+    p.add_argument("remote", help="destination path on the server")
+
+    p = sub.add_parser("get", help="download a file or directory (resumable + verified)")
+    p.add_argument("remote", help="remote path on the server")
+    p.add_argument("local", help="local destination path")
+
+    p = sub.add_parser("rm", help="recursively delete a remote path")
+    p.add_argument("path", help="remote file or directory to delete")
+
+    p = sub.add_parser("mkdir", help="create a remote directory")
+    p.add_argument("path", help="remote directory to create")
+
+    p = sub.add_parser("run", help="run a bash command on the server (live output)")
+    p.add_argument("command", nargs="?", help="shell command string to run")
+    p.add_argument("--file", help="run the contents of a local script file instead")
+
+    args = ap.parse_args()
+
+    s = connect(args.insecure)
+    if args.cmd == "ls":
+        ls(s, args.path)
+    elif args.cmd == "put":
+        put(s, args.local, args.remote)
+    elif args.cmd == "get":
+        get(s, args.remote, args.local)
+    elif args.cmd == "rm":
+        rm(s, args.path)
+    elif args.cmd == "mkdir":
+        mkdir(s, args.path)
+    elif args.cmd == "run":
+        cmd = pathlib.Path(args.file).read_text(encoding="utf-8") if args.file else args.command
+        if not cmd:
+            ap.error("run needs a command or --file")
+        sys.exit(run(s, cmd))
+
+
+if __name__ == "__main__":
+    main()</script>
+  </details>
+
+  <details class="src srcfile">
+    <summary>📄 run_finetune.py<span class="filemeta">Fine-tuning 編排器（與 repo 同步）</span></summary>
+    <script type="text/plain" class="cb" data-lang="python" data-title="run_finetune.py" data-plain="1">#!/usr/bin/env python3
+r"""End-to-end GR00T fine-tuning automation on the Pegasus remote box.
+
+Pipeline (every stage survives a local disconnect):
+    1. start    : upload a wrapper script and launch it DETACHED on the server
+                  (setsid+nohup) so training keeps running even if this PC drops /
+                  the kernel dies.  The wrapper:
+                       conda activate <env>  ->  run fine-tuning  ->  (on success)
+                       delete extra checkpoints  ->  zip  ->  sha256 + size.
+    2. monitor  : tail the server-side log over HTTP until status is DONE/FAILED.
+                  Re-runnable any time after a disconnect (stateless polling).
+    3. download : resumable + sha256-verified download of the .zip to the local dir,
+                  so a dropped connection never leaves a half / corrupt file.
+
+Usage (PowerShell):
+    $env:PEGASUS_PASSWORD = 'eksncl#...'
+    python run_finetune.py run         # start training, then monitor + download
+    python run_finetune.py monitor     # re-attach to the latest run after a disconnect
+    python run_finetune.py download    # (re)download + verify the latest run's artifact
+    python run_finetune.py status      # print current server-side status
+    python run_finetune.py selftest    # validate the whole pipeline with a tiny dummy job
+    python run_finetune.py stop        # kill the detached job of the latest run
+
+Edit the CONFIG block below to change the command / parameters / paths.
+"""
+import argparse, json, os, shlex, sys, time, datetime, pathlib
+import pegasus as pg
+
+# ===========================================================================
+#  CONFIG  -- edit here
+# ===========================================================================
+# How to enter the conda env on this box (env is a path-based env, activate by path):
+CONDA_ACTIVATE = ('eval "$(/home/gallop/miniforge3/bin/conda shell.bash hook)" && '
+                  'conda activate /data/VLA/tingying/envs/gr00t_n1d5')
+
+# Directory to run the fine-tuning command from:
+TRAIN_CWD = "/data/VLA/tingying/IsaacLab-GR00T/Isaac-GR00T"
+DATASET_PATH = "/data/VLA/datasets/OpenArm_O6_CanSorting_Dataset_0408"
+
+# Where the training writes its checkpoints:
+OUTPUT_DIR = ("/data/VLA/experiments/openarmlinkerhando6-can-sorting-checkpoints/"
+              "new_embodiment/N1_5_100k_dataset_0408_rtc_stage1")
+
+# Total training steps -- MUST match --max-steps below.  The final checkpoint is
+# named checkpoint-<MAX_STEPS>; that is the one we keep after cleanup.
+MAX_STEPS = 100000
+
+# The fine-tuning command (exactly as you would type it after activating the env).
+TRAIN_CMD = (
+    f"TOKENIZERS_PARALLELISM=false CUDA_VISIBLE_DEVICES=0 "
+    f"python3 scripts/gr00t_finetune.py "
+    f"--dataset-path {DATASET_PATH} "
+    f"--output-dir {OUTPUT_DIR} "
+    "--gpu-id 0 --num-gpus 1 --batch-size 32 --video-backend torchvision_av "
+    "--data-config openarm_linkerhand_o6 --embodiment_tag new_embodiment "
+    f"--max-steps {MAX_STEPS} --save-steps 2000 --eval_steps 1000 --save-total-limit 5 "
+    "--eval-args-trajs 2 --eval-args-max-steps 400 --dataset-split-ratio \"9:1\" "
+    "--dataloader-num-workers 4 --denoising_step 4 --learning-rate 1e-4 "
+    "--eval-args-action-horizon 16"
+)
+
+# Post-training cleanup, executed INSIDE OUTPUT_DIR (where the checkpoint-* dirs live).
+# Keep ONLY the final checkpoint (checkpoint-<MAX_STEPS>); delete every other checkpoint-*.
+# `find` makes this robust regardless of which intermediate step numbers exist.
+KEEP_CHECKPOINT = f"checkpoint-{MAX_STEPS}"               # e.g. checkpoint-100000
+CLEANUP_CMD = (f"find . -maxdepth 1 -type d -name 'checkpoint-*' "
+               f"! -name {shlex.quote(KEEP_CHECKPOINT)} -exec rm -rf {{}} +")
+
+# Zip: created in the PARENT of OUTPUT_DIR, archiving the output dir by name.
+ZIP_PARENT = os.path.dirname(OUTPUT_DIR)
+ZIP_NAME = os.path.basename(OUTPUT_DIR) + ".zip"          # N1_5_100k_..._stage1.zip
+ZIP_CMD = f"rm -f {shlex.quote(ZIP_NAME)} && zip -r -y {shlex.quote(ZIP_NAME)} " \
+          f"{shlex.quote(os.path.basename(OUTPUT_DIR) + '/')}"
+
+# Local download destination (the verified .zip lands here):
+LOCAL_DIR = r"D:\tmp\IsaacLab-GR00T\artifacts\checkpoints"
+
+# Server-side scratch dir for run state/logs.  Lives in YOUR private folder
+# (not the shared /data/VLA), and must NOT be hidden (Jupyter hides dot-dirs).
+STATE_ROOT = "/data/VLA/tingying/pegasus_runs"
+
+POLL_SECONDS = 30           # how often monitor polls the server
+# ===========================================================================
+
+
+def q(p):
+    """shlex.quote shortcut -- safely embed a path/string inside a shell command."""
+    return shlex.quote(p)
+
+
+def wrapper_script(cfg, state_abs):
+    """Generate the detached server-side bash wrapper for one run."""
+    return f"""#!/bin/bash
+# auto-generated by run_finetune.py -- do not edit on the server
+STATE={q(state_abs)}
+echo RUNNING > "$STATE/status"
+{{
+  echo "[wrapper] $(date '+%F %T') start"
+  set -x
+  {cfg['conda_activate']} || {{ set +x; echo "FAILED_CONDA" > "$STATE/status"; exit 11; }}
+  cd {q(cfg['train_cwd'])}  || {{ set +x; echo "FAILED_CD_TRAIN" > "$STATE/status"; exit 12; }}
+  echo "[wrapper] training begins $(date '+%F %T')"
+  {cfg['train_cmd']}
+  rc=$?
+  set +x
+  echo "[wrapper] training exit code = $rc"
+  if [ $rc -ne 0 ]; then echo "FAILED_TRAIN:$rc" > "$STATE/status"; exit $rc; fi
+
+  cd {q(cfg['output_dir'])} || {{ echo "FAILED_CD_OUT" > "$STATE/status"; exit 13; }}
+  echo "[wrapper] checkpoints before cleanup:"; ls -d checkpoint-* 2>/dev/null
+  echo "[wrapper] cleanup (keep {cfg['keep_checkpoint']}): {cfg['cleanup_cmd']}"
+  ( {cfg['cleanup_cmd']} ) 2>/dev/null || true
+  echo "[wrapper] checkpoints after cleanup:"; ls -d checkpoint-* 2>/dev/null
+
+  cd {q(cfg['zip_parent'])} || {{ echo "FAILED_CD_ZIP" > "$STATE/status"; exit 14; }}
+  echo "[wrapper] zipping -> {cfg['zip_name']}"
+  {cfg['zip_cmd']}
+  zrc=$?
+  if [ $zrc -ne 0 ]; then echo "FAILED_ZIP:$zrc" > "$STATE/status"; exit $zrc; fi
+
+  echo "[wrapper] hashing {cfg['zip_name']}"
+  sha256sum {q(cfg['zip_name'])} | awk '{{print $1}}' > "$STATE/zip.sha256"
+  stat -c %s {q(cfg['zip_name'])} > "$STATE/zip.size"
+  echo "{cfg['zip_parent']}/{cfg['zip_name']}" > "$STATE/zip.path"
+  echo DONE > "$STATE/status"
+  echo "[wrapper] all done $(date '+%F %T')"
+}} >> "$STATE/run.log" 2>&1
+"""
+
+
+# --------------------------------------------------------------------------- #
+#  Local run-state bookkeeping (so we can re-attach after a disconnect)
+# --------------------------------------------------------------------------- #
+def state_file(cfg):
+    """Path to the local JSON that remembers the latest run (used to re-attach)."""
+    return pathlib.Path(cfg["local_dir"]) / (cfg["run_name"] + ".run.json")
+
+
+def save_state(cfg, info):
+    """Persist this run's identifiers to the local state JSON."""
+    p = state_file(cfg); p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(info, indent=2), encoding="utf-8")
+
+
+def load_state(cfg):
+    """Load the latest run's identifiers (errors if no run was ever started)."""
+    p = state_file(cfg)
+    if not p.exists():
+        raise SystemExit(f"no run state found ({p}); start a run first with `run`.")
+    return json.loads(p.read_text(encoding="utf-8"))
+
+
+# --------------------------------------------------------------------------- #
+#  Server file helpers (over HTTP /files, with re-login on expiry)
+# --------------------------------------------------------------------------- #
+def fetch(s, rel, offset=0):
+    """Return bytes of a server file from `offset` (b'' if absent / no new data)."""
+    headers = {"Range": f"bytes={offset}-"} if offset else {}
+    try:
+        r = s.get(pg.files_url(rel), params={"_xsrf": s.cookies.get("_xsrf")},
+                  headers=headers, timeout=(30, 60))
+    except Exception as e:                               # network blip -> caller retries
+        sys.stderr.write(f"\n(fetch retry: {type(e).__name__})\n"); time.sleep(5); return b""
+    if r.status_code in (401, 403):
+        pg.relogin(s); return fetch(s, rel, offset)      # session expired -> re-auth
+    if r.status_code in (404, 416):                      # not created yet / no new bytes
+        return b""
+    if r.status_code in (200, 206):
+        return r.content
+    return b""
+
+
+def read_text(s, rel):
+    """Fetch a small server file and return it as stripped UTF-8 text."""
+    return fetch(s, rel).decode("utf-8", "replace").strip()
+
+
+# --------------------------------------------------------------------------- #
+#  Pipeline stages
+# --------------------------------------------------------------------------- #
+def start(s, cfg):
+    """Upload the generated wrapper and launch the training DETACHED on the server."""
+    runid = cfg["run_name"] + "_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    state_abs = f"{cfg['state_root']}/{runid}"
+    state_rel = pg.relpath(state_abs)
+    print(f"[start] run id      : {runid}")
+    print(f"[start] state dir   : {state_abs}")
+    pg.put_file(s, _tmp_write(wrapper_script(cfg, state_abs), "wrapper.sh"),
+                f"{state_rel}/wrapper.sh")
+    # nohup+setsid -> new session that outlives this kernel / a local disconnect
+    out, rc = pg.sh(s, f"cd {q(state_abs)} && : > run.log && "
+                       f"nohup setsid bash wrapper.sh >/dev/null 2>&1 & "
+                       f"echo $! > wrapper.pid; echo started pid=$(cat wrapper.pid)")
+    print(f"[start] launch: {out.strip()} (rc={rc})")
+    info = {"runid": runid, "state_abs": state_abs, "state_rel": state_rel,
+            "zip_name": cfg["zip_name"], "started": datetime.datetime.now().isoformat()}
+    save_state(cfg, info)
+    print("[start] training launched DETACHED; it will keep running if you disconnect.")
+    return info
+
+
+def monitor(s, cfg, info):
+    """Tail the server log (over /files) until the run reports DONE or FAILED."""
+    state_rel = info["state_rel"]
+    print(f"[monitor] watching {info['runid']} (poll {cfg['poll']}s; Ctrl-C is safe, "
+          f"re-attach with `monitor`)")
+    log_off = 0
+    while True:
+        chunk = fetch(s, f"{state_rel}/run.log", log_off)   # only the new bytes since last poll
+        if chunk:
+            sys.stdout.write(chunk.decode("utf-8", "replace")); sys.stdout.flush()
+            log_off += len(chunk)
+        status = read_text(s, f"{state_rel}/status")
+        if status == "DONE":
+            print(f"\n[monitor] status = DONE"); return True
+        if status.startswith("FAILED"):
+            print(f"\n[monitor] status = {status}  (see log above)"); return False
+        time.sleep(cfg["poll"])
+
+
+def download(s, cfg, info):
+    """Download + verify (size & sha256) the finished run's zip to the local dir."""
+    state_rel = info["state_rel"]
+    status = read_text(s, f"{state_rel}/status")
+    if status != "DONE":
+        raise SystemExit(f"run status is '{status}', not DONE; cannot download yet.")
+    sha = read_text(s, f"{state_rel}/zip.sha256") or None
+    zip_path = read_text(s, f"{state_rel}/zip.path")
+    size = read_text(s, f"{state_rel}/zip.size")
+    local = pathlib.Path(cfg["local_dir"]) / info["zip_name"]
+    print(f"[download] remote : {zip_path}")
+    print(f"[download] size   : {int(size):,} bytes" if size.isdigit() else "")
+    print(f"[download] sha256 : {sha}")
+    print(f"[download] local  : {local}")
+    pg.download_resumable(s, zip_path, local, expected_sha256=sha)
+    print(f"[download] OK -- verified artifact at {local}")
+    return local
+
+
+def stop(s, cfg, info):
+    """Terminate the detached run by killing its whole process group."""
+    # the wrapper runs in its own session (setsid), so PID == PGID; kill the whole group
+    out, rc = pg.sh(s, f"P=$(cat {q(info['state_abs'])}/wrapper.pid 2>/dev/null); "
+                       f"if [ -n \"$P\" ]; then kill -TERM -\"$P\" 2>/dev/null && echo killed group $P "
+                       f"|| echo 'no live process (already finished?)'; "
+                       f"else echo 'no wrapper.pid'; fi")
+    print(f"[stop] {out.strip()}")
+
+
+# --------------------------------------------------------------------------- #
+def default_config():
+    """Assemble the config dict for a real fine-tuning run from the CONFIG block."""
+    return dict(conda_activate=CONDA_ACTIVATE, train_cwd=TRAIN_CWD, train_cmd=TRAIN_CMD,
+                output_dir=OUTPUT_DIR, cleanup_cmd=CLEANUP_CMD, keep_checkpoint=KEEP_CHECKPOINT,
+                zip_parent=ZIP_PARENT, zip_name=ZIP_NAME, zip_cmd=ZIP_CMD, local_dir=LOCAL_DIR,
+                state_root=STATE_ROOT, poll=POLL_SECONDS,
+                run_name=os.path.basename(OUTPUT_DIR))
+
+
+def selftest_config():
+    """Tiny end-to-end rehearsal: no real training, ~12 MB dummy artifact, throwaway paths."""
+    base = f"{STATE_ROOT}/_selftest"
+    out = f"{base}/dummy_output"
+    cfg = default_config()
+    cfg.update(
+        conda_activate="true",
+        train_cwd="/data",
+        # fake "training": a 12 MB blob + three checkpoints (90000/95000/100000)
+        train_cmd=(f"mkdir -p {q(out)} && "
+                   f"head -c 12000000 /dev/urandom > {q(out)}/weights.bin && "
+                   f"for i in 90000 95000 100000; do mkdir -p {q(out)}/checkpoint-$i && "
+                   f"echo step$i > {q(out)}/checkpoint-$i/info.txt; done && echo trained"),
+        output_dir=out,
+        keep_checkpoint="checkpoint-100000",
+        # keep only the final checkpoint, same logic as the real run
+        cleanup_cmd=("find . -maxdepth 1 -type d -name 'checkpoint-*' "
+                     "! -name checkpoint-100000 -exec rm -rf {} +"),
+        zip_parent=base,
+        zip_name="dummy_output.zip",
+        zip_cmd="rm -f dummy_output.zip && zip -r -y dummy_output.zip dummy_output/",
+        local_dir=os.path.join(os.environ.get("TEMP", "/tmp"), "pegasus_selftest"),
+        run_name="_selftest",
+        poll=3,
+    )
+    return cfg
+
+
+_TMP = pathlib.Path(os.environ.get("TEMP", "/tmp")) / "pegasus_wrappers"
+
+
+def _tmp_write(content, name):
+    """Write text to a local temp file with LF line endings (so bash is happy)."""
+    _TMP.mkdir(parents=True, exist_ok=True)
+    p = _TMP / name
+    p.write_text(content, encoding="utf-8", newline="\n")     # LF endings for bash
+    return str(p)
+
+
+def main():
+    """CLI entry point: connect to the server, then dispatch the chosen sub-command."""
+    ap = argparse.ArgumentParser(description=__doc__,            # the module docstring above
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("cmd", nargs="?", default="run",
+                    choices=["run", "start", "monitor", "download", "status", "stop", "selftest"],
+                    help="pipeline action to run (default: run)")
+    ap.add_argument("--insecure", action="store_true", help="skip TLS verification")
+    args = ap.parse_args()
+
+    s = pg.connect(args.insecure)
+
+    if args.cmd == "selftest":
+        cfg = selftest_config()
+        print("=== SELF-TEST: rehearsing the full pipeline with a dummy job ===")
+        info = start(s, cfg)
+        ok = monitor(s, cfg, info)
+        if ok:
+            download(s, cfg, info)
+        print("[selftest] cleaning up server scratch dir")
+        pg.rm(s, info["state_abs"]); pg.rm(s, f"{cfg['state_root']}/_selftest")
+        print("=== SELF-TEST DONE ===" if ok else "=== SELF-TEST FAILED ===")
+        sys.exit(0 if ok else 1)
+
+    cfg = default_config()
+    if args.cmd == "run":                       # full pipeline
+        info = start(s, cfg)
+        ok = monitor(s, cfg, info)
+        if ok:
+            download(s, cfg, info)
+        sys.exit(0 if ok else 1)
+    elif args.cmd == "start":                   # launch only
+        start(s, cfg)
+    elif args.cmd == "monitor":                 # re-attach after a disconnect
+        info = load_state(cfg)
+        ok = monitor(s, cfg, info)
+        if ok:
+            download(s, cfg, info)
+        sys.exit(0 if ok else 1)
+    elif args.cmd == "download":                # (re)download + verify only
+        download(s, cfg, load_state(cfg))
+    elif args.cmd == "status":                  # quick status check
+        info = load_state(cfg)
+        print("run id:", info["runid"])
+        print("status:", read_text(s, f"{info['state_rel']}/status") or "(none)")
+    elif args.cmd == "stop":                    # abort the detached run
+        stop(s, cfg, load_state(cfg))
+
+
+if __name__ == "__main__":
+    main()</script>
+  </details>
+</section>
+
+<!-- ===================== GOTCHAS ===================== -->
+<section id="gotchas">
+  <h2 class="sec"><span class="idx">12</span>踩雷與教訓</h2>
+  <p class="lead">把整個過程濃縮成一張對照表——每個現象、根因、解法。</p>
+  <table class="ref">
+    <tr><th>現象</th><th>根因</th><th>解法</th></tr>
+    <tr><td>curl PUT 上傳 <code>Segmentation fault</code></td><td>sandbox 內 curl build 問題</td><td>改用 Python <code>requests</code></td></tr>
+    <tr><td>python 找不到 <code>/tmp/xxx.py</code></td><td>bash 的 /tmp ≠ Windows python 的 %TEMP%</td><td>Windows 上走 PowerShell + 明確路徑</td></tr>
+    <tr><td><code>CERTIFICATE_VERIFY_FAILED</code></td><td>ASUS 內部 CA 不在 certifi</td><td><code>pip install truststore</code> 改用 OS 信任庫</td></tr>
+    <tr><td>WebSocket 連不上</td><td>缺認證標頭</td><td>header 帶 <code>Cookie</code> + <code>X-XSRFToken</code></td></tr>
+    <tr><td>DELETE 目錄回 <code>400</code></td><td>Contents API 不刪非空目錄</td><td>先遞迴刪子項</td></tr>
+    <tr><td><code>/files</code> 下載回 <code>403</code></td><td>未帶 XSRF，被導去登入頁</td><td>加 <code>?_xsrf=&lt;token&gt;</code> 查詢參數</td></tr>
+    <tr><td><code>/files</code> 讀狀態檔一直 <code>404</code></td><td>放在 dot 目錄；Jupyter <code>allow_hidden=False</code></td><td>狀態檔放<strong>非隱藏</strong>目錄</td></tr>
+    <tr><td><code>conda: command not found</code></td><td>非互動 <code>bash -lc</code> 未載入 conda init</td><td>先 <code>eval "$(conda shell.bash hook)"</code></td></tr>
+    <tr><td><code>EnvironmentNameNotFound: gr00t_n1d5</code></td><td>env 是路徑型，不在預設 envs</td><td>用<strong>完整路徑</strong> activate</td></tr>
+    <tr><td>長訓練因斷線/關 kernel 中止</td><td>程序綁在 kernel 的 process group</td><td><code>nohup setsid</code> 丟到獨立 session</td></tr>
+    <tr><td>大檔下載中途斷線即毀</td><td>無續傳/驗證</td><td>HTTP <code>Range</code> 續傳 + <code>sha256</code> 驗證</td></tr>
+    <tr><td><code>fork: Resource temporarily unavailable</code></td><td>機器負載高（既有工作）</td><td>暫時性，重試即可</td></tr>
+  </table>
+
+  <footer>
+    Pegasus 遠端自動化教學報告 · 更新於 2026-05-23 ·
+    對應檔案：<code class="ic">pegasus.py</code> · <code class="ic">run_finetune.py</code> ·
+    遠端 <code class="ic">gallop@pa-jp-v1</code>（2×H100）。本報告為單一自含 HTML，可離線開啟。
+  </footer>
+</section>
+
+</main>
+</div>
+
+<button id="toTop" aria-label="back to top">↑</button>
+
+<script>
+/* ============ syntax highlighter (runs on raw text, escapes on emit) ============ */
+const LANGS = {
+  python: [
+    ['cm', "#[^\\n]*"],
+    ['str', "(?:[rbfRBF]{0,2})(?:\"\"\"[\\s\\S]*?\"\"\"|'''[\\s\\S]*?'''|\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*')"],
+    ['dec', "@[\\w.]+"],
+    ['kw', "\\b(?:def|class|return|if|elif|else|for|while|in|not|and|or|is|None|True|False|try|except|finally|with|as|import|from|raise|lambda|yield|global|nonlocal|assert|break|continue|pass|del|async|await)\\b"],
+    ['bi', "\\b(?:print|len|range|open|int|str|bytes|list|dict|set|tuple|float|bool|super|self|enumerate|sorted|map|filter|isinstance|getattr|setattr|min|max|sum|abs|repr|iter|next)\\b"],
+    ['num', "\\b\\d[\\d_]*(?:\\.\\d+)?\\b"]
+  ],
+  bash: [
+    ['cm', "(?:^|(?<=\\s))#[^\\n]*"],
+    ['str', "\"(?:\\\\.|[^\"\\\\])*\"|'[^']*'"],
+    ['var', "\\$\\{[^}]*\\}|\\$\\([^)]*\\)|\\$\\w+|\\$[!?#@*]"],
+    ['flag', "(?<=\\s)--?[A-Za-z][\\w-]*"],
+    ['cmd', "\\b(?:echo|cd|ls|mkdir|rmdir|rm|cp|mv|zip|unzip|tar|sha256sum|md5sum|stat|nohup|setsid|bash|sh|conda|eval|source|export|python3?|pip|kill|pkill|cat|awk|grep|sed|head|tail|find|df|du|nvidia-smi|curl|wget|chmod|chown|seq|sleep|date|true|false|exit|read)\\b"],
+    ['kw', "\\b(?:if|then|else|elif|fi|for|in|do|done|while|until|case|esac|function|return|set)\\b"],
+    ['num', "\\b\\d+\\b"],
+    ['op', "2>&1|>>|&&|\\|\\||\\||;"]
+  ],
+  powershell: [
+    ['cm', "(?:^|(?<=\\s))#[^\\n]*"],
+    ['str', "@'[\\s\\S]*?'@|@\"[\\s\\S]*?\"@|\"(?:`.|[^\"`])*\"|'[^']*'"],
+    ['var', "\\$env:\\w+|\\$\\w+"],
+    ['cmd', "\\b(?:Get|Set|New|Remove|Select|Where|ForEach|Write|Test|Invoke|Out|Measure|Add|Copy|Move|Import|Export|Start|Stop|ConvertTo|ConvertFrom)-\\w+\\b"],
+    ['kw', "\\b(?:if|else|elseif|foreach|function|param|return|try|catch|finally|in)\\b"],
+    ['num', "\\b\\d+\\b"]
+  ],
+  http: [
+    ['kw', "\\b(?:GET|POST|PUT|DELETE|HEAD|PATCH|HTTP)\\b"],
+    ['num', "\\b\\d{3}\\b"],
+    ['str', "\"(?:\\\\.|[^\"\\\\])*\""]
+  ],
+  json: [
+    ['str', "\"(?:\\\\.|[^\"\\\\])*\""],
+    ['num', "\\b-?\\d+(?:\\.\\d+)?\\b"],
+    ['kw', "\\b(?:true|false|null)\\b"]
+  ],
+  text: []
+};
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function highlight(code, lang){
+  const spec = LANGS[lang] || LANGS.text;
+  if(!spec.length) return esc(code);
+  let combined;
+  try{ combined = new RegExp(spec.map((s,i)=>"(?<t"+i+">"+s[1]+")").join('|'),'gm'); }
+  catch(e){ return esc(code); }
+  let out='', last=0, m;
+  while((m = combined.exec(code))){
+    if(m.index < last){ combined.lastIndex = last; continue; }
+    out += esc(code.slice(last, m.index));
+    let cls='text';
+    for(let i=0;i<spec.length;i++){ if(m.groups['t'+i] !== undefined){ cls=spec[i][0]; break; } }
+    out += '<span class="t-'+cls+'">'+esc(m[0])+'</span>';
+    last = m.index + m[0].length;
+    if(m[0].length === 0) combined.lastIndex++;
+  }
+  out += esc(code.slice(last));
+  return out;
+}
+
+/* ============ transform <script class="cb"> into rendered code blocks ============ */
+document.querySelectorAll('script.cb').forEach(node=>{
+  const lang = node.dataset.lang || 'text';
+  const title = node.dataset.title || '';
+  const raw = node.textContent.replace(/^\n/,'').replace(/\s+$/,'');
+  const wrap = document.createElement('div');
+  wrap.className = 'code-block';
+  const head = document.createElement('div'); head.className='cbhead';
+  head.innerHTML = '<span class="lang '+lang+'">'+lang+'</span>'+
+                   (title?'<span class="title">'+esc(title)+'</span>':'')+
+                   '<button class="copy">複製</button>';
+  const pre = document.createElement('pre');
+  const code = document.createElement('code');
+  code.innerHTML = highlight(raw, lang);
+  pre.appendChild(code);
+  wrap.appendChild(head); wrap.appendChild(pre);
+  const btn = head.querySelector('.copy');
+  btn.addEventListener('click', ()=>{
+    navigator.clipboard.writeText(raw).then(()=>{
+      btn.textContent='已複製 ✓'; setTimeout(()=>btn.textContent='複製',1400);
+    });
+  });
+  node.replaceWith(wrap);
+});
+
+/* ============ scrollspy nav ============ */
+const links = [...document.querySelectorAll('nav.side a')];
+const map = {}; links.forEach(a=>map[a.getAttribute('href').slice(1)]=a);
+const obs = new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      links.forEach(l=>l.classList.remove('active'));
+      const a = map[e.target.id]; if(a) a.classList.add('active');
+    }
+  });
+},{rootMargin:'-45% 0px -50% 0px', threshold:0});
+document.querySelectorAll('section[id]').forEach(s=>obs.observe(s));
+
+/* ============ progress bar + back-to-top ============ */
+const prog = document.getElementById('progress');
+const toTop = document.getElementById('toTop');
+addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const sc = h.scrollTop/(h.scrollHeight - h.clientHeight);
+  prog.style.width = (sc*100)+'%';
+  toTop.style.display = h.scrollTop>600 ? 'grid' : 'none';
+}, {passive:true});
+toTop.addEventListener('click',()=>scrollTo({top:0,behavior:'smooth'}));
+
+/* ============ mobile nav ============ */
+const nav = document.getElementById('nav');
+document.getElementById('navToggle').addEventListener('click',()=>nav.classList.toggle('open'));
+nav.addEventListener('click',e=>{ if(e.target.tagName==='A') nav.classList.remove('open'); });
+
+/* ============ expand/collapse helpers ============ */
+function setAll(sel, open){ document.querySelectorAll(sel).forEach(d=>d.open=open); }
+document.getElementById('expandJourney').onclick=()=>setAll('#journey-tl details',true);
+document.getElementById('collapseJourney').onclick=()=>setAll('#journey-tl details',false);
+document.getElementById('expandSrc').onclick=()=>setAll('details.srcfile',true);
+document.getElementById('collapseSrc').onclick=()=>setAll('details.srcfile',false);
+</script>
+</body>
+</html>
