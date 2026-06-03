@@ -3,14 +3,13 @@
 
 import argparse
 import json
+import os
 import shlex
 import subprocess
 import sys
 from pathlib import Path
 
 import psutil
-
-from project_paths import project_root, resolve_project_path
 
 # Example of usage:
 # python launch_isaac_policy.py \
@@ -20,12 +19,18 @@ from project_paths import project_root, resolve_project_path
 #     --save-video
 
 
-BASE_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = project_root(BASE_DIR)
+# This script lives at the workspace root, so its directory IS the workspace root.
+PROJECT_ROOT = Path(__file__).resolve().parent
 POLICY_CONFIGS = {
     "starvla": PROJECT_ROOT / "IsaacLab/scripts/gr00t_script/policy_configs/starvla_openarm_o6.json",
     "gr00t": PROJECT_ROOT / "IsaacLab/scripts/gr00t_script/policy_configs/gr00t_n15_openarm_o6.json",
 }
+
+
+def _resolve_path(value: str | os.PathLike[str]) -> Path:
+    """Expand env vars / `~` and resolve relative paths against PROJECT_ROOT."""
+    path = Path(os.path.expandvars(os.fspath(value))).expanduser()
+    return path if path.is_absolute() else PROJECT_ROOT / path
 
 CLIENT = {
     "dir": PROJECT_ROOT / "IsaacLab",
@@ -47,7 +52,7 @@ def load_json(path):
 
 def server(policy, cfg):
     s = SERVERS[policy].copy()
-    s["dir"] = resolve_project_path(cfg["starvla_repo"], PROJECT_ROOT) if policy == "starvla" else PROJECT_ROOT / "Isaac-GR00T"
+    s["dir"] = _resolve_path(cfg["starvla_repo"]) if policy == "starvla" else PROJECT_ROOT / "Isaac-GR00T"
     return s
 
 
@@ -112,16 +117,17 @@ def main():
 
     # Load policy config and determine model path and server config
     policy_cfg = load_json(POLICY_CONFIGS[args.policy])
-    model_path = resolve_project_path(args.model_path or policy_cfg["model_path"], PROJECT_ROOT)
+    model_path = _resolve_path(args.model_path or policy_cfg["model_path"])
     server_cfg = server(args.policy, policy_cfg)
 
-    # Determine save_dir if not provided (one-liner)
-    save_dir = f"IsaacLab/output/infer_record/{Path(model_path).name}"
+    mp = Path(model_path)
+    ckpt_id = f"{mp.parent.name}_{mp.name}" if mp.name.startswith("checkpoint-") else mp.name
+    save_dir = f"output/infer_record/{ckpt_id}"
 
     # Check required paths before launching anything
     required = [server_cfg["dir"], CLIENT["dir"], POLICY_CONFIGS[args.policy], model_path]
     if args.policy == "starvla":
-        required.append(resolve_project_path(policy_cfg["stats_path"], PROJECT_ROOT))
+        required.append(_resolve_path(policy_cfg["stats_path"]))
     for path in required:
         if not Path(path).exists():
             sys.exit(f"Error: path not found: {path}")

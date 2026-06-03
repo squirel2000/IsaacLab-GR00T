@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GR00T → JTC Interpolation Analysis — OpenArm V10 Bimanual</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #161a22;
+    --panel-2: #1c2230;
+    --fg: #e6e9ef;
+    --muted: #9aa3b2;
+    --accent: #6cb6ff;
+    --accent-2: #f7b955;
+    --good: #66d39a;
+    --bad: #ef6f6c;
+    --warn: #f7b955;
+    --line: #2a3142;
+  }
+  html, body { background: var(--bg); color: var(--fg); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 32px 28px 80px;
+  }
+  h1 { font-size: 28px; margin-bottom: 4px; }
+  h2 { font-size: 22px; margin-top: 36px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+  h3 { font-size: 17px; margin-top: 22px; color: var(--accent); }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+  code, pre {
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-size: 13px;
+  }
+  code { background: var(--panel-2); padding: 1px 6px; border-radius: 4px; color: var(--accent-2); }
+  pre {
+    background: var(--panel);
+    padding: 14px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    overflow-x: auto;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin: 16px 0;
+  }
+  .callout {
+    background: linear-gradient(180deg, rgba(108,182,255,0.08), rgba(108,182,255,0.02));
+    border-left: 3px solid var(--accent);
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 14px 0;
+  }
+  .callout.warn { background: rgba(247,185,85,0.08); border-left-color: var(--warn); }
+  .callout.bad  { background: rgba(239,111,108,0.08); border-left-color: var(--bad); }
+  .callout.good { background: rgba(102,211,154,0.08); border-left-color: var(--good); }
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--panel-2); color: var(--accent); font-weight: 600; }
+  ul { margin: 8px 0 8px 22px; }
+  li { margin: 4px 0; }
+  .fig {
+    background: #fafbfc;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px;
+    margin: 16px 0;
+    text-align: center;
+  }
+  .fig svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+  .caption { color: var(--muted); font-size: 13px; margin-top: 8px; font-style: italic; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } }
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--panel-2);
+    color: var(--muted);
+    margin-right: 6px;
+    border: 1px solid var(--line);
+  }
+  .tag.bad  { color: var(--bad); border-color: rgba(239,111,108,0.4); }
+  .tag.good { color: var(--good); border-color: rgba(102,211,154,0.4); }
+  .tag.warn { color: var(--warn); border-color: rgba(247,185,85,0.4); }
+  hr { border: none; border-top: 1px solid var(--line); margin: 28px 0; }
+</style>
+</head>
+<body>
+
+<h1>GR00T Action-Chunk → Joint Trajectory Controller</h1>
+<p class="subtitle">
+  Interpolation behavior analysis for OpenArm V10 bimanual (Isaac-GR00T sim2real, asus-4090).
+  <br>Source: <code>Isaac-GR00T/scripts/sim2real/gr00t_control_robot.py</code>
+  &nbsp;·&nbsp; <code>openarm_bringup/config/v10_controllers/openarm_v10_bimanual_controllers.yaml</code>
+</p>
+
+<div class="callout good">
+  <strong>TL;DR — Yes, you are right.</strong>
+  Because <code>gr00t_control_robot.py</code> publishes
+  <code>JointTrajectoryPoint.positions</code> only (no <code>velocities</code>, no <code>accelerations</code>),
+  and the JTC is configured with a position-only <code>command_interfaces</code>, the JTC&rsquo;s
+  <code>splines</code> interpolator degenerates to <strong>linear interpolation</strong> between the
+  30&nbsp;Hz waypoints when stepping at the 100&nbsp;Hz controller update rate. Cubic-Hermite or
+  quintic interpolation requires velocities (and accelerations for quintic) to be present in the
+  trajectory message.
+</div>
+
+<h2>1. System Overview</h2>
+
+<div class="fig">
+<!-- DATA FLOW -->
+<svg viewBox="0 0 880 240" width="880" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3b4a66"/>
+    </marker>
+  </defs>
+  <style>
+    .box  { fill:#eef2ff; stroke:#3b4a66; stroke-width:1.4; rx:10; }
+    .box2 { fill:#fef3c7; stroke:#7a5a18; stroke-width:1.4; rx:10; }
+    .box3 { fill:#dcfce7; stroke:#286b3f; stroke-width:1.4; rx:10; }
+    .lab  { font: 600 13px sans-serif; fill:#111; }
+    .sm   { font: 11px sans-serif; fill:#444; }
+    .ed   { stroke:#3b4a66; stroke-width:1.6; fill:none; }
+    .hz   { font: 700 12px monospace; fill:#0a3a72; }
+  </style>
+
+  <!-- GR00T -->
+  <rect class="box" x="20" y="60" width="180" height="120"/>
+  <text class="lab" x="110" y="92" text-anchor="middle">GR00T VLA Policy</text>
+  <text class="sm"  x="110" y="112" text-anchor="middle">action_chunk = 16 steps</text>
+  <text class="sm"  x="110" y="128" text-anchor="middle">positions only</text>
+  <text class="hz"  x="110" y="156" text-anchor="middle">infer @ ~30 Hz (dt≈33.3 ms)</text>
+
+  <!-- ROS action -->
+  <rect class="box2" x="240" y="60" width="200" height="120"/>
+  <text class="lab" x="340" y="92" text-anchor="middle">FollowJointTrajectory</text>
+  <text class="sm"  x="340" y="112" text-anchor="middle">16 × JointTrajectoryPoint</text>
+  <text class="sm"  x="340" y="128" text-anchor="middle">point.positions = [...]</text>
+  <text class="sm"  x="340" y="144" text-anchor="middle">point.velocities = ∅</text>
+  <text class="hz"  x="340" y="166" text-anchor="middle">time_from_start: i·33.3 ms</text>
+
+  <!-- JTC -->
+  <rect class="box3" x="480" y="60" width="200" height="120"/>
+  <text class="lab" x="580" y="92" text-anchor="middle">JointTrajectoryController</text>
+  <text class="sm"  x="580" y="112" text-anchor="middle">interpolation_method:</text>
+  <text class="sm"  x="580" y="126" text-anchor="middle">"splines" (default)</text>
+  <text class="sm"  x="580" y="144" text-anchor="middle">↳ degenerates to LINEAR</text>
+  <text class="hz"  x="580" y="166" text-anchor="middle">update @ 100 Hz (dt=10 ms)</text>
+
+  <!-- Robot -->
+  <rect class="box" x="720" y="60" width="140" height="120"/>
+  <text class="lab" x="790" y="92"  text-anchor="middle">OpenArm V10</text>
+  <text class="sm"  x="790" y="112" text-anchor="middle">7 joints × 2 arms</text>
+  <text class="sm"  x="790" y="128" text-anchor="middle">position command</text>
+  <text class="hz"  x="790" y="156" text-anchor="middle">servo/HW loop</text>
+
+  <line class="ed" marker-end="url(#arr)" x1="200" y1="120" x2="238" y2="120"/>
+  <line class="ed" marker-end="url(#arr)" x1="440" y1="120" x2="478" y2="120"/>
+  <line class="ed" marker-end="url(#arr)" x1="680" y1="120" x2="718" y2="120"/>
+
+  <text class="sm" x="220" y="42" text-anchor="middle">action</text>
+  <text class="sm" x="460" y="42" text-anchor="middle">goal</text>
+  <text class="sm" x="700" y="42" text-anchor="middle">setpoints</text>
+
+  <text x="440" y="220" text-anchor="middle" font-size="12" fill="#888">
+    Mismatch: policy stride 33.3 ms  vs  controller stride 10 ms  ⇒  ~2.33 intermediate samples per chunk step
+  </text>
+</svg>
+<div class="caption">Figure 1. End-to-end data flow. The 30 Hz policy waypoints must be densified to the 100 Hz controller loop, which is the role of JTC&rsquo;s interpolator.</div>
+</div>
+
+<h3>What the code actually sends</h3>
+<pre>
+# Isaac-GR00T/scripts/sim2real/gr00t_control_robot.py  (excerpt)
+dt = 1.0 / control_hz                       # control_hz = 30
+for i, positions in enumerate(positions_seq):
+    point = JointTrajectoryPoint()
+    point.positions = positions.tolist()    # &lt;-- positions ONLY
+    t = (i + 1) * dt + delay
+    point.time_from_start.sec     = int(t)
+    point.time_from_start.nanosec = int((t % 1.0) * 1e9)
+    goal_msg.trajectory.points.append(point)
+</pre>
+
+<h3>What the controller is configured for</h3>
+<pre>
+# openarm_v10_bimanual_controllers.yaml
+controller_manager:
+  ros__parameters:
+    update_rate: 100  # Hz   &lt;-- JTC step = 10 ms
+
+left/right_joint_trajectory_controller:
+  ros__parameters:
+    command_interfaces: [position]          # only position is commanded down to HW
+    state_interfaces:   [position, velocity]
+    # interpolation_method not set -> defaults to "splines"
+</pre>
+
+<h2>2. JTC Interpolation Rules (ros2_controllers)</h2>
+
+<p>
+The <code>joint_trajectory_controller</code>&rsquo;s spline interpolator inspects each
+<code>JointTrajectoryPoint</code> and selects the highest-order polynomial it can fit from the
+data actually present:
+</p>
+
+<table>
+  <thead>
+    <tr><th>Data in <code>JointTrajectoryPoint</code></th><th>Effective interpolation</th><th>Boundary continuity</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>positions</code> only</td>
+      <td><strong>Linear</strong> (1st-order)</td>
+      <td>Position C⁰  · Velocity discontinuous (step) at waypoints</td>
+    </tr>
+    <tr>
+      <td><code>positions</code> + <code>velocities</code></td>
+      <td><strong>Cubic Hermite spline</strong> (3rd-order)</td>
+      <td>C¹ continuous · Acceleration discontinuous</td>
+    </tr>
+    <tr>
+      <td><code>positions</code> + <code>velocities</code> + <code>accelerations</code></td>
+      <td><strong>Quintic spline</strong> (5th-order)</td>
+      <td>C² continuous · Jerk discontinuous</td>
+    </tr>
+    <tr>
+      <td><code>interpolation_method: none</code></td>
+      <td>Zero-order hold (sample-and-hold)</td>
+      <td>Step waveform — usually undesirable</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout warn">
+  <strong>Important nuance:</strong> setting <code>interpolation_method: splines</code> does
+  <em>not</em> magically produce a cubic curve from positions alone — the spline coefficients
+  literally require the velocity (and optionally acceleration) values at the knots. With only
+  positions supplied, the spline reduces algebraically to the linear case. Cubic / quintic
+  behavior is unlocked by the data you publish, not by the parameter alone.
+</div>
+
+<h2>3. Visualizing What the Robot Actually Sees</h2>
+
+<div class="fig">
+<!-- POSITION PROFILES: linear vs cubic vs quintic on the same knots -->
+<svg viewBox="0 0 880 300" width="880" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .ax { stroke:#888; stroke-width:1; }
+    .gd { stroke:#ddd; stroke-width:0.6; }
+    .lab { font: 12px sans-serif; fill:#333; }
+    .ttl { font: 600 13px sans-serif; fill:#111; }
+    .knot { fill:#111; }
+  </style>
+
+  <!-- axes -->
+  <g transform="translate(50,30)">
+    <text class="ttl" x="380" y="-8" text-anchor="middle">Position profile between 30 Hz waypoints (over one 33.3 ms segment, sampled at 100 Hz)</text>
+
+    <!-- grid -->
+    <g>
+      <line class="gd" x1="0"   y1="0"   x2="780" y2="0"/>
+      <line class="gd" x1="0"   y1="60"  x2="780" y2="60"/>
+      <line class="gd" x1="0"   y1="120" x2="780" y2="120"/>
+      <line class="gd" x1="0"   y1="180" x2="780" y2="180"/>
+      <line class="gd" x1="0"   y1="240" x2="780" y2="240"/>
+    </g>
+
+    <!-- axes -->
+    <line class="ax" x1="0" y1="240" x2="780" y2="240"/>
+    <line class="ax" x1="0" y1="0"   x2="0"   y2="240"/>
+
+    <!-- knots at t = 0, 33.3, 66.6, 100 ms  → x = 0, 260, 520, 780 -->
+    <!-- imagine joint angle waypoints in degrees: 10, 25, 35, 38 -->
+    <!-- map y from data range [5..40] to pixel [240..20] -->
+
+    <!-- LINEAR -->
+    <polyline points="0,170  260,84  520,28  780,12"
+              fill="none" stroke="#ef6f6c" stroke-width="2.4"/>
+    <!-- CUBIC HERMITE (illustrative S-shape between knots) -->
+    <path d="M 0,170
+             C 80,170 180,110 260,84
+             C 340,58 440,38  520,28
+             C 600,18 700,12  780,12"
+          fill="none" stroke="#6cb6ff" stroke-width="2.4"/>
+    <!-- QUINTIC (slightly smoother S, illustrative) -->
+    <path d="M 0,170
+             C 100,168 170,120 260,84
+             C 350,48  430,32  520,28
+             C 610,24  710,14  780,12"
+          fill="none" stroke="#66d39a" stroke-width="2.4" stroke-dasharray="5 4"/>
+
+    <!-- knots -->
+    <circle class="knot" cx="0"   cy="170" r="4"/>
+    <circle class="knot" cx="260" cy="84"  r="4"/>
+    <circle class="knot" cx="520" cy="28"  r="4"/>
+    <circle class="knot" cx="780" cy="12"  r="4"/>
+
+    <!-- 100 Hz sample marks (every 78px ≈ 10 ms in our scale) -->
+    <g stroke="#bbb" stroke-width="0.6">
+      <line x1="78"  y1="240" x2="78"  y2="246"/>
+      <line x1="156" y1="240" x2="156" y2="246"/>
+      <line x1="234" y1="240" x2="234" y2="246"/>
+      <line x1="312" y1="240" x2="312" y2="246"/>
+      <line x1="390" y1="240" x2="390" y2="246"/>
+      <line x1="468" y1="240" x2="468" y2="246"/>
+      <line x1="546" y1="240" x2="546" y2="246"/>
+      <line x1="624" y1="240" x2="624" y2="246"/>
+      <line x1="702" y1="240" x2="702" y2="246"/>
+    </g>
+
+    <text class="lab" x="0"   y="260" text-anchor="middle">0 ms</text>
+    <text class="lab" x="260" y="260" text-anchor="middle">33.3 ms</text>
+    <text class="lab" x="520" y="260" text-anchor="middle">66.6 ms</text>
+    <text class="lab" x="780" y="260" text-anchor="middle">100 ms</text>
+
+    <text class="lab" x="-8" y="170" text-anchor="end">θᵢ</text>
+    <text class="lab" x="-8" y="12"  text-anchor="end">θᵢ₊₃</text>
+
+    <!-- legend -->
+    <g transform="translate(540,2)">
+      <line x1="0" y1="0" x2="22" y2="0" stroke="#ef6f6c" stroke-width="2.4"/>
+      <text class="lab" x="28" y="4">Linear (current setup)</text>
+      <line x1="0" y1="14" x2="22" y2="14" stroke="#6cb6ff" stroke-width="2.4"/>
+      <text class="lab" x="28" y="18">Cubic Hermite (with velocities)</text>
+      <line x1="0" y1="28" x2="22" y2="28" stroke="#66d39a" stroke-width="2.4" stroke-dasharray="5 4"/>
+      <text class="lab" x="28" y="32">Quintic (with vel + acc)</text>
+    </g>
+  </g>
+</svg>
+<div class="caption">Figure 2. Position profile between three consecutive policy waypoints. The 9 small tick-marks on the time axis are the 100&nbsp;Hz controller samples. Linear produces a piecewise-straight path; cubic/quintic produce smoothly curved paths through the same knots.</div>
+</div>
+
+<div class="fig">
+<!-- VELOCITY profiles -->
+<svg viewBox="0 0 880 260" width="880" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .ax { stroke:#888; stroke-width:1; }
+    .gd { stroke:#ddd; stroke-width:0.6; }
+    .lab { font: 12px sans-serif; fill:#333; }
+    .ttl { font: 600 13px sans-serif; fill:#111; }
+  </style>
+  <g transform="translate(50,28)">
+    <text class="ttl" x="380" y="-8" text-anchor="middle">Implied joint velocity (derivative of position profile)</text>
+    <line class="gd" x1="0"   y1="0"   x2="780" y2="0"/>
+    <line class="gd" x1="0"   y1="50"  x2="780" y2="50"/>
+    <line class="gd" x1="0"   y1="100" x2="780" y2="100"/>
+    <line class="gd" x1="0"   y1="150" x2="780" y2="150"/>
+    <line class="gd" x1="0"   y1="200" x2="780" y2="200"/>
+    <line class="ax" x1="0"   y1="200" x2="780" y2="200"/>
+    <line class="ax" x1="0"   y1="0"   x2="0"   y2="200"/>
+
+    <!-- LINEAR -> piecewise CONSTANT velocity, big jumps at knots -->
+    <!-- segment 1 high, 2 medium, 3 low -->
+    <line x1="0"   y1="60"  x2="260" y2="60"  stroke="#ef6f6c" stroke-width="2.4"/>
+    <line x1="260" y1="60"  x2="260" y2="120" stroke="#ef6f6c" stroke-width="1.4" stroke-dasharray="2 3"/>
+    <line x1="260" y1="120" x2="520" y2="120" stroke="#ef6f6c" stroke-width="2.4"/>
+    <line x1="520" y1="120" x2="520" y2="170" stroke="#ef6f6c" stroke-width="1.4" stroke-dasharray="2 3"/>
+    <line x1="520" y1="170" x2="780" y2="170" stroke="#ef6f6c" stroke-width="2.4"/>
+
+    <!-- CUBIC HERMITE -> piecewise-linear velocity (continuous) -->
+    <polyline points="0,40  260,90  520,140  780,180"
+              fill="none" stroke="#6cb6ff" stroke-width="2.4"/>
+
+    <!-- QUINTIC -> smooth velocity (illustrative curve) -->
+    <path d="M 0,40
+             C 90,55 180,75 260,90
+             C 340,108 440,128 520,140
+             C 600,155 700,170 780,180"
+          fill="none" stroke="#66d39a" stroke-width="2.4" stroke-dasharray="5 4"/>
+
+    <!-- knot lines -->
+    <line x1="260" y1="0" x2="260" y2="200" stroke="#ccc" stroke-dasharray="2 3"/>
+    <line x1="520" y1="0" x2="520" y2="200" stroke="#ccc" stroke-dasharray="2 3"/>
+
+    <text class="lab" x="0"   y="220" text-anchor="middle">0</text>
+    <text class="lab" x="260" y="220" text-anchor="middle">33.3 ms</text>
+    <text class="lab" x="520" y="220" text-anchor="middle">66.6 ms</text>
+    <text class="lab" x="780" y="220" text-anchor="middle">100 ms</text>
+    <text class="lab" x="-8"  y="100" text-anchor="end">θ̇</text>
+
+    <text x="130" y="55"  fill="#a23b39" font-size="11" text-anchor="middle">Δθ/Δt = const</text>
+    <text x="265" y="92"  fill="#a23b39" font-size="11">jump!</text>
+    <text x="525" y="142" fill="#a23b39" font-size="11">jump!</text>
+  </g>
+</svg>
+<div class="caption">Figure 3. Velocity is the derivative of Figure 2. Linear interpolation gives a <strong>staircase</strong> velocity that jumps at every 30&nbsp;Hz waypoint — this is felt by the hardware as impulsive torque commands. Cubic/quintic profiles keep velocity continuous (and quintic keeps acceleration continuous too).</div>
+</div>
+
+<h2>4. Why This Matters for the OpenArm</h2>
+
+<ul>
+  <li>
+    <span class="tag bad">jerk</span>
+    Each waypoint boundary is a velocity step → infinite (theoretical) jerk → controller PID and
+    HW current loops respond with a torque spike. On a 7-DoF compliant arm this manifests as audible
+    clunks and small overshoot at every ~33 ms.
+  </li>
+  <li>
+    <span class="tag bad">tracking error</span>
+    Real motors cannot follow a step in velocity, so the position trace lags the reference inside
+    each segment; lag is then "caught up" abruptly at the next knot, producing the same micro-overshoot.
+  </li>
+  <li>
+    <span class="tag warn">audible / vibratory artifacts</span>
+    A 30 Hz waypoint cadence puts the discontinuity rate squarely in the structural-resonance band
+    of most light arms (and well inside human hearing) — even when amplitudes are small, the
+    excitation is broadband.
+  </li>
+  <li>
+    <span class="tag warn">stale-chunk transitions</span>
+    Every new GR00T inference replaces the queue, so the very first interpolated step of a new chunk
+    is linearly interpolated from the <em>current</em> hold target to the first new waypoint —
+    a second category of velocity step on top of the per-knot ones.
+  </li>
+  <li>
+    <span class="tag warn">no feed-forward velocity</span>
+    Because <code>command_interfaces</code> is position-only, even if you supplied velocities in the
+    message JTC would only use them for interpolation shape, not for HW feed-forward. That removes
+    one of the cheapest sources of tracking improvement.
+  </li>
+</ul>
+
+<h2>5. Recommendations to Improve Control Performance</h2>
+
+<p>Ordered from cheapest / smallest blast radius to most invasive.</p>
+
+<h3>R1 · Publish finite-difference velocities with each point  <span class="tag good">low effort, high payoff</span></h3>
+<p>
+Compute velocities from your already-known chunk positions and timing — JTC will then run a
+<strong>cubic Hermite</strong> interpolation instead of linear. C¹ continuity removes the
+per-waypoint velocity step entirely.
+</p>
+<pre>
+# in send_joint_trajectory(), after building positions_seq
+import numpy as np
+P  = np.asarray(positions_seq)                     # (N, dof)
+dt = 1.0 / control_hz
+# central differences with one-sided ends; clamp end velocity to 0
+V = np.zeros_like(P)
+V[1:-1] = (P[2:] - P[:-2]) / (2.0 * dt)
+V[0]    = (P[1] - P[0]) / dt
+V[-1]   = 0.0                                       # safe terminal velocity
+
+for i, (pos, vel) in enumerate(zip(P, V)):
+    point = JointTrajectoryPoint()
+    point.positions  = pos.tolist()
+    point.velocities = vel.tolist()                 # &lt;-- unlocks cubic
+    t = (i + 1) * dt + delay
+    point.time_from_start.sec     = int(t)
+    point.time_from_start.nanosec = int((t % 1.0) * 1e9)
+    goal_msg.trajectory.points.append(point)
+</pre>
+<div class="callout">
+  <strong>Heads-up:</strong> your config still has <code>allow_nonzero_velocity_at_trajectory_end</code>
+  at its default (<code>true</code> on Humble), so you don&rsquo;t need to force the last velocity to
+  zero — but doing so on the <em>final</em> chunk of a motion avoids overshoot.
+</div>
+
+<h3>R2 · Also publish accelerations (quintic)  <span class="tag good">incremental</span></h3>
+<p>
+A second pass of finite differences on V gives accelerations. With both vel + acc, JTC uses a
+<strong>quintic</strong> spline (C² continuous). This is the smoothest profile JTC offers and
+costs almost nothing if you&rsquo;re already computing velocities.
+</p>
+
+<h3>R3 · Pre-densify the chunk on the Python side  <span class="tag good">orthogonal & safe</span></h3>
+<p>
+Resample your 16-point, 30 Hz chunk to e.g. <strong>100 Hz</strong> using <code>scipy.interpolate</code>
+(<code>CubicSpline</code> or <code>Akima1DInterpolator</code> &mdash; Akima is great for reducing
+overshoot when waypoints have noise) and send the denser trajectory. Even with positions-only,
+the JTC then linearly interpolates between samples spaced at exactly the controller period &mdash;
+the linearization error collapses, and you also get full visibility/control over the smoothing in
+Python (easier to tune than tweaking JTC params).
+</p>
+<pre>
+from scipy.interpolate import CubicSpline
+ts = np.arange(len(P)) / control_hz                     # 0, 1/30, 2/30, ...
+cs = CubicSpline(ts, P, axis=0, bc_type="clamped")      # clamped: zero vel at ends
+ts_dense = np.arange(ts[0], ts[-1] + 1e-9, 1/100.0)     # match update_rate
+P_dense  = cs(ts_dense)
+V_dense  = cs(ts_dense, 1)                              # also publish vel for safety
+</pre>
+
+<h3>R4 · Apply a temporal low-pass on the policy output  <span class="tag warn">use with care</span></h3>
+<p>
+GR00T action chunks can be jittery between predictions. A short EMA on the executed sample, e.g.
+<code>θ_cmd ← α·θ_chunk + (1&minus;α)·θ_cmd_prev</code> with <code>α ≈ 0.3&ndash;0.5</code> at 100 Hz, dramatically
+reduces high-frequency content but adds latency proportional to <code>1/α</code> &mdash; tune against
+the manipulation task closed-loop, not in isolation.
+</p>
+
+<h3>R5 · Overlap / blend consecutive chunks instead of hard replacement  <span class="tag warn">structural change</span></h3>
+<p>
+Today, the script accepts a new chunk and the JTC discards the rest of the previous one.
+At the cutover, the spline restart point is &ldquo;current state → new chunk[0]&rdquo;, which
+re-introduces a velocity step. Two mitigations:
+</p>
+<ul>
+  <li>Drop the first <em>k</em> samples of the new chunk so its starting state matches where the arm
+      already is (your code already does <code>cutoff_step</code>; verify <em>k</em> is chosen so the
+      <em>velocity</em> matches, not just position).</li>
+  <li>Use receding-horizon blending: cross-fade between the tail of the old chunk and the head of
+      the new one over a window of ~30&ndash;50 ms. Cheap, and removes the cutover transient entirely.</li>
+</ul>
+
+<h3>R6 · Add a position + velocity command interface (and an FF-velocity gain)  <span class="tag warn">requires HW driver change</span></h3>
+<p>
+Switching <code>command_interfaces</code> to <code>[position, velocity]</code> lets the JTC send
+both the interpolated reference and its derivative to the hardware. Combined with
+<code>gains.&lt;joint&gt;.ff_velocity_scale &gt; 0</code> this routes a velocity feed-forward through
+the JTC&rsquo;s internal PID, cutting position lag substantially with no extra latency.
+This requires the OpenArm <code>ros2_control</code> hardware interface to expose
+<code>velocity</code> as a writable command. Worth checking before relying on it.
+</p>
+
+<h3>R7 · Match the policy update to the arm bandwidth  <span class="tag warn">model / dataset work</span></h3>
+<p>
+30 Hz waypoints + 16-step chunk = ~530 ms horizon. For contact-rich manipulation the bandwidth bottleneck
+is the <em>waypoint cadence</em>, not the controller. If feasible (depends on how you trained the
+policy), raise <code>control_hz</code> to 50&ndash;60 Hz so the controller interpolates over ≤20 ms
+segments. With dense waypoints, even plain linear interpolation becomes visually smooth, although
+it&rsquo;s still worth doing R1 to remove the velocity discontinuities.
+</p>
+
+<h3>R8 · Raise the controller_manager update_rate  <span class="tag warn">verify CPU / RT budget</span></h3>
+<p>
+Going from 100&nbsp;Hz to 200&ndash;500&nbsp;Hz reduces the per-sample staircase amplitude (because Δθ per
+controller step shrinks). It does <em>not</em> remove the velocity discontinuity, but it pushes the
+spectral content of the artifact upward (further above the arm&rsquo;s mechanical bandwidth) and lets the
+inner current/velocity loops smear it out. Pair with R1 for best effect.
+</p>
+
+<h2>6. Suggested Combination</h2>
+
+<div class="callout good">
+  <strong>Pragmatic plan (1 PR, no driver changes):</strong>
+  <ol style="margin-left: 22px;">
+    <li><strong>R1</strong>: finite-difference velocities → cubic Hermite at the controller.</li>
+    <li><strong>R3</strong>: pre-densify with a CubicSpline to ~100 Hz, send positions + velocities.</li>
+    <li><strong>R5 (partial)</strong>: pick <code>cutoff_step</code> to match velocity, not just position, at chunk handover.</li>
+  </ol>
+  This is a self-contained change inside <code>gr00t_control_robot.py</code> and should remove the
+  per-knot clunks immediately on the existing hardware stack.
+</div>
+
+<h2>7. How to Verify</h2>
+
+<ul>
+  <li><code>ros2 topic echo /left_joint_trajectory_controller/controller_state</code> &mdash;
+      check <code>desired.velocities</code> trace for the staircase (before) vs ramp (after).</li>
+  <li><code>ros2 topic hz /joint_states</code> &mdash; confirm 100 Hz feedback aligns with command updates.</li>
+  <li>Plot <code>actual.positions</code> minus <code>desired.positions</code> from
+      <code>/controller_state</code>: per-knot error spikes should disappear.</li>
+  <li>Bag <code>joint_states</code> + <code>controller_state</code> across a 5&nbsp;s motion for an
+      identical task before/after &mdash; compare FFT of joint velocities; the 30 Hz spike (and its
+      harmonics) should drop with R1+R3.</li>
+</ul>
+
+<hr>
+<p class="subtitle">
+  Refs: ros2_controllers <code>joint_trajectory_controller</code> (Humble) interpolation parameters
+  (<code>interpolation_method ∈ {splines, none}</code>, default <code>splines</code>);
+  the spline order is chosen by which of <code>positions/velocities/accelerations</code> are populated
+  in each <code>JointTrajectoryPoint</code>.
+</p>
+
+</body>
+</html>

@@ -10,3 +10,6 @@
 !/artifacts/checkpoints/
 /artifacts/checkpoints/*
 !/artifacts/checkpoints/README.md
+
+# Local environment files
+cookies.txt
