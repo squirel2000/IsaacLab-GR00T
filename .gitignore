@@ -16,3 +16,9 @@ __pycache__/
 !/artifacts/checkpoints/README.md
 
 /tmp/
+
+# Automation pipeline: local config (may hold LAN credentials), runtime state, logs, reports
+/config.yaml
+/pipeline_state.json
+/logs/
+/report_*.html

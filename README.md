@@ -2,6 +2,18 @@
 # IsaacLab-GR00T
 This repository contains the code for the Isaac-GR00T project, which is designed to work with the Gr00t model. The project includes scripts for training, finetuning, and launching client-server interactions.
 
+## Automated Fine-tuning → Deploy Pipeline
+
+For a hands-off, resumable end-to-end run (wait for a free H100 → fine-tune on Pegasus →
+download the verified checkpoint → switch Wi-Fi → deploy to the asus-4090 sim box →
+offline HTML report), use `pipeline_runner.py`. See **[PIPELINE.md](./PIPELINE.md)**.
+
+```powershell
+pip install -r requirements-pipeline.txt
+copy config.example.yaml config.yaml      # edit paths; set $env:PEGASUS_PASSWORD
+python pipeline_runner.py --reset         # fresh run   (--resume to continue, --status to inspect)
+```
+
 ## IsaacLab
 
 Generate the dataset for Gr00t using the `record_g1.py`, `annotate_demos_g1.py`, and `generate_dataset_g1.py` scripts for G1 that opens the drawer, pick-and-place the mug on the mat, and pour water into the mug.
