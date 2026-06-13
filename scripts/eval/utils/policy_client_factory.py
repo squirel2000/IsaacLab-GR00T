@@ -21,8 +21,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 SCRIPT_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY_CONFIGS = {
-    "starvla": SCRIPT_DIR / "policy_configs" / "starvla_openarm_o6.json",
-    "gr00t": SCRIPT_DIR / "policy_configs" / "gr00t_n15_openarm_o6.json",
+    "starvla": SCRIPT_DIR / "configs" / "starvla_openarm_o6.json",
+    "gr00t": SCRIPT_DIR / "configs" / "gr00t_n15_openarm_o6.json",
 }
 
 

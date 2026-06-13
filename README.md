@@ -130,15 +130,11 @@ python3 scripts/eval/run_eval.py
 
 # Fewer episodes
 python3 scripts/eval/run_eval.py --target 50
-
-# Show the IsaacSim window on display :0 (default is headless)
-python3 scripts/eval/run_eval.py --no-headless
 ```
 
-Per-backend server settings (model path, port, embodiment tag, server repo/venv, hand type) live in
-[scripts/eval/policy_configs/](scripts/eval/policy_configs/); the eval plan (which checkpoints, episode
-counts, display env) lives in `eval_config.yaml`. See [scripts/eval/README.md](scripts/eval/README.md)
-for the full run + analysis guide.
+Everything else (which checkpoints, episode count, headless, cameras, video, per-backend server
+settings) lives in [scripts/eval/configs/](scripts/eval/configs/) — `eval_config.yaml` (the plan +
+knobs) plus the per-backend JSONs. See [scripts/eval/README.md](scripts/eval/README.md) for details.
 
 ### Manual launch (debugging / fallback)
 

@@ -4,7 +4,7 @@
 # - env      : top-level integration/switching settings for THIS repo (the underlying
 #              IsaacLab / Isaac-GR00T / Isaac-GR00T_n1d7 checkouts stay pristine so they
 #              can track NVIDIA upstream)
-# - runs     : the eval plan. Each run points at a policy_configs/*.json (the per-backend
+# - runs     : the eval plan. Each run points at a per-backend JSON in this dir (the
 #              server/connection spec) and a save_id. `checkpoint` overrides that JSON's
 #              model_path; a parent dir auto-resolves to its latest checkpoint-*.
 #
@@ -15,6 +15,9 @@ defaults:
   task: Isaac-Can-Sorting-OpenArm-DexHand-v0
   target: 100                 # episodes to collect per run
   max_attempts: 12            # client relaunches per run (Omniverse PhysX crash resilience)
+  jobs: 1                     # runs to eval IN PARALLEL. Keep 1 on the RTX 4090 (each run = 1 IsaacSim
+                              # + 1 policy server ≈ 12-17 GB VRAM, so 2 would OOM 24 GB). On the H100
+                              # (80 GB) set 2-4 for a speedup; concurrent runs get distinct ports 5555+i.
   headless: true              # IsaacSim with no GUI window (cameras still render offscreen)
   save_video: true
   filter: true                # low-pass / moving-average action filtering
@@ -30,7 +33,7 @@ env:
   isaaclab_repo: IsaacLab           # client (IsaacSim) checkout
   isaaclab_conda_env: env_isaaclab
   conda_sh:                         # empty = auto-detect from CONDA_EXE / PATH; or set an explicit path
-  # Graphical-session env applied ONLY for windowed (--no-headless) runs.
+  # Graphical-session env applied ONLY when headless: false (windowed runs).
   display:
     DISPLAY: ":0"
     XAUTHORITY: /run/user/1000/gdm/Xauthority
@@ -40,21 +43,21 @@ env:
 
 runs:
   - tag: n17_lr1e4_300k
-    config: policy_configs/gr00t_n17_openarm_o6.json
+    config: gr00t_n17_openarm_o6.json
     checkpoint: artifacts/checkpoints/gr00t/N1_7_fft_0609_300k_no_tune_visual/checkpoint-300000
     save_id: n17_lr1e4_300k_multitask_checkpoint-300000_mt
 
   - tag: n16_lr1e4_150k
-    config: policy_configs/gr00t_n16_openarm_o6.json
+    config: gr00t_n16_openarm_o6.json
     checkpoint: artifacts/checkpoints/gr00t/openarm_linkerhando6_multitask_N16_150k_dataset_0403_no_tune_visual/checkpoint-150000
     save_id: n16_lr1e4_150k_multitask_checkpoint-150000_mt
 
   - tag: n17_lr1e4_150k
-    config: policy_configs/gr00t_n17_openarm_o6.json
+    config: gr00t_n17_openarm_o6.json
     checkpoint: artifacts/checkpoints/gr00t/openarm_linkerhando6_multitask_N17_150k_dataset_0403_no_tune_visual/checkpoint-150000
     save_id: n17_lr1e4_150k_multitask_checkpoint-150000_mt
 
   - tag: n17_lr5e5_300k
-    config: policy_configs/gr00t_n17_openarm_o6.json
+    config: gr00t_n17_openarm_o6.json
     checkpoint: artifacts/checkpoints/gr00t/N1_7_fft_0607_300k_no_tune_visual/checkpoint-300000
     save_id: n17_lr5e5_300k_multitask_checkpoint-300000_mt

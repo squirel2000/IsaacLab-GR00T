@@ -193,8 +193,8 @@
       建 IsaacLab 環境、跑 episodes、寫 log/影片/<code>run_manifest.json</code>。
       N1.7 時加 <code>PYTHONPATH=Isaac-GR00T_n1d7</code> 使 ZMQ wire format 與 server 一致</div>
   </div>
-  <div class="legend">想肉眼看模擬畫面時加 <code>--no-headless</code>(在 :0 顯示 IsaacSim 視窗);
-  預設為 headless(相機仍離屏渲染)。</div>
+  <div class="legend">想肉眼看模擬畫面時把 <code>eval_config.yaml</code> 的 <code>headless</code> 設為 false
+  (在 :0 顯示 IsaacSim 視窗);預設 headless(相機仍離屏渲染)。</div>
 </section>
 
 <h3>3.2 Client 每一步的資料流(multitask 修正後)</h3>
@@ -232,8 +232,8 @@
     <div class="fbox green">把本次 attempt 的 <code>"Episode N finished ..."</code> 行累加進
       <code>&lt;tag&gt;_combined_episodes.log</code> ← <b>事實來源</b>(manifest 在 crash 時不會寫出)</div>
   </div>
-  <div class="legend">統計與比較:<code>compare_runs.py</code> 解析各 run 的 combined log,印出
-  success/timeout/unsafe 並輸出成功率比較圖(run_eval.py 跑完會自動呼叫)。</div>
+  <div class="legend">統計與比較:<code>run_eval.py</code> 跑完自動解析各 run 的 combined log,印出
+  success/timeout/unsafe 並輸出 success-vs-loss 比較圖。</div>
 </section>
 
 <h3>3.4 訓練側:三層評測訊號與訓練中評測流程</h3>
@@ -364,7 +364,7 @@
 <div class="qa">
   <div class="q">Q7. 沒有螢幕的 H100 可以跑閉迴路評測嗎?(headless 驗證)</div>
   <div class="a">
-    <p><b>可以。</b>以 <code>--headless</code> 且完全無 X display 重跑三個 checkpoint × 100 eps,
+    <p><b>可以。</b>以 headless 模式且完全無 X display 重跑三個 checkpoint × 100 eps,
     與視窗(:0)基準比較:94→98、75→78、98→95(總計 267/300 → 271/300)。
     所有差異都在 binomial 抽樣噪音內,且成功 episode 的步數分布高度重疊
     (渲染觀測等價的最強證據)。關鍵:agent 強制 <code>enable_cameras=True</code>,
@@ -404,12 +404,10 @@
     <tr><td>N1.7-300k</td><td class="num"><span class="hl">98/100</span></td><td class="num">95/100</td>
         <td class="num">435 / 341 / 533</td><td>timeout 2%,unsafe 0%(headless 2 例 unsafe,屬隨機)</td></tr>
   </table>
-  <p><b>圖表</b>(重繪指令見
-  <a href="../scripts/eval/README.md">scripts/eval/README.md</a>):</p>
+  <p><b>圖表</b>(每次 <code>run_eval.py</code> 跑完自動產生):</p>
   <ul>
-    <li><code>output/analysis/n16_vs_n17/n16_vs_n17_loss.svg</code> —
-        train loss(log 軸)+ grad norm + 成功率長條(94/75/98%),由
-        <code>scripts/eval/analysis/make_loss_svg.py</code> 產生。</li>
+    <li><code>output/analysis/eval_results.svg</code> — 三面板 data-driven 圖:① train loss(log 曲線)
+        ② grad norm ③ 各 run 的 success/timeout/unsafe 長條(白底),直接呈現 loss 與 success 脫鉤。</li>
   </ul>
   <p>原始證據:<code>output/eval/logs_mt/</code>(視窗)、<code>output/eval/logs_mt_headless/</code>
   (headless)各 tag 的 <code>*_combined_episodes.log</code>;
@@ -424,15 +422,14 @@
     <div>
       <h3 style="margin-top:0;">父 repo:<code>scripts/eval/</code>(自包含評測 harness)</h3>
 <pre><code>scripts/eval/
-├── run_eval.py           # ★ 唯一入口(eval 缺的 run → 比較 → 圖表)
-├── eval_config.yaml      # 所有變數(eval 計畫 + 旋鈕)
+├── run_eval.py           # ★ 唯一指令:top-level 排程(eval 缺的 run → 呼叫 analysis)
 ├── gr00t_infer_agent.py  # IsaacSim client(gr00t+starvla)
-├── compare_runs.py       # log 統計 + 成功率比較圖
-├── policy_configs/       # n15/n16/n17/starvla 設定
-├── utils/                # factory、adapters、manifest、saver…
-└── analysis/             # make_loss_svg.py、make_curve_svg.py</code></pre>
-      <p style="font-size:14px;">單一入口 <code>run_eval.py</code> 讀 <code>eval_config.yaml</code>,
-      取代了舊的 4 個 shell 與互動啟動器。starVLA adapter 為 lazy import,跑純 gr00t 不會載入 starVLA。</p>
+├── configs/              # eval_config.yaml(計畫+旋鈕)+ n15/n16/n17/starvla JSON
+├── analysis/             # aggregate.py、compare_runs.py(表)、make_loss_svg.py(圖)、make_curve_svg.py
+└── utils/                # factory、adapters、manifest、saver…</code></pre>
+      <p style="font-size:14px;">頂層排程 <code>run_eval.py</code> 讀 <code>eval_config.yaml</code>、跑缺的 run,
+      再交給 <code>analysis/</code> 出比較表與圖表;取代了舊的 4 個 shell 與互動啟動器。
+      starVLA adapter 為 lazy import,跑純 gr00t 不會載入 starVLA。</p>
     </div>
     <div>
       <h3 style="margin-top:0;">IsaacLab submodule(貼齊 develop)</h3>

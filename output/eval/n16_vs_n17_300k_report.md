@@ -179,13 +179,10 @@ checkpoints：
 
 ## 8. 圖表
 
-- `output/analysis/n16_vs_n17/n16_vs_n17_loss.svg` — train loss（log）+ grad norm + success-rate bar（94/75/98%）
-
-重繪：
-
-```bash
-python3 scripts/eval/analysis/make_loss_svg.py output/analysis/n16_vs_n17/n16_vs_n17_loss.svg
-```
+- `output/analysis/eval_results.svg` — 由 `run_eval.py` 自動產生:各 run 的 success/timeout/unsafe
+  長條 + 最終 train loss(雙軸,data-driven)。每次跑 `run_eval.py` 都會重繪。
+- `output/analysis/n16_vs_n17/n16_vs_n17_loss.svg` — 早期的 train loss(log)+ grad + success bar 靜態圖
+  (產生器已隨重構移除;此圖留作歷史參考)。
 
 ---
 

@@ -1,17 +1,21 @@
 #!/usr/bin/env python3
-"""Single entry point for GR00T / StarVLA closed-loop eval in IsaacSim.
+"""Top-level scheduler for GR00T / StarVLA closed-loop eval in IsaacSim.
 
-For each run in eval_config.yaml: if a complete log already exists, reuse it;
-otherwise launch the policy server + IsaacSim client (crash-resilient: the server
-stays up and the client relaunches until `target` episodes are collected). Then
-aggregate all runs, print a comparison, and write a success-rate chart.
+For each run in configs/eval_config.yaml: if a complete log already exists, reuse
+it; otherwise launch the policy server + IsaacSim client (crash-resilient: the
+server stays up and the client relaunches until `target` episodes are collected).
+Then hand the results to analysis/ to print a comparison and write the figure
+(output/analysis/eval_results.svg).
 
-So `run_eval.py` with no new checkpoints just re-summarises + re-charts existing
-logs; add a run to eval_config.yaml (or delete its log) to make it (re)eval.
+This file only schedules: config, reuse-or-eval, server/client lifecycle. Aggregation,
+the comparison table and the chart live in analysis/ (aggregate.py, compare_runs.py,
+make_loss_svg.py). So re-running with no new checkpoints just re-summarises + re-charts;
+add a run to eval_config.yaml (or delete its log) to make it (re)eval.
 
-  python scripts/eval/run_eval.py                 # eval missing runs, then compare + chart
-  python scripts/eval/run_eval.py --target 50     # 50 episodes per run
-  python scripts/eval/run_eval.py --no-headless   # show the IsaacSim window (default: headless)
+  python scripts/eval/run_eval.py              # eval missing runs, then compare + chart
+  python scripts/eval/run_eval.py --target 50  # 50 episodes per run
+
+headless and everything else are set in configs/eval_config.yaml.
 """
 
 from __future__ import annotations
@@ -21,19 +25,22 @@ import json
 import os
 import shlex
 import shutil
+import signal
 import subprocess
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
 import yaml
 
-from compare_runs import collect, count_eps, print_summary, write_chart
+from analysis import compare_runs
+from analysis.aggregate import count_eps
 
 HERE = Path(__file__).resolve().parent       # scripts/eval/
 ROOT = HERE.parents[1]                        # IsaacLab-GR00T repo root
 AGENT = HERE / "gr00t_infer_agent.py"
-DEFAULT_CONFIG = HERE / "eval_config.yaml"
+DEFAULT_CONFIG = HERE / "configs" / "eval_config.yaml"
 
 
 def log(msg: str) -> None:
@@ -47,7 +54,7 @@ def resolve_path(value) -> Path:
 
 
 def find_conda_sh(configured) -> str:
-    """Locate conda.sh: use the configured path, else auto-detect from CONDA_EXE / PATH."""
+    """Use the configured conda.sh, else auto-detect from CONDA_EXE / PATH."""
     if configured:
         return os.path.expandvars(os.path.expanduser(configured))
     for exe in (os.environ.get("CONDA_EXE"), shutil.which("conda")):
@@ -67,7 +74,7 @@ def resolve_checkpoint(path: Path) -> Path:
 
 
 # --------------------------------------------------------------------------
-# Backend command construction. The policy_configs/*.json is the per-backend spec.
+# Backend command construction. configs/*.json is the per-backend spec.
 # --------------------------------------------------------------------------
 def server_workdir_activate(policy: str, cfg: dict, env: dict) -> tuple[Path, str]:
     conda_sh = env["conda_sh"]
@@ -125,10 +132,10 @@ def client_env(base: dict, cfg: dict) -> dict:
     return e
 
 
-def load_run(run: dict) -> dict:
+def load_run(run: dict, cfg_dir: Path) -> dict:
     """Resolve a YAML run entry into concrete server/client parameters."""
-    cfg_path = run["config"]
-    cfg_path = Path(cfg_path) if Path(cfg_path).is_absolute() else HERE / cfg_path
+    cfg_path = Path(run["config"])
+    cfg_path = cfg_path if cfg_path.is_absolute() else cfg_dir / cfg_path
     cfg = json.loads(cfg_path.read_text())
     return {
         "tag": run["tag"], "policy": run.get("policy", "gr00t"), "cfg": cfg, "cfg_path": cfg_path,
@@ -138,6 +145,21 @@ def load_run(run: dict) -> dict:
 
 
 # --------------------------------------------------------------------------
+# Batch eval (crash-resilient server/client loop).
+# --------------------------------------------------------------------------
+def kill_server(proc) -> None:
+    """Kill only this run's server (its own process group), so parallel runs don't kill each other."""
+    proc.terminate()
+    try:
+        proc.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        pass
+    try:
+        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
+
+
 def wait_ready(server_log: Path, proc, ready: str, timeout: int) -> int:
     waited = 0
     while waited < timeout:
@@ -151,8 +173,10 @@ def wait_ready(server_log: Path, proc, ready: str, timeout: int) -> int:
     return 1
 
 
-def run_batch(r: dict, d: dict, env: dict, isaaclab: Path, logdir: Path, headless: bool) -> None:
+def run_batch(r: dict, d: dict, env: dict, isaaclab: Path, logdir: Path, headless: bool, port=None) -> None:
     tag = r["tag"]
+    if port is not None:
+        r["cfg"]["port"] = port  # parallel mode: a distinct port per concurrent run
     combined = logdir / f"{tag}_combined_episodes.log"
     combined.write_text("")
     server_log = logdir / f"{tag}_server.log"
@@ -160,14 +184,15 @@ def run_batch(r: dict, d: dict, env: dict, isaaclab: Path, logdir: Path, headles
     scmd = f"cd {shlex.quote(str(workdir))} && {activate} && exec {shlex.join(server_cmd(r['policy'], r['cfg'], r['ckpt']))}"
 
     def launch_server():
+        # start_new_session so kill_server() can reap exactly this server's process group.
         return subprocess.Popen(["bash", "-c", scmd], stdout=open(server_log, "w"),
-                                stderr=subprocess.STDOUT, env=env)
+                                stderr=subprocess.STDOUT, env=env, start_new_session=True)
 
-    log(f"=== {tag}: launching server ({r['cfg'].get('embodiment_tag', '?')}) — ckpt {r['ckpt'].name} ===")
+    log(f"=== {tag}: launching server ({r['cfg'].get('embodiment_tag', '?')}) on :{r['cfg']['port']} — ckpt {r['ckpt'].name} ===")
     proc = launch_server()
     if wait_ready(server_log, proc, d["server_ready_string"], d["server_ready_timeout_s"]) != 0:
         log(f"=== {tag}: SERVER NOT READY -- skipping ===")
-        proc.kill()
+        kill_server(proc)
         return
     log(f"=== {tag}: server ready (pid {proc.pid}) ===")
 
@@ -204,29 +229,25 @@ def run_batch(r: dict, d: dict, env: dict, isaaclab: Path, logdir: Path, headles
             break
         time.sleep(5)
 
-    proc.terminate()
-    time.sleep(5)
-    token = "server_policy.py" if r["policy"] == "starvla" else "run_gr00t_server"
-    subprocess.run(["pkill", "-9", "-f", token], check=False)
+    kill_server(proc)
     time.sleep(4)
     log(f"=== {tag}: DONE -- {done}/{d['target']} eps across {attempt} attempt(s) ===")
 
 
 # --------------------------------------------------------------------------
 def main() -> None:
-    p = argparse.ArgumentParser(description="GR00T/StarVLA closed-loop eval — single entry point.")
+    p = argparse.ArgumentParser(description="GR00T/StarVLA closed-loop eval — top-level scheduler.")
     p.add_argument("--config", type=Path, default=DEFAULT_CONFIG,
-                   help="eval_config.yaml path (default: scripts/eval/eval_config.yaml).")
+                   help="eval_config.yaml path (default: scripts/eval/configs/eval_config.yaml).")
     p.add_argument("--target", type=int, help="Episodes per run (default: from config, 100).")
-    p.add_argument("--headless", action=argparse.BooleanOptionalAction,
-                   help="Run IsaacSim with no GUI window (default: from config, true).")
     args = p.parse_args()
 
     spec = yaml.safe_load(args.config.read_text())
     d, env_cfg, runs = spec["defaults"], spec["env"], spec["runs"]
+    cfg_dir = args.config.resolve().parent
     if args.target is not None:
         d["target"] = args.target
-    headless = args.headless if args.headless is not None else d["headless"]
+    headless = d["headless"]
 
     isaaclab = resolve_path(env_cfg["isaaclab_repo"])
     run_env = dict(os.environ, conda_sh=find_conda_sh(env_cfg.get("conda_sh")),
@@ -236,18 +257,35 @@ def main() -> None:
 
     logdir = resolve_path(d["logdir"] + ("_headless" if headless else ""))
     logdir.mkdir(parents=True, exist_ok=True)
-    log(f"########## EVAL START (target={d['target']}, headless={headless}, logdir={logdir}) ##########")
+    jobs = max(1, int(d.get("jobs", 1)))
+    log(f"########## EVAL START (target={d['target']}, headless={headless}, jobs={jobs}, logdir={logdir}) ##########")
+
+    to_eval = []
     for run in runs:
         have = count_eps(logdir / f"{run['tag']}_combined_episodes.log")
         if have >= d["target"]:
             log(f"=== {run['tag']}: reuse existing log ({have} eps ≥ {d['target']}) — skip eval ===")
-            continue
-        run_batch(load_run(run), d, run_env, isaaclab, logdir, headless)
+        else:
+            to_eval.append(run)
 
-    print_summary(collect(runs, logdir))
+    if jobs > 1 and len(to_eval) > 1:
+        # Each concurrent run gets its own server port (5555+i) and is reaped independently.
+        log(f"=== evaluating {len(to_eval)} runs, up to {jobs} in parallel ===")
+        with ThreadPoolExecutor(max_workers=jobs) as ex:
+            futures = [ex.submit(run_batch, load_run(run, cfg_dir), d, run_env, isaaclab, logdir, headless, 5555 + i)
+                       for i, run in enumerate(to_eval)]
+            for f in futures:
+                f.result()
+    else:
+        for run in to_eval:
+            run_batch(load_run(run, cfg_dir), d, run_env, isaaclab, logdir, headless)
+
+    # hand off to analysis: comparison table + figure
+    items = [(run["tag"], logdir / f"{run['tag']}_combined_episodes.log", load_run(run, cfg_dir)["ckpt"])
+             for run in runs if count_eps(logdir / f"{run['tag']}_combined_episodes.log")]
     chart = ROOT / "output" / "analysis" / f"eval_results{'_headless' if headless else ''}.svg"
     chart.parent.mkdir(parents=True, exist_ok=True)
-    write_chart(collect(runs, logdir), chart)
+    compare_runs.report(items, chart)
     log(f"comparison chart -> {chart}")
 
 
