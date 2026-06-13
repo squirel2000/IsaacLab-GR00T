@@ -6,12 +6,14 @@ This repository contains the code for the Isaac-GR00T project, which is designed
 
 For a hands-off, resumable end-to-end run (wait for a free H100 → fine-tune on Pegasus →
 download the verified checkpoint → switch Wi-Fi → deploy to the asus-4090 sim box →
-offline HTML report), use `pipeline_runner.py`. See **[PIPELINE.md](./PIPELINE.md)**.
+offline HTML report), use the `pipeline/` package via `run_pipeline.py`. See
+**[PIPELINE.md](./PIPELINE.md)**.
 
 ```powershell
 pip install -r requirements-pipeline.txt
 copy config.example.yaml config.yaml      # edit paths; set $env:PEGASUS_PASSWORD
-python pipeline_runner.py --reset         # fresh run   (--resume to continue, --status to inspect)
+python run_pipeline.py --reset            # fresh run   (--resume to continue, --status to inspect)
+python run_dashboard.py                   # live web dashboard at http://localhost:8770
 ```
 
 ## IsaacLab

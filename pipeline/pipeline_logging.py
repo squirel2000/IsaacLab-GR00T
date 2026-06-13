@@ -7,9 +7,8 @@ from __future__ import annotations
 
 import logging
 from logging.handlers import RotatingFileHandler
-from pathlib import Path
 
-LOGS_DIR = Path(__file__).resolve().parent / "logs"
+from pipeline_paths import LOGS_DIR
 
 _FMT = logging.Formatter("%(asctime)s %(levelname)-7s %(name)s: %(message)s",
                          datefmt="%Y-%m-%d %H:%M:%S")

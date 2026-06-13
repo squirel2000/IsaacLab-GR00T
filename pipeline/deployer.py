@@ -23,6 +23,8 @@ import paramiko
 
 import net_util
 import pipeline_config as pc
+import pipeline_progress as pp
+from pipeline_retry import retry
 from pipeline_logging import get_logger
 
 log = get_logger("deploy")
@@ -39,24 +41,23 @@ def connect_ssh(host: str, user: str, password: str, retry_max: int = 3,
     """Open an SSH connection, retrying ``retry_max`` times. ``client_factory`` is
     injectable for tests."""
     factory = client_factory or _default_client
-    last = None
-    for attempt in range(1, retry_max + 1):
-        client = factory()
+    holder = {}
+
+    def _connect():
+        client = holder["c"] = factory()
+        client.connect(hostname=host, username=user, password=password,
+                       timeout=connect_timeout, look_for_keys=False, allow_agent=False)
+        log.info("SSH connected to %s@%s.", user, host)
+        return client
+
+    def _close_failed(_attempt, _exc):
         try:
-            client.connect(hostname=host, username=user, password=password,
-                           timeout=connect_timeout, look_for_keys=False, allow_agent=False)
-            log.info("SSH connected to %s@%s.", user, host)
-            return client
-        except Exception as e:                   # noqa: BLE001
-            last = e
-            log.warning("SSH connect %d/%d to %s failed: %s", attempt, retry_max, host, e)
-            try:
-                client.close()
-            except Exception:                    # noqa: BLE001
-                pass
-            if attempt < retry_max:
-                time.sleep(interval)
-    raise RuntimeError(f"SSH connect to {host} failed after {retry_max} attempts: {last}")
+            holder["c"].close()
+        except Exception:                        # noqa: BLE001
+            pass
+
+    return retry(_connect, attempts=retry_max, interval=interval,
+                 label=f"SSH connect to {host}", on_error=_close_failed)
 
 
 def run_ssh(ssh, cmd: str, timeout: int = 1800):
@@ -71,30 +72,35 @@ def run_ssh(ssh, cmd: str, timeout: int = 1800):
 def sftp_upload(ssh, local: str, remote: str, retry_max: int = 3, interval: int = 10):
     """Upload one file via SFTP, retrying on transient failure."""
     size = Path(local).stat().st_size
-    last = None
-    for attempt in range(1, retry_max + 1):
+
+    def _put():
+        sftp = ssh.open_sftp()
         try:
-            sftp = ssh.open_sftp()
-            try:
-                t0 = [time.time()]
+            start = time.time()
+            t_log = [start]
+            t_prog = [start]
 
-                def _cb(done, total, _t0=t0):
-                    if time.time() - _t0[0] >= 5:   # throttle log to ~every 5s
-                        _t0[0] = time.time()
-                        log.info("  upload %.1f/%.1f MB (%.0f%%)",
-                                 done / 1e6, total / 1e6, 100 * done / max(total, 1))
+            def _cb(done, total, _tl=t_log, _tp=t_prog):
+                now = time.time()
+                if now - _tp[0] >= 1.5:            # progress.json for the dashboard
+                    _tp[0] = now
+                    rate = done / max(now - start, 1e-3)
+                    pp.update("deploy", done=done, total=total,
+                              pct=round(100 * done / max(total, 1), 1),
+                              rate_mbps=round(rate / 1e6, 1),
+                              eta_sec=(round((total - done) / rate) if rate > 0 else None))
+                if now - _tl[0] >= 5:              # throttle log to ~every 5s
+                    _tl[0] = now
+                    log.info("  upload %.1f/%.1f MB (%.0f%%)",
+                             done / 1e6, total / 1e6, 100 * done / max(total, 1))
 
-                sftp.put(local, remote, callback=_cb)
-            finally:
-                sftp.close()
-            log.info("Uploaded %s -> %s (%d bytes).", local, remote, size)
-            return
-        except Exception as e:                   # noqa: BLE001
-            last = e
-            log.warning("SFTP upload %d/%d failed: %s", attempt, retry_max, e)
-            if attempt < retry_max:
-                time.sleep(interval)
-    raise RuntimeError(f"SFTP upload failed after {retry_max} attempts: {last}")
+            sftp.put(local, remote, callback=_cb)
+        finally:
+            sftp.close()
+        pp.update("deploy", done=size, total=size, pct=100, rate_mbps=0, eta_sec=0)
+        log.info("Uploaded %s -> %s (%d bytes).", local, remote, size)
+
+    retry(_put, attempts=retry_max, interval=interval, label="SFTP upload")
 
 
 def run(config: dict, state) -> str:

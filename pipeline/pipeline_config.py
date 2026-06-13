@@ -15,8 +15,8 @@ from pathlib import Path
 
 import yaml
 
-HERE = Path(__file__).resolve().parent
-DEFAULT_CONFIG_PATH = HERE / "config.yaml"
+from pipeline_paths import CONFIG_PATH as DEFAULT_CONFIG_PATH
+
 DEFAULT_PROFILE = "n1d7"
 
 # Built-in fallbacks for every non-secret, non-path knob. A user config.yaml only needs
@@ -30,6 +30,8 @@ DEFAULTS: dict = {
         "monitor_interval_sec": 300,
         "connect_retry_max": 3,
         "connect_retry_interval_sec": 10,
+        "force_gpu": None,                       # 0/1 hard-pins a GPU; None = auto-pick idle
+        "gpu_priority": [1, 0],                  # auto-pick order: prefer GPU1, fall back to GPU0
     },
     "asus4090": {"retry_max": 3},
     "wifi": {
@@ -39,9 +41,6 @@ DEFAULTS: dict = {
         "net_ready_timeout_sec": 60,
     },
 }
-
-_PLACEHOLDERS = ("gpu", "dataset_path", "output_dir", "max_steps")
-
 
 def deep_merge(base: dict, override: dict) -> dict:
     """Return a new dict: ``override`` layered over ``base``, recursing into sub-dicts."""
@@ -98,8 +97,8 @@ def build_train_cmd(profile: dict, gpu_id: int) -> str:
         "max_steps": str(profile["max_steps"]),
     }
     cmd = " ".join(str(template).split())  # collapse newlines/extra spaces from `>` block
-    for key in _PLACEHOLDERS:
-        cmd = cmd.replace("{" + key + "}", values[key])
+    for key, val in values.items():
+        cmd = cmd.replace("{" + key + "}", val)
     return cmd
 
 

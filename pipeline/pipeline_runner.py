@@ -19,9 +19,12 @@ Usage (PowerShell):
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
+import pegasus as pg
 import pipeline_config as pc
+import pipeline_progress as pp
 import net_util
 import gpu_monitor
 import training_monitor
@@ -71,7 +74,7 @@ def run_pipeline(config: dict, state: PipelineState, profile_name: str) -> None:
             continue
 
         if stage in _PEGASUS_STAGES:
-            net_util.switch_wifi(config["wifi"]["external"])
+            net_util.ensure_reachable(config)    # switch to external only if internet is down
 
         log.info("=== Stage %s (attempt %d) ===", stage.value, state.attempts(stage) + 1)
         state.begin(stage)
@@ -131,12 +134,19 @@ def main() -> None:
                       help="reset to IDLE and run from the beginning")
     mode.add_argument("--status", action="store_true",
                       help="print the current state and exit")
+    mode.add_argument("--stop", action="store_true",
+                      help="terminate the detached training run and exit")
     ap.add_argument("--profile", choices=["n1d5", "n1d7"],
                     help="training profile (default: config active_profile)")
     ap.add_argument("--config", help="path to config.yaml (default: ./config.yaml)")
     args = ap.parse_args()
 
     config = pc.load_config(args.config)
+    # Make the Pegasus password from config authoritative (no reliance on shell env).
+    pw = (config.get("pegasus") or {}).get("password")
+    if pw:
+        os.environ["PEGASUS_PASSWORD"] = pw
+        pg.PEGASUS_PASSWORD = pw
     profile_name, _ = pc.resolve_profile(config, args.profile)
     state = PipelineState.load()
 
@@ -144,14 +154,31 @@ def main() -> None:
         show_status(state)
         return
 
+    if args.stop:
+        print(training_monitor.stop_run(config, state))
+        cur = state.current.value                # reflect the stop in state so --status is honest
+        if cur in state.stages:
+            state.stages[cur]["status"] = "stopped"
+            state.save()
+        print(f"  state: {cur} marked 'stopped'. Use --resume to continue from the last "
+              f"checkpoint, or --reset to start over.")
+        return
+
     if args.reset:
         state.reset()
+        pp.clear()
         log.info("State reset to IDLE.")
 
     try:
         run_pipeline(config, state, profile_name)
     except SystemExit as e:
         log.error(str(e))
+        # Restore external connectivity only if actually offline (avoids hammering netsh,
+        # which needs elevation/Location to switch the enterprise SSID and falsely "fails").
+        try:
+            net_util.ensure_reachable(config)
+        except Exception:                        # noqa: BLE001
+            pass
         sys.exit(1)
 
 

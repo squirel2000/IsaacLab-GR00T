@@ -11,6 +11,7 @@ from __future__ import annotations
 import time
 
 import pegasus as pg
+from pipeline_retry import retry
 from pipeline_logging import get_logger
 
 log = get_logger("gpu_monitor")
@@ -47,9 +48,18 @@ def parse_nvidia_smi(text: str) -> list[dict]:
     return gpus
 
 
-def pick_idle_gpu(gpus: list[dict], util_thresh: float, mem_gb_thresh: float):
-    """Return the lowest index whose util AND memory are below thresholds, else None."""
-    for g in sorted(gpus, key=lambda x: x["index"]):
+def pick_idle_gpu(gpus: list[dict], util_thresh: float, mem_gb_thresh: float, priority=None):
+    """Return the first idle GPU (util AND memory below thresholds), else None.
+
+    ``priority`` is an ordered list of GPU indices to prefer (e.g. [1, 0] = try GPU1 first,
+    fall back to GPU0). Indices not listed come after, in ascending order.
+    """
+    priority = list(priority or [])
+
+    def rank(g):
+        return priority.index(g["index"]) if g["index"] in priority else len(priority) + g["index"]
+
+    for g in sorted(gpus, key=rank):
         if g["util"] < util_thresh and g["mem_gb"] < mem_gb_thresh:
             return g["index"]
     return None
@@ -61,17 +71,10 @@ def pick_idle_gpu(gpus: list[dict], util_thresh: float, mem_gb_thresh: float):
 def connect_with_retry(config: dict, insecure: bool = False):
     """Open a Pegasus session, retrying connect_retry_max times before giving up."""
     t = config["training"]
-    last = None
-    for attempt in range(1, int(t["connect_retry_max"]) + 1):
-        try:
-            return pg.connect(insecure)
-        except Exception as e:                  # noqa: BLE001 - log & retry any connect failure
-            last = e
-            log.warning("Pegasus connect failed (attempt %d/%d): %s",
-                        attempt, t["connect_retry_max"], e)
-            if attempt < int(t["connect_retry_max"]):
-                time.sleep(int(t["connect_retry_interval_sec"]))
-    raise SystemExit(f"could not connect to Pegasus after retries: {last}")
+    return retry(lambda: pg.connect(insecure),
+                 attempts=int(t["connect_retry_max"]),
+                 interval=int(t["connect_retry_interval_sec"]),
+                 label="Pegasus connect")
 
 
 def query_gpus(s) -> list[dict]:
@@ -92,12 +95,13 @@ def wait_for_idle_gpu(s, config: dict, poll_seconds: int | None = None,
     t = config["training"]
     util_thresh = float(t["gpu_idle_threshold_util"])
     mem_thresh = float(t["gpu_idle_threshold_mem_gb"])
+    priority = t.get("gpu_priority")             # e.g. [1, 0] -> prefer GPU1, fall back to GPU0
     poll = poll_seconds if poll_seconds is not None else int(t["gpu_poll_interval_min"]) * 60
 
     rounds = 0
     while True:
         gpus = query_gpus(s)
-        idx = pick_idle_gpu(gpus, util_thresh, mem_thresh)
+        idx = pick_idle_gpu(gpus, util_thresh, mem_thresh, priority)
         summary = ", ".join(f"GPU{g['index']}: util={g['util']}% mem={g['mem_gb']:.1f}GB"
                             for g in gpus) or "(no GPUs reported)"
         if idx is not None:
@@ -112,9 +116,24 @@ def wait_for_idle_gpu(s, config: dict, poll_seconds: int | None = None,
 
 
 def run(config: dict, state) -> int:
-    """GPU_WAIT stage entry point: connect, wait for an idle GPU, record it, return it."""
+    """GPU_WAIT stage entry point: connect, pick a GPU, record it, return it.
+
+    ``training.force_gpu`` (0/1) pins a specific GPU and skips idle-waiting; otherwise wait
+    for the lowest idle GPU.
+    """
     s = connect_with_retry(config)
-    gpu_id = wait_for_idle_gpu(s, config)
+    t = config["training"]
+    forced = t.get("force_gpu")
+    if forced is not None:
+        gpu_id = int(forced)
+        g = next((x for x in query_gpus(s) if x["index"] == gpu_id), None)
+        if g and (g["util"] >= float(t["gpu_idle_threshold_util"])
+                  or g["mem_gb"] >= float(t["gpu_idle_threshold_mem_gb"])):
+            log.warning("Forced GPU %d looks busy (util=%d%% mem=%.1fGB) — using it anyway.",
+                        gpu_id, g["util"], g["mem_gb"])
+        log.info("Using forced GPU %d (config training.force_gpu).", gpu_id)
+    else:
+        gpu_id = wait_for_idle_gpu(s, config)
     state.record_output("gpu_id", gpu_id)
     log.info("Selected GPU %d for training.", gpu_id)
     return gpu_id

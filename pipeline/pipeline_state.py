@@ -21,7 +21,7 @@ import json
 from enum import Enum
 from pathlib import Path
 
-DEFAULT_STATE_PATH = Path(__file__).resolve().parent / "pipeline_state.json"
+from pipeline_paths import STATE_PATH as DEFAULT_STATE_PATH
 
 
 class Stage(str, Enum):
@@ -130,6 +130,11 @@ class PipelineState:
     # ----- shared cross-stage data -----------------------------------------
     def record_output(self, key: str, value) -> None:
         self.data[key] = value
+        self.save()
+
+    def record_outputs(self, **kwargs) -> None:
+        """Set several shared outputs and persist once (one write, not one per key)."""
+        self.data.update(kwargs)
         self.save()
 
     def get(self, key: str, default=None):

@@ -10,6 +10,7 @@ from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "pipeline"))
 
 import pipeline_runner as pr
 from pipeline_state import PipelineState, Stage
@@ -23,7 +24,7 @@ class RunnerTests(unittest.TestCase):
         self.tmp = Path(tempfile.mkdtemp()) / "pipeline_state.json"
         self.calls = []           # ordered (stage) handler invocations
         # network is a no-op that always "succeeds"
-        for fn in ("switch_wifi",):
+        for fn in ("switch_wifi", "ensure_reachable"):
             p = mock.patch.object(pr.net_util, fn, lambda *a, **k: True)
             p.start(); self.addCleanup(p.stop)
         p = mock.patch.object(pr.net_util, "wait_for_host", lambda *a, **k: True)

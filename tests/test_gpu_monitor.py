@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "pipeline"))
 
 import gpu_monitor as gm
 
@@ -48,6 +49,16 @@ class PickTests(unittest.TestCase):
         gpus = [{"index": 0, "util": 90, "mem_gb": 70},
                 {"index": 1, "util": 95, "mem_gb": 70}]
         self.assertIsNone(gm.pick_idle_gpu(gpus, 10, 5.0))
+
+    def test_priority_prefers_gpu1_when_both_idle(self):
+        gpus = [{"index": 0, "util": 2, "mem_gb": 0.2},
+                {"index": 1, "util": 2, "mem_gb": 0.2}]
+        self.assertEqual(gm.pick_idle_gpu(gpus, 10, 5.0, priority=[1, 0]), 1)
+
+    def test_priority_falls_back_when_preferred_busy(self):
+        gpus = [{"index": 0, "util": 2, "mem_gb": 0.2},
+                {"index": 1, "util": 90, "mem_gb": 70}]   # GPU1 busy -> fall back to GPU0
+        self.assertEqual(gm.pick_idle_gpu(gpus, 10, 5.0, priority=[1, 0]), 0)
 
 
 if __name__ == "__main__":

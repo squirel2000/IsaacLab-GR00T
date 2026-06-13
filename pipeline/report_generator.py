@@ -16,14 +16,11 @@ import html
 import json
 from pathlib import Path
 
-from pipeline_state import Stage, ORDER, PipelineState
-from pipeline_logging import LOGS_DIR, get_logger
+from pipeline_state import Stage, ORDER
+from pipeline_logging import get_logger
+from pipeline_paths import METRICS_PATH, CHARTJS_PATH, REPORT_DIR
 
 log = get_logger("report")
-
-HERE = Path(__file__).resolve().parent
-METRICS_PATH = LOGS_DIR / "metrics.jsonl"
-CHARTJS_PATH = HERE / "vendor" / "chart.umd.min.js"
 
 
 # --------------------------------------------------------------------------- #
@@ -65,7 +62,8 @@ def build_context(state_dict: dict, metrics: list[dict], config: dict) -> dict:
     stages = state_dict.get("stages", {})
     profile_name = state_dict.get("profile") or config.get("active_profile") or "?"
     profile = (config.get("profiles") or {}).get(profile_name, {})
-    final_loss = metrics[-1]["loss"] if metrics else None
+    loss_recs = [m for m in metrics if m.get("loss") is not None]   # skip eval-only records
+    final_loss = loss_recs[-1]["loss"] if loss_recs else None
     zip_size = data.get("zip_size")
     return {
         "run_name": data.get("output_dir", profile.get("output_dir", "")).rstrip("/").split("/")[-1] or "(run)",
@@ -175,8 +173,9 @@ def _status_class(status: str) -> str:
 def build_html(ctx: dict, metrics: list[dict], chart_js_src: str | None,
                sim_cmd: str = "python launch_isaac_policy.py") -> str:
     """Render the full report HTML (pure). ``chart_js_src`` None -> inline-SVG fallback."""
-    steps = [m.get("step") for m in metrics]
-    losses = [m.get("loss") for m in metrics]
+    loss_recs = [m for m in metrics if m.get("loss") is not None]   # training-loss curve
+    steps = [m.get("step") for m in loss_recs]
+    losses = [m.get("loss") for m in loss_recs]
     final_loss = f"{ctx['final_loss']:.4f}" if ctx.get("final_loss") is not None else "—"
     zip_mb = f"{ctx['zip_size_mb']:.1f} MB" if ctx.get("zip_size_mb") is not None else "—"
 
@@ -261,7 +260,7 @@ def build_html(ctx: dict, metrics: list[dict], chart_js_src: str | None,
 # --------------------------------------------------------------------------- #
 #  File entry point
 # --------------------------------------------------------------------------- #
-def generate(config: dict, state, out_dir: Path = HERE) -> Path:
+def generate(config: dict, state, out_dir: Path = REPORT_DIR) -> Path:
     """REPORTING stage entry point: write report_<timestamp>.html and return its path."""
     metrics = load_metrics()
     state_dict = json.loads(Path(state.path).read_text(encoding="utf-8")) if Path(state.path).exists() else {}

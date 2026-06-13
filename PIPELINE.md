@@ -1,6 +1,6 @@
 # Automated Fine-tuning → Deploy Pipeline
 
-`pipeline_runner.py` runs the whole GR00T fine-tuning workflow hands-off and
+`run_pipeline.py` runs the whole GR00T fine-tuning workflow hands-off and
 **resumable**: wait for a free H100 on the remote Pegasus box, fine-tune, pull the
 verified checkpoint home, switch Wi-Fi to the lab LAN, push the checkpoint to the
 **asus-4090** sim box, switch back to the internet, and write an offline HTML report.
@@ -11,6 +11,14 @@ IDLE → GPU_WAIT → TRAINING → DOWNLOADING → DEPLOYING → REPORTING → D
 
 Sim validation is **run manually** on asus-4090 after deploy (see below).
 
+## Layout
+
+The automation code lives in the **`pipeline/`** package (modules + `dashboard.html` +
+vendored `chart.umd.min.js`); the reused tools (`pegasus.py`, `run_finetune.py`,
+`wifi_switch.py`) stay at the repo root, as do the runtime artifacts (`config.yaml`,
+`pipeline_state.json`, `logs/`, `report_*.html`). Two thin root entry points dispatch in:
+`run_pipeline.py` (orchestrator) and `run_dashboard.py` (live UI).
+
 ## Quick start
 
 ```powershell
@@ -19,10 +27,12 @@ pip install -r requirements-pipeline.txt
 $env:PEGASUS_PASSWORD = 'eksncl#...'         # Pegasus (training server) password
 copy config.example.yaml config.yaml         # then edit paths / asus-4090 password
 
-python pipeline_runner.py --reset             # start fresh from IDLE
-python pipeline_runner.py --resume            # continue after a disconnect (default)
-python pipeline_runner.py --status            # show current state, do nothing
-python pipeline_runner.py --profile n1d5      # use the N1.5 (conda) profile instead of N1.7
+python run_pipeline.py --reset             # start fresh from IDLE
+python run_pipeline.py --resume            # continue after a disconnect (default)
+python run_pipeline.py --status            # show current state, do nothing
+python run_pipeline.py --profile n1d5      # use the N1.5 (conda) profile instead of N1.7
+
+python run_dashboard.py                    # live web dashboard at http://localhost:8770
 ```
 
 The pipeline persists progress in `pipeline_state.json` after every stage. Kill it, lose
@@ -72,6 +82,13 @@ To automate later, re-insert a `SIMULATING` stage in `pipeline_state.ORDER` and 
 ## Verify it works
 
 ```powershell
-python -m unittest discover -s tests -p "test_*.py"   # 44 unit tests (logic, parsers, orchestration)
-python pipeline_runner.py --status                    # state machine reads cleanly
+python -m unittest discover -s tests -p "test_*.py"   # 52 unit tests (logic, parsers, orchestration)
+python run_pipeline.py --status                       # state machine reads cleanly
 ```
+
+## Live progress dashboard
+
+`python run_dashboard.py` serves a read-only page (default `http://localhost:8770`, and
+the LAN IP for phones) that auto-refreshes: stage timeline, the active phase's %/rate/ETA,
+a live loss chart, and run outputs. It reads `pipeline_state.json` + `logs/progress.json`
++ `logs/metrics.jsonl` — no extra dependencies (stdlib `http.server`).
