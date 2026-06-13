@@ -14,9 +14,10 @@ from typing import Any
 
 
 # ---------------------------------------------------------------------------
-# Manually-edited workspace root that hosts shared datasets / checkpoints.
+# Workspace root that hosts shared datasets / checkpoints.
+# scripts/eval/utils/policy_client_factory.py -> parents[3] == IsaacLab-GR00T repo root.
 # ---------------------------------------------------------------------------
-PROJECT_ROOT = Path("/home/asus/Gits/IsaacLab-GR00T")
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 SCRIPT_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY_CONFIGS = {

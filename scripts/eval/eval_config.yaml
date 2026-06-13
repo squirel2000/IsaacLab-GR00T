@@ -1,0 +1,60 @@
+# Single source of truth for closed-loop eval in IsaacSim. Consumed by run_eval.py.
+#
+# - defaults : global knobs (a few overridable on the CLI: --target, --headless)
+# - env      : top-level integration/switching settings for THIS repo (the underlying
+#              IsaacLab / Isaac-GR00T / Isaac-GR00T_n1d7 checkouts stay pristine so they
+#              can track NVIDIA upstream)
+# - runs     : the eval plan. Each run points at a policy_configs/*.json (the per-backend
+#              server/connection spec) and a save_id. `checkpoint` overrides that JSON's
+#              model_path; a parent dir auto-resolves to its latest checkpoint-*.
+#
+# run_eval.py reuses a run's existing log if it already has `target` episodes, otherwise
+# it evals; then it always prints a comparison and writes a success-rate chart.
+
+defaults:
+  task: Isaac-Can-Sorting-OpenArm-DexHand-v0
+  target: 100                 # episodes to collect per run
+  max_attempts: 12            # client relaunches per run (Omniverse PhysX crash resilience)
+  headless: true              # IsaacSim with no GUI window (cameras still render offscreen)
+  save_video: true
+  filter: true                # low-pass / moving-average action filtering
+  multitask: true             # per-color language prompt switching (required for dataset 0403)
+  pov_list: [head]            # camera views; options: head, wrist_R, wrist_L
+  openarm_hand_type: linkerhand_o6
+  client_timeout_s: 14400     # hard cap per client attempt
+  server_ready_timeout_s: 900
+  server_ready_string: "Server is ready and listening"
+  logdir: output/eval/logs    # results land here; "_headless" is appended when headless
+
+env:
+  isaaclab_repo: IsaacLab           # client (IsaacSim) checkout
+  isaaclab_conda_env: env_isaaclab
+  conda_sh:                         # empty = auto-detect from CONDA_EXE / PATH; or set an explicit path
+  # Graphical-session env applied ONLY for windowed (--no-headless) runs.
+  display:
+    DISPLAY: ":0"
+    XAUTHORITY: /run/user/1000/gdm/Xauthority
+    XDG_RUNTIME_DIR: /run/user/1000
+    XDG_SESSION_TYPE: x11
+    DBUS_SESSION_BUS_ADDRESS: unix:path=/run/user/1000/bus
+
+runs:
+  - tag: n17_lr1e4_300k
+    config: policy_configs/gr00t_n17_openarm_o6.json
+    checkpoint: artifacts/checkpoints/gr00t/N1_7_fft_0609_300k_no_tune_visual/checkpoint-300000
+    save_id: n17_lr1e4_300k_multitask_checkpoint-300000_mt
+
+  - tag: n16_lr1e4_150k
+    config: policy_configs/gr00t_n16_openarm_o6.json
+    checkpoint: artifacts/checkpoints/gr00t/openarm_linkerhando6_multitask_N16_150k_dataset_0403_no_tune_visual/checkpoint-150000
+    save_id: n16_lr1e4_150k_multitask_checkpoint-150000_mt
+
+  - tag: n17_lr1e4_150k
+    config: policy_configs/gr00t_n17_openarm_o6.json
+    checkpoint: artifacts/checkpoints/gr00t/openarm_linkerhando6_multitask_N17_150k_dataset_0403_no_tune_visual/checkpoint-150000
+    save_id: n17_lr1e4_150k_multitask_checkpoint-150000_mt
+
+  - tag: n17_lr5e5_300k
+    config: policy_configs/gr00t_n17_openarm_o6.json
+    checkpoint: artifacts/checkpoints/gr00t/N1_7_fft_0607_300k_no_tune_visual/checkpoint-300000
+    save_id: n17_lr5e5_300k_multitask_checkpoint-300000_mt

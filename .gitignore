@@ -17,5 +17,4 @@ cookies.txt
 # output/ is the local eval & analysis workspace. Keep the runner scripts,
 # analysis generators and the comparison figures, but never version the
 # transient run/eval logs they produce.
-output/eval/logs/
-output/**/*.log
+output/

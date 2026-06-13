@@ -7,7 +7,7 @@ Integration glue for training and evaluating GR00T / StarVLA VLA models inside I
 - [Isaac-GR00T/](Isaac-GR00T/) — upstream NVIDIA GR00T model + finetuning scripts
 - [IsaacLab/](IsaacLab/) — IsaacLab + custom scripts under `scripts/gr00t_script/`
 - [starVLA/](starVLA/) — StarVLA model server
-- [launch_isaac_policy.py](launch_isaac_policy.py) — single-command launcher for server + IsaacLab client
+- [scripts/eval/](scripts/eval/) — closed-loop eval harness; single entry point `run_eval.py` (server + IsaacLab client)
 - `datasets/`, `artifacts/checkpoints/` — shared assets across backends
 
 ## 1. Collect a dataset
@@ -116,27 +116,29 @@ tensorboard --logdir ./artifacts/checkpoints/gr00t
 
 ## 4. Launch policy server + IsaacLab client
 
-### Recommended — single launcher
+### Recommended — single entry point
 
-[launch_isaac_policy.py](launch_isaac_policy.py) spawns the policy server and the IsaacLab client in separate `gnome-terminal` windows with the right conda envs activated. It also skips the server launch if one is already running.
+[scripts/eval/run_eval.py](scripts/eval/run_eval.py) is the only eval entry point. It reads
+[scripts/eval/eval_config.yaml](scripts/eval/eval_config.yaml) (the eval plan + global knobs),
+evals each checkpoint that lacks a complete log (crash-resilient: server stays up, client relaunches
+and accumulates episodes), then prints a comparison and writes a success-rate chart. Re-running with
+no new checkpoints just re-summarises existing logs.
 
 ```bash
-# Default: GR00T server + IsaacLab client
-python3 launch_isaac_policy.py
+# Eval every checkpoint in eval_config.yaml (default 100 eps each), then compare + chart
+python3 scripts/eval/run_eval.py
 
-# StarVLA backend
-python3 launch_isaac_policy.py --policy starvla
+# Fewer episodes
+python3 scripts/eval/run_eval.py --target 50
 
-# Override checkpoint and client knobs
-python3 launch_isaac_policy.py \
-  --policy gr00t \
-  --model-path ./artifacts/checkpoints/gr00t/<run>/checkpoint-200000 \
-  --max-eps-num 50 --save-video
+# Show the IsaacSim window on display :0 (default is headless)
+python3 scripts/eval/run_eval.py --no-headless
 ```
 
-Per-policy server settings (model path, port, embodiment tag, denoising steps, hand type) live in:
-- [IsaacLab/scripts/gr00t_script/policy_configs/gr00t_n15_openarm_o6.json](IsaacLab/scripts/gr00t_script/policy_configs/gr00t_n15_openarm_o6.json)
-- [IsaacLab/scripts/gr00t_script/policy_configs/starvla_openarm_o6.json](IsaacLab/scripts/gr00t_script/policy_configs/starvla_openarm_o6.json)
+Per-backend server settings (model path, port, embodiment tag, server repo/venv, hand type) live in
+[scripts/eval/policy_configs/](scripts/eval/policy_configs/); the eval plan (which checkpoints, episode
+counts, display env) lives in `eval_config.yaml`. See [scripts/eval/README.md](scripts/eval/README.md)
+for the full run + analysis guide.
 
 ### Manual launch (debugging / fallback)
 

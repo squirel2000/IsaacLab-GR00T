@@ -11,8 +11,8 @@ import sys
 from pathlib import Path
 
 
-# gr00t_eval/utils/starvla_client_adapter.py -> parents[2] == IsaacLab-GR00T repo root.
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+# scripts/eval/utils/starvla_client_adapter.py -> parents[3] == IsaacLab-GR00T repo root.
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 STARVLA_REPO = PROJECT_ROOT / "starVLA"
 
 if str(STARVLA_REPO) not in sys.path:

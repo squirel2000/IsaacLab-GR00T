@@ -156,7 +156,7 @@ DiT（action head）兩版**相同**（32 層、32 head、head_dim 48、output 1
 
 ## 7. 本次 eval 細節（multitask 修正版，三個版本）
 
-- orchestrator：`output/eval/run_eval_multitask.sh`（crash-resilient，Display :0，TARGET=100，head-only、`--multitask`）
+- orchestrator：`scripts/eval/run_eval.py`（crash-resilient，Display :0，target=100，head-only、`--multitask`；本次紀錄由當時的 `run_eval_multitask.sh` 產生，已整合進 run_eval.py）
 - logs：`output/eval/logs_mt/`（`*_combined_episodes.log` 為各版本的逐 episode 結果）
 - 三個版本都**一次 attempt 收滿 100/100**，無 server crash。
 
@@ -180,13 +180,11 @@ checkpoints：
 ## 8. 圖表
 
 - `output/analysis/n16_vs_n17/n16_vs_n17_loss.svg` — train loss（log）+ grad norm + success-rate bar（94/75/98%）
-- `output/analysis/n16_vs_n17/n16_vs_n17_compare.svg` — train loss + held-out MSE（待補 CSV）+ grad norm
 
 重繪：
 
 ```bash
-python3 output/analysis/n16_vs_n17/make_loss_svg.py    output/analysis/n16_vs_n17/n16_vs_n17_loss.svg
-python3 output/analysis/n16_vs_n17/make_compare_svg.py output/analysis/n16_vs_n17/n16_vs_n17_compare.svg
+python3 scripts/eval/analysis/make_loss_svg.py output/analysis/n16_vs_n17/n16_vs_n17_loss.svg
 ```
 
 ---
