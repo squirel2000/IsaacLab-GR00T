@@ -50,15 +50,14 @@ HANDLERS = {
 
 
 def finalize(config: dict, state: PipelineState) -> None:
-    """收尾: switch back to the external Wi-Fi and confirm internet."""
+    """收尾: return to the external (internet) Wi-Fi after the LAN deploy, confirm online."""
     if state.get("finalized"):
         return
-    net_util.switch_wifi(config["wifi"]["external"])
-    ip = str(config["wifi"]["internet_check_ip"])
-    if net_util.wait_for_host(ip, 30):
-        log.info("Internet confirmed (ping %s).", ip)
+    if net_util.ensure_external(config):         # ping-confirmed; drops LAN if needed
+        log.info("Internet confirmed; back on the external network.")
     else:
-        log.warning("Could not confirm internet via ping %s.", ip)
+        log.warning("Could not confirm internet after deploy; switch Wi-Fi to %s manually.",
+                    config["wifi"]["external"])
     state.record_output("finalized", True)
 
 
@@ -124,62 +123,77 @@ def show_status(state: PipelineState) -> None:
                 print(f"  {k} = {d[k]}")
 
 
-def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    mode = ap.add_mutually_exclusive_group()
-    mode.add_argument("--resume", action="store_true",
-                      help="continue from the saved state (default)")
-    mode.add_argument("--reset", action="store_true",
-                      help="reset to IDLE and run from the beginning")
-    mode.add_argument("--status", action="store_true",
-                      help="print the current state and exit")
-    mode.add_argument("--stop", action="store_true",
-                      help="terminate the detached training run and exit")
-    ap.add_argument("--profile", choices=["n1d5", "n1d7"],
-                    help="training profile (default: config active_profile)")
-    ap.add_argument("--config", help="path to config.yaml (default: ./config.yaml)")
-    args = ap.parse_args()
-
-    config = pc.load_config(args.config)
-    # Make the Pegasus password from config authoritative (no reliance on shell env).
+# --------------------------------------------------------------------------- #
+#  Reusable commands (shared by this module's main() and gr00t_pipeline.py)
+# --------------------------------------------------------------------------- #
+def bootstrap(config_path=None, profile=None):
+    """Load config (+ make the Pegasus password authoritative) and the saved state."""
+    config = pc.load_config(config_path)
     pw = (config.get("pegasus") or {}).get("password")
     if pw:
         os.environ["PEGASUS_PASSWORD"] = pw
         pg.PEGASUS_PASSWORD = pw
-    profile_name, _ = pc.resolve_profile(config, args.profile)
-    state = PipelineState.load()
+    profile_name, _ = pc.resolve_profile(config, profile)
+    return config, PipelineState.load(), profile_name
 
-    if args.status:
-        show_status(state)
-        return
 
-    if args.stop:
-        print(training_monitor.stop_run(config, state))
-        cur = state.current.value                # reflect the stop in state so --status is honest
-        if cur in state.stages:
-            state.stages[cur]["status"] = "stopped"
-            state.save()
-        print(f"  state: {cur} marked 'stopped'. Use --resume to continue from the last "
-              f"checkpoint, or --reset to start over.")
-        return
+def cmd_stop(config, state) -> None:
+    """Stop the detached run and mark the state (so --status is honest)."""
+    print(training_monitor.stop_run(config, state))
+    state.stop(state.current)
+    print(f"  state: {state.current.value} marked 'stopped'. --resume to continue from the "
+          f"last checkpoint, or --reset to start over.")
 
-    if args.reset:
+
+def cmd_run(config, state, profile_name, reset=False) -> None:
+    """Reset (optional) then drive the pipeline; restore connectivity on failure."""
+    if reset:
         state.reset()
         pp.clear()
         log.info("State reset to IDLE.")
-
     try:
         run_pipeline(config, state, profile_name)
     except SystemExit as e:
         log.error(str(e))
-        # Restore external connectivity only if actually offline (avoids hammering netsh,
-        # which needs elevation/Location to switch the enterprise SSID and falsely "fails").
         try:
-            net_util.ensure_reachable(config)
+            net_util.ensure_reachable(config)    # only switches if actually offline
         except Exception:                        # noqa: BLE001
             pass
-        sys.exit(1)
+        raise
+
+
+def add_run_args(ap: argparse.ArgumentParser) -> None:
+    """Attach the run/resume/reset/status/stop + profile/config args (shared with the CLI)."""
+    mode = ap.add_mutually_exclusive_group()
+    mode.add_argument("--resume", action="store_true", help="continue from saved state (default)")
+    mode.add_argument("--reset", action="store_true", help="reset to IDLE and run from the start")
+    mode.add_argument("--status", action="store_true", help="print current state and exit")
+    mode.add_argument("--stop", action="store_true", help="terminate the detached run and exit")
+    ap.add_argument("--profile", choices=["n1d5", "n1d7"],
+                    help="training profile (default: config active_profile)")
+    ap.add_argument("--config", help="path to config.yaml (default: ./config.yaml)")
+
+
+def run_cli(args) -> None:
+    """Dispatch a parsed run-args namespace (used by main() and gr00t_pipeline.py 'run')."""
+    config, state, profile_name = bootstrap(getattr(args, "config", None),
+                                            getattr(args, "profile", None))
+    if getattr(args, "status", False):
+        return show_status(state)
+    if getattr(args, "stop", False):
+        return cmd_stop(config, state)
+    cmd_run(config, state, profile_name, reset=getattr(args, "reset", False))
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    add_run_args(ap)
+    try:
+        run_cli(ap.parse_args())
+    except SystemExit as e:
+        if e.code not in (0, None):
+            sys.exit(e.code if isinstance(e.code, int) else 1)
 
 
 if __name__ == "__main__":

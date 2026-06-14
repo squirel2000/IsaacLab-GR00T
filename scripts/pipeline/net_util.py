@@ -63,6 +63,56 @@ def ensure_reachable(config: dict) -> bool:
     return ping(ip)
 
 
+def disconnect_wifi() -> bool:
+    """Drop the current Wi-Fi association (``netsh wlan disconnect``).
+
+    Used to leave the LAN (OMAP-Motion-5G) after a deploy: dropping it lets the
+    auto-connect enterprise SSID (CJ86GJI4_5G) re-associate WITHOUT a manual
+    ``netsh wlan connect`` (which needs elevation). Disconnect itself does not.
+    """
+    try:
+        r = subprocess.run(["netsh", "wlan", "disconnect", f"interface={wifi_switch.ADAPTER}"],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
+        log.info("Wi-Fi disconnect (rc=%d)", r.returncode)
+        return r.returncode == 0
+    except Exception as e:                        # noqa: BLE001
+        log.warning("disconnect errored: %s", e)
+        return False
+
+
+def ensure_external(config: dict) -> bool:
+    """收尾: get back on the internet after the LAN deploy, confirmed by ping.
+
+    The deploy LAN (OMAP-Motion-5G) has no internet, so after deploy we must leave it. Two
+    best-effort moves, because a direct ``netsh connect`` to the enterprise SSID needs
+    elevation/Location and silently fails (that's why a prior run stayed stuck on the LAN):
+
+      1. drop the LAN so an auto-connect external SSID can re-associate on its own, and
+      2. also attempt an explicit switch back (works if elevated / the profile allows).
+
+    Truth is ping reachability, NOT netsh's SSID read. If still offline after the timeout we
+    log a LOUD warning telling the user to switch manually (rather than failing silently).
+    """
+    ip = str(config["wifi"]["internet_check_ip"])
+    if ping(ip):
+        log.info("Already online (ping %s); external Wi-Fi is up.", ip)
+        return True
+    ext = config["wifi"]["external"]
+    log.info("Offline after deploy; restoring internet (drop LAN + try switch to %s).", ext)
+    disconnect_wifi()                                # let an auto-connect SSID take over
+    try:
+        switch_wifi(ext, retries=2)                  # best-effort explicit connect
+    except Exception as e:                           # noqa: BLE001
+        log.warning("explicit switch to %s failed (%s); relying on auto-reconnect.", ext, e)
+    ok = wait_for_host(ip, int(config["wifi"].get("net_ready_timeout_sec", 60)))
+    if not ok:
+        log.warning("⚠ COULD NOT restore internet automatically — still on the deploy LAN (%s). "
+                    "Connecting to the enterprise SSID via netsh needs elevation/Location, so "
+                    "please switch Wi-Fi back to %s MANUALLY.",
+                    config["wifi"]["local"], wifi_switch.NETWORKS.get(ext, ext))
+    return ok
+
+
 def switch_wifi(key_or_ssid: str, timeout: int = 20, retries: int = 3,
                 retry_wait: int = 4) -> bool:
     """Switch the Wi-Fi adapter to a network given by key ('cj'/'omap') or full SSID.

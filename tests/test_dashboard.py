@@ -6,6 +6,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "pipeline"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts" / "common"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts" / "pipeline"))
 
 import dashboard as dash
 import pipeline_progress as pp

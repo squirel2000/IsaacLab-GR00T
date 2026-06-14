@@ -127,6 +127,14 @@ class PipelineState:
                              "error": str(error), "at": rec["failed_at"]})
         self.save()
 
+    def stop(self, stage: Stage) -> None:
+        """Mark ``stage`` stopped by the user (so --status is honest after --stop)."""
+        rec = self._rec(stage)
+        rec["status"] = "stopped"
+        rec["stopped_at"] = _now()
+        self.history.append({"stage": stage.value, "event": "stopped", "at": rec["stopped_at"]})
+        self.save()
+
     # ----- shared cross-stage data -----------------------------------------
     def record_output(self, key: str, value) -> None:
         self.data[key] = value

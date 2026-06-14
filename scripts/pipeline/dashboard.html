@@ -69,7 +69,7 @@ document.documentElement.setAttribute('data-theme',t);localStorage.setItem(k,t);
 </div>
 
 <h2>Metrics</h2>
-<div class="panel"><div class="small">loss (train + eval)</div><canvas id="lossChart"></canvas>
+<div class="panel"><div class="small">loss (train + eval) · train color changes at each resume</div><canvas id="lossChart"></canvas>
   <div class="muted" id="nopts" style="display:none">No metrics yet.</div></div>
 <div class="grid2" style="margin-top:12px">
   <div class="panel"><div class="small">learning rate</div><canvas id="lrChart"></canvas></div>
@@ -88,7 +88,10 @@ const DUR = s => { if(s==null) return "—"; s=Math.max(0,Math.round(s));
   const d=Math.floor(s/86400), h=Math.floor(s%86400/3600), m=Math.floor(s%3600/60);
   if(d) return `${d}d ${h}h`; if(h) return `${h}h ${m}m`; return `${m}m ${s%60}s`; };
 const PHASE_OF = {TRAINING:"train", DOWNLOADING:"download", DEPLOYING:"deploy"};
-const pts = s => (s&&s.steps)?s.steps.map((x,i)=>({x:x, y:s.vals[i]})):[];
+const pts = s => (s&&s.steps)?s.steps.map((x,i)=>({x:x, y:s.vals[i], seg:(s.segs?s.segs[i]:0)})):[];
+// train-loss line cycles colors per resume segment so --resume boundaries are visible.
+const SEG_COLORS = ['#6ea8fe','#9b8cff','#f778ba','#56d364','#e3b341'];
+const segColor = c => SEG_COLORS[(((c.p1&&c.p1.raw&&c.p1.raw.seg)||0)) % SEG_COLORS.length];
 const charts = {};
 
 function renderStages(stages){
@@ -152,7 +155,8 @@ function renderPlots(series){
   $('nopts').style.display = any ? 'none' : 'block';
   lineChart('lossChart', [
     {label:'train loss', data:pts(series.train_loss), borderColor:'#6ea8fe',
-     backgroundColor:'rgba(110,168,254,.15)', borderWidth:2, pointRadius:0, tension:.25, fill:true},
+     backgroundColor:'rgba(110,168,254,.12)', borderWidth:2, pointRadius:0, tension:.25, fill:true,
+     segment:{borderColor:segColor}},
     {label:'eval loss', data:pts(series.eval_loss), borderColor:'#f0883e',
      borderWidth:2, pointRadius:0, tension:.25},
   ]);

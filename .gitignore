@@ -19,6 +19,7 @@ __pycache__/
 
 # Automation pipeline: local config (may hold LAN credentials), runtime state, logs, reports
 /config.yaml
+/scripts/pipeline/config.yaml
 /pipeline_state.json
 /logs/
 /report_*.html

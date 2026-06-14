@@ -195,7 +195,6 @@ def _launch(s, cfg: dict, state) -> dict:
             "zip_name": cfg["zip_name"], "started": datetime.datetime.now().isoformat()}
     state.record_outputs(runid=runid, state_abs=state_abs,        # persist BEFORE launching
                          state_rel=state_rel, zip_name=cfg["zip_name"])
-    rf.save_state(cfg, info)                                    # keep rf's json in sync too
 
     log.info("Launching run %s (detached) ...", runid)
     pg.put_file(s, rf._tmp_write(rf.wrapper_script(cfg, state_abs), "wrapper.sh"),
@@ -236,25 +235,58 @@ def start_or_reattach(s, cfg: dict, state) -> dict:
     return _launch(s, cfg, state)
 
 
+def _prior_segment_logs(s, cfg: dict, info: dict) -> list[str]:
+    """run.log paths of EARLIER relaunches for this output_dir (excludes the live run), ordered.
+
+    Each ``--resume`` relaunch made a fresh ``<run_name>_<ts>`` state dir whose run.log holds
+    only the post-resume steps; reading these first (chronologically) rebuilds the full
+    pre-resume curve so the dashboard/report show step 0 → now, not just since the last resume.
+    """
+    run_name, root = cfg["run_name"], cfg["state_root"]
+    out, _ = pg.sh(s, f"ls -d {shlex.quote(root)}/{shlex.quote(run_name)}_* 2>/dev/null | sort")
+    cur = str(info["state_abs"]).rstrip("/")
+    dirs = [d.strip().rstrip("/") for d in out.splitlines() if d.strip()]
+    return [pg.relpath(d) + "/run.log" for d in dirs if d != cur]
+
+
 def monitor(s, cfg: dict, info: dict, state) -> bool:
     """Tail the server log until DONE/FAILED; stream metrics to logs/metrics.jsonl.
 
-    Rebuilds metrics.jsonl from scratch each call (we re-read the whole log on re-attach),
-    so restarts never duplicate points. A fetch outage just keeps the loop polling — the
-    training keeps running server-side regardless.
+    Rebuilds metrics.jsonl from scratch each call so restarts never duplicate points. To show
+    the FULL training curve across ``--resume`` relaunches (each wrote its own run.log), it
+    first reads every prior segment's log (tagged ``seg=0,1,...``) then tails the live one;
+    the dashboard colors later segments so resume points are visible. A fetch outage just
+    keeps the loop polling — training continues server-side regardless.
     """
     state_rel = info["state_rel"]
     poll = int(cfg["poll"])
     log.info("Monitoring %s (poll %ds; Ctrl-C is safe — resume re-attaches).",
              info["runid"], poll)
 
-    log_off = 0
     last_step = last_total = 0
     train_total = int(cfg.get("max_steps") or 0) or None     # filters eval/loading bars
     base_t = base_step = None                                # session baseline for rate/ETA
     latest = {"loss": None, "lr": None, "grad_norm": None, "eval_loss": None}
     LOGS_DIR.mkdir(exist_ok=True)
     metrics_f = open(METRICS_PATH, "w", encoding="utf-8")
+
+    def _write(recs, seg):
+        for r in recs:
+            r["seg"] = seg
+            metrics_f.write(json.dumps(r) + "\n")
+            for k in ("loss", "lr", "grad_norm", "eval_loss"):
+                if r.get(k) is not None:
+                    latest[k] = r[k]
+
+    # Backfill the full curve from earlier relaunch segments (each read once, fully).
+    prior = _prior_segment_logs(s, cfg, info)
+    for i, rel in enumerate(prior):
+        full = rf.fetch(s, rel, 0).decode("utf-8", "replace")
+        recs, last_step, last_total = extract_metrics(full, last_step, last_total, train_total)
+        _write(recs, i)
+    metrics_f.flush()
+    cur_seg = len(prior)                                     # the live run is the last segment
+    log_off = 0
     try:
         while True:
             try:
@@ -264,11 +296,7 @@ def monitor(s, cfg: dict, info: dict, state) -> bool:
                     log_off += len(chunk)
                     recs, last_step, last_total = extract_metrics(
                         text, last_step, last_total, train_total=train_total)
-                    for r in recs:
-                        metrics_f.write(json.dumps(r) + "\n")
-                        for k in ("loss", "lr", "grad_norm", "eval_loss"):
-                            if r.get(k) is not None:
-                                latest[k] = r[k]
+                    _write(recs, cur_seg)
                     metrics_f.flush()
                 status = rf.read_text(s, f"{state_rel}/status")
             except Exception as e:               # noqa: BLE001 - outage: wait & keep polling
@@ -337,12 +365,9 @@ def stop_run(config: dict, state) -> str:
         return "no active run recorded in state; nothing to stop"
     _, profile = pc.resolve_profile(config, state.profile)
     cfg = build_finetune_cfg(config, profile, state.get("gpu_id") or 0)
-    info = info_from_state(cfg, state)
     s = connect_with_retry(config)
-    try:
-        rf.stop(s, cfg, info)                     # best-effort PGID kill via wrapper.pid
-    except Exception:                             # noqa: BLE001
-        pass
+    # Kill by the run's unique output_dir in the process argv. (wrapper.pid is unreliable
+    # under setsid, so rf.stop's PGID kill was a no-op here — dropped.)
     pattern = os.path.basename(str(cfg["output_dir"]).rstrip("/"))
     pg.sh(s, f"pkill -TERM -f {shlex.quote(pattern)}; sleep 3; "
              f"pkill -KILL -f {shlex.quote(pattern)}; echo stopped", timeout=60)

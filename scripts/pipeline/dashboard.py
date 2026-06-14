@@ -40,10 +40,15 @@ def _downsample(seq: list, limit: int = _MAX_POINTS) -> list:
 
 
 def _series(metrics: list, key: str) -> dict:
-    """{steps, vals} for one metric, keeping only records that have it (downsampled)."""
-    pts = [(m.get("step"), m[key]) for m in metrics if m.get(key) is not None]
-    return {"steps": _downsample([s for s, _ in pts]),
-            "vals": _downsample([v for _, v in pts])}
+    """{steps, vals, segs} for one metric, keeping only records that have it (downsampled).
+
+    ``segs`` is the per-point resume-segment index (0 = first launch, 1+ = after each
+    ``--resume`` relaunch) so the dashboard can color the curve at resume boundaries.
+    """
+    pts = [(m.get("step"), m[key], m.get("seg", 0)) for m in metrics if m.get(key) is not None]
+    return {"steps": _downsample([s for s, _, _ in pts]),
+            "vals": _downsample([v for _, v, _ in pts]),
+            "segs": _downsample([g for _, _, g in pts])}
 
 
 def build_status(state_dict: dict, progress: dict, metrics: list,
@@ -177,7 +182,9 @@ def make_handler(config: dict):
                 if self.path.startswith("/api/stop"):
                     import training_monitor as tm
                     from pipeline_state import PipelineState
-                    msg = tm.stop_run(config, PipelineState.load())
+                    state = PipelineState.load()
+                    msg = tm.stop_run(config, state)
+                    state.stop(state.current)    # mark state so --status is honest (matches --stop)
                     self._send(json.dumps({"ok": True, "message": msg}).encode("utf-8"),
                                "application/json")
                 else:
@@ -200,6 +207,20 @@ def _lan_ip() -> str:
         s.close()
 
 
+def serve(host: str = "0.0.0.0", port: int = 8770, config_path: str | None = None) -> None:
+    """Start the read-only dashboard server (reused by the CLI and gr00t_pipeline.py)."""
+    config = pc.load_config(config_path)
+    httpd = ThreadingHTTPServer((host, port), make_handler(config))
+    print(f"Dashboard:  http://localhost:{port}")
+    if host == "0.0.0.0":
+        print(f"On LAN/phone:  http://{_lan_ip()}:{port}")
+    print("Ctrl-C to stop.")
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        httpd.shutdown()
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -207,18 +228,7 @@ def main() -> None:
     ap.add_argument("--port", type=int, default=8770)
     ap.add_argument("--config", help="path to config.yaml")
     args = ap.parse_args()
-
-    config = pc.load_config(args.config)
-    httpd = ThreadingHTTPServer((args.host, args.port), make_handler(config))
-    lan = _lan_ip()
-    print(f"Dashboard:  http://localhost:{args.port}")
-    if args.host == "0.0.0.0":
-        print(f"On LAN/phone:  http://{lan}:{args.port}")
-    print("Ctrl-C to stop.")
-    try:
-        httpd.serve_forever()
-    except KeyboardInterrupt:
-        httpd.shutdown()
+    serve(args.host, args.port, args.config)
 
 
 if __name__ == "__main__":
