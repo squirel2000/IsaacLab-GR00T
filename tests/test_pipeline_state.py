@@ -7,7 +7,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "pipeline"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts" / "common"))
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts" / "pipeline"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts" / "pipeline" / "core"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts" / "pipeline" / "stages"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts" / "pipeline" / "web"))
 
 from pipeline_state import PipelineState, Stage, next_stage, ORDER
 

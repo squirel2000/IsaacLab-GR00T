@@ -39,37 +39,39 @@ keeps running on Pegasus regardless (launched detached with `setsid`+`nohup`), a
 
 ### `run`/`status`/`stop`/`dashboard`/`finetune` are not new code
 
-`gr00t_pipeline.py` is a thin dispatcher — it **reuses** the same functions the standalone
-tools use, so there is exactly one implementation of each behavior:
+`gr00t_pipeline.py` is a thin dispatcher — one shared implementation per behavior, nothing
+reimplemented:
 
-| Subcommand | Delegates to | Standalone equivalent (still works) |
-|---|---|---|
-| `run` / `status` / `stop` | `pipeline_runner.run_cli` | `python run_pipeline.py --resume/--status/--stop` |
-| `dashboard` | `dashboard.serve` | `python run_dashboard.py` |
-| `finetune …` | `run_finetune.main` | `python scripts/common/run_finetune.py …` |
+| Subcommand | Delegates to |
+|---|---|
+| `run` / `status` / `stop` | `pipeline_runner.run_cli` / `show_status` (core) |
+| `dashboard` | `dashboard.serve` (web) |
+| `finetune …` | `run_finetune.main` (scripts/common — also runnable standalone) |
 
-So you can keep using `run_pipeline.py`/`run_dashboard.py`/`run_finetune.py` directly (e.g.
-in existing scripts or muscle memory); `gr00t_pipeline.py` just gives you one front door.
+`gr00t_pipeline.py` (repo root) is the **single** entry point; the old `run_pipeline.py` /
+`run_dashboard.py` shims were removed (their `run`/`dashboard` subcommands replace them).
 
 > `finetune` runs the **fine-tune only** (no download/deploy/report) using
-> `run_finetune.py`'s own `CONFIG` block — a lower-level manual tool, separate from the
-> orchestrated `run` which is driven by `config.yaml`.
+> `run_finetune.py`'s own `CONFIG` block — a lower-level manual tool
+> (`python scripts/common/run_finetune.py …`), separate from the orchestrated `run` which is
+> driven by `config.yaml`.
 
 ## Layout
 
 ```
 scripts/
-  common/      pegasus.py · run_finetune.py · wifi_switch.py   (shared low-level tools)
-  pipeline/    gr00t_pipeline impl + stage modules + dashboard.html + vendor/ + config.yaml + this file
+  common/      pegasus.py · run_finetune.py · wifi_switch.py        (shared low-level tools)
+  pipeline/
+    core/      pipeline_runner · pipeline_state/config/progress/paths/logging/retry · net_util
+    stages/    gpu_monitor · training_monitor · downloader · deployer · report_generator · sim_validator
+    web/       dashboard.py · dashboard.html · vendor/chart.umd.min.js
+    config/    config.yaml (gitignored) · config.example.yaml
+    PIPELINE.md
   eval/        closed-loop IsaacSim eval (folded into the pipeline in a later phase)
 ```
 
-The automation code lives in **`scripts/pipeline/`** (the `pipeline_*`/stage modules,
-`dashboard.html`, vendored `chart.umd.min.js`, and `config.yaml`/`config.example.yaml`);
-the shared lower-level tools (`pegasus.py`, `run_finetune.py`, `wifi_switch.py`) live in
-**`scripts/common/`**. Generated runtime artifacts (`pipeline_state.json`, `logs/`,
-`report_*.html`) stay at the **repo root**. Root entry points: `gr00t_pipeline.py` (the one
-CLI), plus the back-compat shims `run_pipeline.py` and `run_dashboard.py`.
+Generated runtime artifacts (`pipeline_state.json`, `logs/`, `report_*.html`) stay at the
+**repo root**. The only root entry point is `gr00t_pipeline.py`.
 
 ## Design (reuses existing tools — does not reinvent)
 
@@ -142,7 +144,7 @@ To automate later, re-insert a `SIMULATING` stage in `pipeline_state.ORDER` and 
 
 ## Live progress dashboard
 
-`python gr00t_pipeline.py dashboard` (or `run_dashboard.py`) serves a read-only page
+`python gr00t_pipeline.py dashboard` serves a read-only page
 (default `http://localhost:8770`, and the LAN IP for phones) that auto-refreshes: stage
 timeline, the active phase's %/rate/ETA, live loss / eval-loss / lr / grad-norm charts, a
 Stop button, and run outputs. It reads `pipeline_state.json` + `logs/progress.json` +

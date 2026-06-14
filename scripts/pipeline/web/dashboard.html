@@ -192,7 +192,7 @@ async function tick(){
     const st = await (await fetch('/api/status',{cache:'no-store'})).json();
     const age = st.updated_at ? (Date.now() - new Date(st.updated_at).getTime())/1000 : null;
     const stale = (age!=null && age > 180 && st.current!=='DONE')
-      ? ` · <span style="color:var(--bad)">⚠ monitor stale (${DUR(age)} ago) — run: python run_pipeline.py --resume</span>` : '';
+      ? ` · <span style="color:var(--bad)">⚠ monitor stale (${DUR(age)} ago) — run: python gr00t_pipeline.py run</span>` : '';
     $('sub').innerHTML = `stage ${st.current} · profile ${st.profile||'?'} · updated ${st.updated_at||'—'}${stale}`;
     renderStages(st.stages||[]);
     renderPhase(st);

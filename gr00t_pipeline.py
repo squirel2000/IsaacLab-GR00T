@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Single entry point for the IsaacLab-GR00T N1.7 fine-tune → deploy automation.
 
-One CLI drives the whole flow. The standalone tools keep working on their own AND are
-reused here (not reimplemented): `dashboard` calls ``dashboard.serve`` (same code as
-run_dashboard.py) and `finetune` delegates to ``run_finetune.main`` (same code as
-run_finetune.py); `run/status/stop` share ``pipeline_runner``'s dispatcher.
+One CLI drives the whole flow by reusing one implementation per behavior (nothing is
+reimplemented): `run/status/stop` share ``pipeline_runner``'s dispatcher, `dashboard` calls
+``dashboard.serve`` (scripts/pipeline/web), and `finetune` delegates to ``run_finetune.main``
+(scripts/common/run_finetune.py — the standalone low-level tool).
 
     python gr00t_pipeline.py run                 # resume (or start) the full pipeline
     python gr00t_pipeline.py run --reset         # wipe state and run from the beginning
@@ -24,9 +24,11 @@ from pathlib import Path
 from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parent
+_PIPE = ROOT / "scripts" / "pipeline"
 sys.path.insert(0, str(ROOT))                            # project_paths (workspace helper)
 sys.path.insert(0, str(ROOT / "scripts" / "common"))     # pegasus / run_finetune / wifi_switch
-sys.path.insert(0, str(ROOT / "scripts" / "pipeline"))   # pipeline_* + stage modules + entry impl
+for _sub in ("core", "stages", "web"):                   # pipeline_* + stage modules + dashboard
+    sys.path.insert(0, str(_PIPE / _sub))
 
 
 def main() -> None:

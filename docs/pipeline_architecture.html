@@ -258,18 +258,18 @@
   <!-- ===================== ONE ENTRY POINT ===================== -->
   <section class="card">
     <h2><span class="dot" style="background:var(--teal)"></span>One entry point, reused parts</h2>
-    <p><code>gr00t_pipeline.py</code> is the single CLI. It is a thin dispatcher: every
-    subcommand calls the <em>same</em> function the matching standalone tool uses, so there is
-    exactly one implementation of each behavior — nothing is reimplemented.</p>
+    <p><code>gr00t_pipeline.py</code> (repo root) is the single CLI — the one entry point. It is a
+    thin dispatcher: every subcommand calls one shared implementation, so there is exactly one
+    copy of each behavior, nothing reimplemented.</p>
     <table>
-      <thead><tr><th>Command</th><th>What it does</th><th>Delegates to</th><th>Standalone equivalent</th></tr></thead>
+      <thead><tr><th>Command</th><th>What it does</th><th>Delegates to</th></tr></thead>
       <tbody>
-        <tr><td><code>run</code> <span class="pill">default</span></td><td>Resume (or start) the full pipeline from the saved stage</td><td><code>pipeline_runner.run_cli</code></td><td><code>run_pipeline.py --resume</code></td></tr>
-        <tr><td><code>run --reset</code></td><td>Wipe state and run from <code>IDLE</code></td><td><code>pipeline_runner.run_cli</code></td><td><code>run_pipeline.py --reset</code></td></tr>
-        <tr><td><code>status</code></td><td>Print the state machine and exit (no network)</td><td><code>pipeline_runner.show_status</code></td><td><code>run_pipeline.py --status</code></td></tr>
-        <tr><td><code>stop</code></td><td>Kill the detached training run, mark state <code>stopped</code></td><td><code>training_monitor.stop_run</code> + <code>state.stop()</code></td><td><code>run_pipeline.py --stop</code></td></tr>
-        <tr><td><code>dashboard</code></td><td>Read-only live web UI at <code>:8770</code></td><td><code>dashboard.serve</code></td><td><code>run_dashboard.py</code></td></tr>
-        <tr><td><code>finetune …</code></td><td>Fine-tune only (no deploy/report)</td><td><code>run_finetune.main</code></td><td><code>run_finetune.py …</code></td></tr>
+        <tr><td><code>run</code> <span class="pill">default</span></td><td>Resume (or start) the full pipeline from the saved stage</td><td><code>pipeline_runner.run_cli</code> (core)</td></tr>
+        <tr><td><code>run --reset</code></td><td>Wipe state and run from <code>IDLE</code></td><td><code>pipeline_runner.run_cli</code> (core)</td></tr>
+        <tr><td><code>status</code></td><td>Print the state machine and exit (no network)</td><td><code>pipeline_runner.show_status</code> (core)</td></tr>
+        <tr><td><code>stop</code></td><td>Kill the detached training run, mark state <code>stopped</code></td><td><code>training_monitor.stop_run</code> + <code>state.stop()</code></td></tr>
+        <tr><td><code>dashboard</code></td><td>Read-only live web UI at <code>:8770</code></td><td><code>dashboard.serve</code> (web)</td></tr>
+        <tr><td><code>finetune …</code></td><td>Fine-tune only (no deploy/report)</td><td><code>run_finetune.main</code> (scripts/common, also standalone)</td></tr>
       </tbody>
     </table>
     <div class="note"><b>finetune vs run.</b> <code>finetune</code> is the lower-level manual tool
@@ -336,14 +336,12 @@
     <table>
       <thead><tr><th>Location</th><th>Role</th></tr></thead>
       <tbody>
-        <tr><td><code>gr00t_pipeline.py</code></td><td>Single entry-point CLI (repo root)</td></tr>
-        <tr><td><code>run_pipeline.py</code> · <code>run_dashboard.py</code></td><td>Back-compat shims at root (still work standalone)</td></tr>
+        <tr><td><code>gr00t_pipeline.py</code></td><td>Single entry-point CLI (repo root) — the one command</td></tr>
         <tr><td><code>scripts/common/{pegasus,run_finetune,wifi_switch}.py</code></td><td>Shared lower-level tools (also reused by eval)</td></tr>
-        <tr><td><code>scripts/pipeline/pipeline_runner.py</code></td><td>State machine driver + shared CLI dispatch (<code>run_cli</code>)</td></tr>
-        <tr><td><code>scripts/pipeline/{gpu_monitor,training_monitor,downloader,deployer,report_generator}.py</code></td><td>One module per stage</td></tr>
-        <tr><td><code>scripts/pipeline/{pipeline_state,pipeline_config,pipeline_progress,net_util}.py</code></td><td>State, config, progress, network helpers</td></tr>
-        <tr><td><code>scripts/pipeline/dashboard.py</code> + <code>dashboard.html</code></td><td>Read-only live web UI (stdlib server)</td></tr>
-        <tr><td><code>scripts/pipeline/config.yaml</code> <span class="pill">gitignored</span></td><td>Paths, profiles, and secrets (Pegasus / asus-4090 / wandb)</td></tr>
+        <tr><td><code>scripts/pipeline/core/{pipeline_runner,pipeline_state,pipeline_config,pipeline_progress,net_util,…}.py</code></td><td>State machine + CLI dispatch (<code>run_cli</code>), config, progress, network</td></tr>
+        <tr><td><code>scripts/pipeline/stages/{gpu_monitor,training_monitor,downloader,deployer,report_generator}.py</code></td><td>One module per pipeline stage</td></tr>
+        <tr><td><code>scripts/pipeline/web/dashboard.py</code> + <code>dashboard.html</code> + <code>vendor/</code></td><td>Read-only live web UI (stdlib server)</td></tr>
+        <tr><td><code>scripts/pipeline/config/config.yaml</code> <span class="pill">gitignored</span></td><td>Paths, profiles, and secrets (Pegasus / asus-4090 / wandb)</td></tr>
         <tr><td><code>pipeline_state.json</code> · <code>logs/</code> · <code>report_*.html</code></td><td>Generated runtime artifacts (repo root)</td></tr>
         <tr><td><code>scripts/eval/</code> <span class="pill">phase 2</span></td><td>Closed-loop IsaacSim eval (folds in after merging verification_N1.7)</td></tr>
       </tbody>
