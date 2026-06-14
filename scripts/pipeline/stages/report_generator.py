@@ -18,7 +18,7 @@ from pathlib import Path
 
 from pipeline_state import Stage, ORDER
 from pipeline_logging import get_logger
-from pipeline_paths import METRICS_PATH, CHARTJS_PATH, REPORT_DIR
+from pipeline_paths import METRICS_PATH, CHARTJS_PATH, REPORT_DIR, REPO_ROOT
 
 log = get_logger("report")
 
@@ -79,6 +79,10 @@ def build_context(state_dict: dict, metrics: list[dict], config: dict) -> dict:
         "zip_local": data.get("zip_local", "—"),
         "deploy_host": data.get("deploy_host", "—"),
         "deploy_remote": data.get("deploy_remote", "—"),
+        "eval_skipped": data.get("eval_skipped"),
+        "eval_episodes": data.get("eval_episodes"),
+        "eval_success_rate": data.get("eval_success_rate"),
+        "eval_chart": data.get("eval_chart"),
         "stages": [(s.value, stages.get(s.value, {})) for s in ORDER],
     }
 
@@ -171,13 +175,19 @@ def _status_class(status: str) -> str:
 
 
 def build_html(ctx: dict, metrics: list[dict], chart_js_src: str | None,
-               sim_cmd: str = "python launch_isaac_policy.py") -> str:
-    """Render the full report HTML (pure). ``chart_js_src`` None -> inline-SVG fallback."""
+               sim_cmd: str = "python scripts/eval/run_eval.py", eval_svg: str | None = None) -> str:
+    """Render the full report HTML (pure). ``chart_js_src`` None -> inline-SVG fallback.
+
+    ``eval_svg`` (raw SVG markup) is inlined into the Evaluation section when present.
+    """
     loss_recs = [m for m in metrics if m.get("loss") is not None]   # training-loss curve
     steps = [m.get("step") for m in loss_recs]
     losses = [m.get("loss") for m in loss_recs]
     final_loss = f"{ctx['final_loss']:.4f}" if ctx.get("final_loss") is not None else "—"
     zip_mb = f"{ctx['zip_size_mb']:.1f} MB" if ctx.get("zip_size_mb") is not None else "—"
+    er = ctx.get("eval_success_rate")
+    eval_sr = (f"{er*100:.1f}% ({_esc(ctx.get('eval_episodes'))} eps)" if er is not None
+               else ("skipped" if ctx.get("eval_skipped") else "—"))
 
     cards = "".join(
         f'<div class="card"><div class="k">{k}</div><div class="v">{v}</div></div>'
@@ -186,6 +196,7 @@ def build_html(ctx: dict, metrics: list[dict], chart_js_src: str | None,
             ("GPU (Pegasus 2×H100)", "index " + _esc(ctx["gpu_id"])),
             ("Training time", _esc(ctx["train_duration"])),
             ("Final loss", final_loss),
+            ("Success rate (eval)", eval_sr),
             ("Checkpoint size", zip_mb),
             ("Pipeline state", _esc(ctx["current"])),
         ])
@@ -216,6 +227,16 @@ def build_html(ctx: dict, metrics: list[dict], chart_js_src: str | None,
         chart_block = _svg_line_chart(steps, losses)
         chart_script = ""
 
+    if er is not None:
+        eval_block = (f'<p>Success rate <b>{er*100:.1f}%</b> over '
+                      f'{_esc(ctx.get("eval_episodes"))} episodes — closed-loop in IsaacSim '
+                      f'on the H100.</p>' + (eval_svg or ""))
+    elif ctx.get("eval_skipped"):
+        eval_block = '<p class="muted">EVAL stage skipped (config <code>eval.enabled=false</code>).</p>'
+    else:
+        eval_block = (f'<p class="muted">No closed-loop eval recorded. Run it on the H100 '
+                      f'(which has IsaacSim): <code>{_esc(sim_cmd)}</code></p>')
+
     generated = datetime.datetime.now().isoformat(timespec="seconds")
     return f"""<!doctype html>
 <html lang="en" data-theme="dark">
@@ -241,10 +262,8 @@ def build_html(ctx: dict, metrics: list[dict], chart_js_src: str | None,
   <tr><th>Remote path</th><td>{_esc(ctx['deploy_remote'])}</td></tr>
 </table></div>
 
-<h2>Simulation</h2>
-<div class="panel"><p class="muted">Sim validation is run manually on asus-4090:</p>
-<p><code>{_esc(sim_cmd)}</code></p>
-<p class="sub">The robot repeats the pick-and-place task ~50–100× and accumulates a success rate.</p></div>
+<h2>Evaluation — closed-loop (IsaacSim)</h2>
+<div class="panel">{eval_block}</div>
 
 <h2>Pipeline log</h2>
 <div class="panel"><table>
@@ -268,7 +287,11 @@ def generate(config: dict, state, out_dir: Path = REPORT_DIR) -> Path:
     chart_src = CHARTJS_PATH.read_text(encoding="utf-8") if CHARTJS_PATH.exists() else None
     if not chart_src:
         log.warning("vendor/chart.umd.min.js missing — using inline-SVG fallback chart.")
-    html_text = build_html(ctx, metrics, chart_src)
+    eval_chart_rel = (state_dict.get("data") or {}).get("eval_chart")
+    eval_svg = None
+    if eval_chart_rel and (REPO_ROOT / eval_chart_rel).exists():
+        eval_svg = (REPO_ROOT / eval_chart_rel).read_text(encoding="utf-8", errors="replace")
+    html_text = build_html(ctx, metrics, chart_src, eval_svg=eval_svg)
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     out = Path(out_dir) / f"report_{ts}.html"
     out.write_text(html_text, encoding="utf-8")

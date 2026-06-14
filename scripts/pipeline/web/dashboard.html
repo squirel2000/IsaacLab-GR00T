@@ -87,7 +87,7 @@ const GB = b => (b==null?"—":(b/1e9).toFixed(2)+" GB");
 const DUR = s => { if(s==null) return "—"; s=Math.max(0,Math.round(s));
   const d=Math.floor(s/86400), h=Math.floor(s%86400/3600), m=Math.floor(s%3600/60);
   if(d) return `${d}d ${h}h`; if(h) return `${h}h ${m}m`; return `${m}m ${s%60}s`; };
-const PHASE_OF = {TRAINING:"train", DOWNLOADING:"download", DEPLOYING:"deploy"};
+const PHASE_OF = {TRAINING:"train", EVAL:"eval", DOWNLOADING:"download", DEPLOYING:"deploy"};
 const pts = s => (s&&s.steps)?s.steps.map((x,i)=>({x:x, y:s.vals[i], seg:(s.segs?s.segs[i]:0)})):[];
 // train-loss line cycles colors per resume segment so --resume boundaries are visible.
 const SEG_COLORS = ['#6ea8fe','#9b8cff','#f778ba','#56d364','#e3b341'];
@@ -116,6 +116,11 @@ function renderPhase(st){
     metrics = `<span>loss <b>${p.loss??'—'}</b></span>`
             + `<span>elapsed <b>${DUR(p.elapsed_sec)}</b></span>`
             + `<span>remaining <b>${DUR(p.eta_sec)}</b></span>`
+            + `<span>status <b>${p.status||'RUNNING'}</b></span>`;
+  } else if(key==='eval'){
+    title = 'Evaluating — closed-loop (IsaacSim)';
+    metrics = `<span>episodes <b>${p.done??'?'} / ${p.total??'?'}</b></span>`
+            + `<span>success <b>${p.success_rate!=null?(p.success_rate*100).toFixed(1)+'%':'—'}</b></span>`
             + `<span>status <b>${p.status||'RUNNING'}</b></span>`;
   } else if(key==='download'){
     title = 'Downloading checkpoint';
@@ -178,6 +183,7 @@ function renderOutputs(st){
     ['Profile', st.profile],
     ['GPU', d.gpu_id!=null?('index '+d.gpu_id):null],
     ['Run id', d.runid],
+    ['Eval success', d.eval_success_rate!=null?((d.eval_success_rate*100).toFixed(1)+'%'+(d.eval_episodes?` (${d.eval_episodes} eps)`:'')):null],
     ['Checkpoint zip', d.zip_size?GB(d.zip_size):null],
     ['Local zip', d.zip_local],
     ['Deployed to', d.deploy_host?`${d.deploy_host}:${d.deploy_remote||''}`:null],

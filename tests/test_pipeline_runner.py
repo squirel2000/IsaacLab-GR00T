@@ -51,8 +51,8 @@ class RunnerTests(unittest.TestCase):
         with mock.patch.object(pr, "HANDLERS", self._handlers()):
             state = PipelineState.load(self.tmp)
             pr.run_pipeline(CONFIG, state, "n1d7")
-        self.assertEqual(self.calls, [Stage.GPU_WAIT, Stage.TRAINING, Stage.DOWNLOADING,
-                                      Stage.DEPLOYING, Stage.REPORTING])
+        self.assertEqual(self.calls, [Stage.GPU_WAIT, Stage.TRAINING, Stage.EVAL,
+                                      Stage.DOWNLOADING, Stage.DEPLOYING, Stage.REPORTING])
         self.assertIs(state.current, Stage.DONE)
         self.assertTrue(state.get("finalized"))
 
@@ -73,7 +73,7 @@ class RunnerTests(unittest.TestCase):
             state2 = PipelineState.load(self.tmp)
             pr.run_pipeline(CONFIG, state2, "n1d7")
         # GPU_WAIT is NOT re-run; resumes at TRAINING through to the end
-        self.assertEqual(self.calls, [Stage.TRAINING, Stage.DOWNLOADING,
+        self.assertEqual(self.calls, [Stage.TRAINING, Stage.EVAL, Stage.DOWNLOADING,
                                       Stage.DEPLOYING, Stage.REPORTING])
         self.assertIs(state2.current, Stage.DONE)
         self.assertEqual(state2.attempts(Stage.TRAINING), 2)   # 1 failed + 1 success

@@ -28,15 +28,17 @@ class Stage(str, Enum):
     IDLE = "IDLE"
     GPU_WAIT = "GPU_WAIT"
     TRAINING = "TRAINING"
+    EVAL = "EVAL"
     DOWNLOADING = "DOWNLOADING"
     DEPLOYING = "DEPLOYING"
     REPORTING = "REPORTING"
     DONE = "DONE"
 
 
-# Linear order the pipeline walks. (SIMULATING is intentionally omitted — run manually.)
+# Linear order the pipeline walks. EVAL runs closed-loop eval on the H100 right after
+# training (no-op when config eval.enabled is false).
 ORDER: list[Stage] = [
-    Stage.IDLE, Stage.GPU_WAIT, Stage.TRAINING, Stage.DOWNLOADING,
+    Stage.IDLE, Stage.GPU_WAIT, Stage.TRAINING, Stage.EVAL, Stage.DOWNLOADING,
     Stage.DEPLOYING, Stage.REPORTING, Stage.DONE,
 ]
 

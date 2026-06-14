@@ -28,6 +28,7 @@ import pipeline_progress as pp
 import net_util
 import gpu_monitor
 import training_monitor
+import eval_runner
 import downloader
 import deployer
 import report_generator
@@ -36,13 +37,14 @@ from pipeline_logging import get_logger
 
 log = get_logger("pipeline")
 
-# Stages that need the external network (to reach Pegasus). DEPLOYING switches to the LAN
-# itself inside deployer.run; REPORTING is purely local.
-_PEGASUS_STAGES = {Stage.GPU_WAIT, Stage.TRAINING, Stage.DOWNLOADING}
+# Stages that need the external network (to reach Pegasus). EVAL also runs on the H100.
+# DEPLOYING switches to the LAN itself inside deployer.run; REPORTING is purely local.
+_PEGASUS_STAGES = {Stage.GPU_WAIT, Stage.TRAINING, Stage.EVAL, Stage.DOWNLOADING}
 
 HANDLERS = {
     Stage.GPU_WAIT: gpu_monitor.run,
     Stage.TRAINING: training_monitor.run,
+    Stage.EVAL: eval_runner.run,
     Stage.DOWNLOADING: downloader.run,
     Stage.DEPLOYING: deployer.run,
     Stage.REPORTING: report_generator.generate,
@@ -100,6 +102,10 @@ def _print_summary(state: PipelineState) -> None:
     print("=" * 60)
     print(f"  profile     : {state.profile}")
     print(f"  GPU used    : index {d.get('gpu_id')}")
+    if d.get("eval_success_rate") is not None:
+        print(f"  eval        : {d['eval_success_rate']*100:.1f}% over {d.get('eval_episodes')} eps")
+    elif d.get("eval_skipped"):
+        print("  eval        : skipped (eval.enabled=false)")
     print(f"  checkpoint  : {d.get('zip_local')}")
     print(f"  deployed to : {d.get('deploy_host')}:{d.get('deploy_remote')}")
     print(f"  report      : {d.get('report_path')}")

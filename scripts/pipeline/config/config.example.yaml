@@ -67,3 +67,21 @@ wifi:
   local: omap                            # OMAP lab LAN SSID key
   internet_check_ip: 8.8.8.8
   net_ready_timeout_sec: 60
+
+# EVAL stage: closed-loop IsaacSim eval on the H100, right after training.
+# Disabled by default — enable only once the H100 has THIS branch's scripts/eval AND the
+# IsaacSim + policy-server conda envs. Then the pipeline runs eval before download/deploy
+# and the report embeds the success-rate chart.
+eval:
+  enabled: false
+  target_episodes: 100                   # episodes to collect per checkpoint
+  task: Isaac-Can-Sorting-OpenArm-DexHand-v0
+  backend_config: scripts/eval/configs/gr00t_n17_openarm_o6.json  # server/connection spec
+  openarm_hand_type: linkerhand_o6
+  save_video: false
+  # H100-side paths (absolute or relative to the superproject root). h100_repo_root defaults
+  # to the parent of the n1d7 train_cwd (the superproject that holds scripts/eval).
+  h100_repo_root:                        # e.g. /data/VLA/<you>/IsaacLab-GR00T  (empty = auto)
+  isaaclab_repo: IsaacLab                # IsaacSim client checkout (relative to repo root)
+  isaaclab_conda_env: env_isaaclab
+  conda_sh:                              # empty = auto-detect from CONDA_EXE/PATH

@@ -69,12 +69,12 @@
     <p class="lede">One resumable command waits for a free H100, fine-tunes GR00T on the
     remote Pegasus box, pulls the verified checkpoint home, hops Wi-Fi to deploy it onto the
     asus-4090 sim box, and writes an offline report — surviving any disconnect along the way.</p>
-    <div class="flow-line">IDLE → <b>GPU_WAIT</b> → <b>TRAINING</b> → <b>DOWNLOADING</b> → <b>DEPLOYING</b> → <b>REPORTING</b> → DONE</div>
+    <div class="flow-line">IDLE → <b>GPU_WAIT</b> → <b>TRAINING</b> → <b>EVAL</b> → <b>DOWNLOADING</b> → <b>DEPLOYING</b> → <b>REPORTING</b> → DONE</div>
   </header>
 
   <!-- ===================== ARCHITECTURE DIAGRAM ===================== -->
   <section class="card diagram-card">
-    <svg viewBox="0 0 1200 792" role="img" aria-label="Architecture diagram: three hosts and six pipeline stages, with animated data flows">
+    <svg viewBox="0 0 1200 792" role="img" aria-label="Architecture diagram: three hosts and seven pipeline stages, with animated data flows">
       <defs>
         <style>
           .flow{stroke-dasharray:7 7; animation:flowmove .9s linear infinite}
@@ -114,29 +114,35 @@
       </defs>
 
       <!-- ===================== CROSS-ZONE CONNECTORS (drawn first, under blocks) ===================== -->
-      <!-- GPU_WAIT <-> nvidia-smi : control poll (double-headed, vertical) -->
-      <path d="M349,440 V276" stroke="#64748b" stroke-width="1.8" fill="none"
+      <!-- GPU_WAIT <-> nvidia-smi : control poll -->
+      <path d="M327,440 V276" stroke="#64748b" stroke-width="1.8" fill="none"
             marker-start="url(#ctlR)" marker-end="url(#ctl)"/>
-      <text class="lbl" x="356" y="326" fill="#64748b">poll GPU</text>
+      <text class="lbl" x="334" y="326" fill="#64748b">poll GPU</text>
 
-      <!-- TRAINING <-> wrapper : launch (control, double) + tail log (data, animated, flows down) -->
-      <path d="M489,440 V276" stroke="#64748b" stroke-width="1.8" fill="none"
+      <!-- TRAINING <-> detached train : launch (control) + tail log (data, animated) -->
+      <path d="M445,440 V276" stroke="#64748b" stroke-width="1.8" fill="none"
             marker-start="url(#ctlR)" marker-end="url(#ctl)"/>
-      <path class="flow" d="M501,276 V436" stroke="#0ea5e9" stroke-width="2" fill="none" marker-end="url(#data)"/>
-      <text class="lbl" x="510" y="326" fill="#0284c7">launch · tail log</text>
+      <path class="flow" d="M457,276 V436" stroke="#0ea5e9" stroke-width="2" fill="none" marker-end="url(#data)"/>
+      <text class="lbl" x="466" y="326" fill="#0284c7">launch · tail</text>
+
+      <!-- EVAL <-> IsaacSim eval : launch (control) + results (data, animated) — runs on the H100 -->
+      <path d="M569,440 V276" stroke="#64748b" stroke-width="1.8" fill="none"
+            marker-start="url(#ctlR)" marker-end="url(#ctl)"/>
+      <path class="flow" d="M581,276 V436" stroke="#0ea5e9" stroke-width="2" fill="none" marker-end="url(#data)"/>
+      <text class="lbl" x="590" y="326" fill="#0284c7">eval</text>
 
       <!-- checkpoint.zip -> DOWNLOADING : data flows down (animated) -->
-      <path class="flow" d="M641,276 V436" stroke="#0ea5e9" stroke-width="2.2" fill="none" marker-end="url(#data)"/>
-      <text class="lbl" x="648" y="326" fill="#0284c7">download</text>
+      <path class="flow" d="M699,276 V436" stroke="#0ea5e9" stroke-width="2.2" fill="none" marker-end="url(#data)"/>
+      <text class="lbl" x="706" y="326" fill="#0284c7">download</text>
 
-      <!-- DEPLOYING -> asus : data (animated) + Wi-Fi switch (animated, dashed already) -->
-      <path class="flow" d="M781,504 V620" stroke="#0ea5e9" stroke-width="2.2" fill="none" marker-end="url(#data)"/>
-      <path class="flow" d="M797,504 V620" stroke="#f59e0b" stroke-width="2" fill="none" marker-end="url(#wifi)"/>
-      <text class="lbl" x="772" y="540" text-anchor="end" fill="#f59e0b">Wi-Fi → OMAP</text>
-      <text class="lbl" x="772" y="556" text-anchor="end" fill="#0284c7">SFTP + unzip</text>
+      <!-- DEPLOYING -> asus : data (animated) + Wi-Fi switch -->
+      <path class="flow" d="M817,504 V660" stroke="#0ea5e9" stroke-width="2.2" fill="none" marker-end="url(#data)"/>
+      <path class="flow" d="M829,504 V660" stroke="#f59e0b" stroke-width="2" fill="none" marker-end="url(#wifi)"/>
+      <text class="lbl" x="808" y="540" text-anchor="end" fill="#f59e0b">Wi-Fi → OMAP</text>
+      <text class="lbl" x="808" y="556" text-anchor="end" fill="#0284c7">SFTP + unzip</text>
 
       <!-- REPORTING -> report file : control (short, down) -->
-      <path d="M933,504 V566" stroke="#8b5cf6" stroke-width="1.8" fill="none" marker-end="url(#ctlV)"/>
+      <path d="M947,504 V566" stroke="#8b5cf6" stroke-width="1.8" fill="none" marker-end="url(#ctlV)"/>
 
       <!-- Dashboard -> laptop : read-only monitor (down the right margin) -->
       <path d="M1142,94 V338" stroke="#94a3b8" stroke-width="1.6" fill="none"
@@ -149,20 +155,25 @@
       <text x="58" y="172" fill="#fff" font-size="14.5" font-weight="700">🖥  Pegasus · 2× H100 (remote)</text>
       <text x="1150" y="171" text-anchor="end" fill="#4f46e5" font-size="12" font-weight="600">no SSH · Jupyter HTTP / WebSocket (pegasus.py)</text>
 
-      <rect x="274" y="196" width="150" height="80" rx="12" fill="var(--card)" stroke="var(--line)" filter="url(#soft)"/>
-      <text x="349" y="223" text-anchor="middle" font-size="13.5" font-weight="700" fill="var(--ink)">nvidia-smi</text>
-      <text x="349" y="242" text-anchor="middle" font-size="11.5" fill="var(--muted)">GPU util / mem poll</text>
-      <text x="349" y="259" text-anchor="middle" font-size="11" fill="var(--muted)">idle = util&lt;10% · mem&lt;5GB</text>
+      <rect x="269" y="196" width="116" height="80" rx="12" fill="var(--card)" stroke="var(--line)" filter="url(#soft)"/>
+      <text x="327" y="223" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--ink)">nvidia-smi</text>
+      <text x="327" y="241" text-anchor="middle" font-size="10" fill="var(--muted)">GPU util/mem poll</text>
+      <text x="327" y="257" text-anchor="middle" font-size="9.5" fill="var(--muted)">idle &lt;10% · &lt;5GB</text>
 
-      <rect x="405" y="196" width="180" height="80" rx="12" fill="var(--card)" stroke="var(--line)" filter="url(#soft)"/>
-      <text x="495" y="221" text-anchor="middle" font-size="13.5" font-weight="700" fill="var(--ink)">detached wrapper</text>
-      <text x="495" y="239" text-anchor="middle" font-size="11" fill="var(--muted)">setsid+nohup · finetune_openarm_o6.sh</text>
-      <text x="495" y="256" text-anchor="middle" font-size="11" fill="var(--muted)">writes run.log · status · ckpt</text>
+      <rect x="393" y="196" width="116" height="80" rx="12" fill="var(--card)" stroke="var(--line)" filter="url(#soft)"/>
+      <text x="451" y="223" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--ink)">detached train</text>
+      <text x="451" y="241" text-anchor="middle" font-size="10" fill="var(--muted)">setsid + nohup</text>
+      <text x="451" y="257" text-anchor="middle" font-size="9.5" fill="var(--muted)">run.log · ckpt</text>
 
-      <rect x="566" y="196" width="150" height="80" rx="12" fill="var(--card)" stroke="var(--line)" filter="url(#soft)"/>
-      <text x="641" y="223" text-anchor="middle" font-size="13.5" font-weight="700" fill="var(--ink)">checkpoint.zip</text>
-      <text x="641" y="242" text-anchor="middle" font-size="11.5" fill="var(--muted)">zip + sha256</text>
-      <text x="641" y="259" text-anchor="middle" font-size="11" fill="var(--muted)">resumable HTTP range</text>
+      <rect x="517" y="196" width="116" height="80" rx="12" fill="var(--card)" stroke="var(--line)" filter="url(#soft)"/>
+      <text x="575" y="223" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--ink)">IsaacSim eval</text>
+      <text x="575" y="241" text-anchor="middle" font-size="10" fill="var(--muted)">run_eval.py</text>
+      <text x="575" y="257" text-anchor="middle" font-size="9.5" fill="var(--muted)">success rate</text>
+
+      <rect x="641" y="196" width="116" height="80" rx="12" fill="var(--card)" stroke="var(--line)" filter="url(#soft)"/>
+      <text x="699" y="223" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--ink)">checkpoint.zip</text>
+      <text x="699" y="241" text-anchor="middle" font-size="10" fill="var(--muted)">inference-only</text>
+      <text x="699" y="257" text-anchor="middle" font-size="9.5" fill="var(--muted)">+sha256 · resumable</text>
 
       <!-- ===================== ZONE: Local laptop (orchestrator) ===================== -->
       <rect x="40" y="340" width="1120" height="220" rx="18" fill="url(#gLap)" stroke="#0ea5e9" stroke-opacity=".4"/>
@@ -182,60 +193,62 @@
       <text x="162" y="510" text-anchor="middle" font-size="13" font-weight="700" fill="var(--ink)">pipeline_state.json</text>
       <text x="162" y="525" text-anchor="middle" font-size="10.5" fill="var(--muted)">↺ persisted every stage · resume</text>
       <!-- runner -> first stage -->
-      <path d="M260,466 H283" stroke="#64748b" stroke-width="1.8" fill="none" marker-end="url(#ctl)"/>
+      <path d="M260,466 H273" stroke="#64748b" stroke-width="1.8" fill="none" marker-end="url(#ctl)"/>
 
-      <!-- six stage pills -->
+      <!-- seven stage pills -->
       <g>
-        <rect x="285" y="440" width="128" height="64" rx="13" fill="url(#gStage)" filter="url(#soft)"/>
-        <text x="349" y="470" text-anchor="middle" fill="#fff" font-size="13.5" font-weight="800">GPU_WAIT</text>
-        <text x="349" y="488" text-anchor="middle" fill="#e0f7ff" font-size="10.5">gpu_monitor.py</text>
+        <rect x="275" y="440" width="104" height="64" rx="13" fill="url(#gStage)" filter="url(#soft)"/>
+        <text x="327" y="468" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="800">GPU_WAIT</text>
+        <text x="327" y="486" text-anchor="middle" fill="#e0f7ff" font-size="9.5">gpu_monitor</text>
 
-        <rect x="431" y="440" width="128" height="64" rx="13" fill="url(#gStage)" filter="url(#soft)"/>
-        <text x="495" y="470" text-anchor="middle" fill="#fff" font-size="13.5" font-weight="800">TRAINING</text>
-        <text x="495" y="488" text-anchor="middle" fill="#e0f7ff" font-size="10.5">training_monitor.py</text>
+        <rect x="399" y="440" width="104" height="64" rx="13" fill="url(#gStage)" filter="url(#soft)"/>
+        <text x="451" y="468" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="800">TRAINING</text>
+        <text x="451" y="486" text-anchor="middle" fill="#e0f7ff" font-size="9.5">training_monitor</text>
 
-        <rect x="577" y="440" width="128" height="64" rx="13" fill="url(#gStage)" filter="url(#soft)"/>
-        <text x="641" y="468" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="800">DOWNLOADING</text>
-        <text x="641" y="487" text-anchor="middle" fill="#e0f7ff" font-size="10.5">downloader.py</text>
+        <rect x="523" y="440" width="104" height="64" rx="13" fill="url(#gStage)" filter="url(#soft)"/>
+        <text x="575" y="468" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="800">EVAL</text>
+        <text x="575" y="486" text-anchor="middle" fill="#e0f7ff" font-size="9.5">eval_runner</text>
 
-        <rect x="723" y="440" width="128" height="64" rx="13" fill="url(#gStage)" filter="url(#soft)"/>
-        <text x="787" y="470" text-anchor="middle" fill="#fff" font-size="13.5" font-weight="800">DEPLOYING</text>
-        <text x="787" y="488" text-anchor="middle" fill="#e0f7ff" font-size="10.5">deployer.py · net_util</text>
+        <rect x="647" y="440" width="104" height="64" rx="13" fill="url(#gStage)" filter="url(#soft)"/>
+        <text x="699" y="467" text-anchor="middle" fill="#fff" font-size="10.5" font-weight="800">DOWNLOADING</text>
+        <text x="699" y="485" text-anchor="middle" fill="#e0f7ff" font-size="9.5">downloader</text>
 
-        <rect x="869" y="440" width="128" height="64" rx="13" fill="url(#gStage)" filter="url(#soft)"/>
-        <text x="933" y="470" text-anchor="middle" fill="#fff" font-size="13.5" font-weight="800">REPORTING</text>
-        <text x="933" y="488" text-anchor="middle" fill="#e0f7ff" font-size="10.5">report_generator.py</text>
+        <rect x="771" y="440" width="104" height="64" rx="13" fill="url(#gStage)" filter="url(#soft)"/>
+        <text x="823" y="468" text-anchor="middle" fill="#fff" font-size="11.5" font-weight="800">DEPLOYING</text>
+        <text x="823" y="486" text-anchor="middle" fill="#e0f7ff" font-size="9.5">deployer · net_util</text>
 
-        <rect x="1015" y="440" width="128" height="64" rx="13" fill="url(#gDone)" filter="url(#soft)"/>
-        <text x="1079" y="477" text-anchor="middle" fill="#fff" font-size="15" font-weight="800">✓ DONE</text>
+        <rect x="895" y="440" width="104" height="64" rx="13" fill="url(#gStage)" filter="url(#soft)"/>
+        <text x="947" y="468" text-anchor="middle" fill="#fff" font-size="11.5" font-weight="800">REPORTING</text>
+        <text x="947" y="486" text-anchor="middle" fill="#e0f7ff" font-size="9.5">report_generator</text>
+
+        <rect x="1019" y="440" width="104" height="64" rx="13" fill="url(#gDone)" filter="url(#soft)"/>
+        <text x="1071" y="476" text-anchor="middle" fill="#fff" font-size="14" font-weight="800">✓ DONE</text>
 
         <!-- animated chevrons between pills (data flow left -> right) -->
         <g fill="none" stroke="#0ea5e9" stroke-width="2.2">
-          <path class="flow" d="M413,472 H431" marker-end="url(#data)"/>
-          <path class="flow" d="M559,472 H577" marker-end="url(#data)"/>
-          <path class="flow" d="M705,472 H723" marker-end="url(#data)"/>
-          <path class="flow" d="M851,472 H869" marker-end="url(#data)"/>
-          <path class="flow" d="M997,472 H1015" marker-end="url(#data)"/>
+          <path class="flow" d="M379,472 H399" marker-end="url(#data)"/>
+          <path class="flow" d="M503,472 H523" marker-end="url(#data)"/>
+          <path class="flow" d="M627,472 H647" marker-end="url(#data)"/>
+          <path class="flow" d="M751,472 H771" marker-end="url(#data)"/>
+          <path class="flow" d="M875,472 H895" marker-end="url(#data)"/>
+          <path class="flow" d="M999,472 H1019" marker-end="url(#data)"/>
         </g>
       </g>
 
       <!-- report artifact (local; in the gap below REPORTING) -->
-      <rect x="868" y="566" width="130" height="32" rx="9" fill="var(--card)" stroke="var(--violet)" stroke-dasharray="4 3"/>
-      <text x="933" y="586" text-anchor="middle" font-size="12" font-weight="600" fill="var(--violet)">report_*.html</text>
+      <rect x="882" y="566" width="130" height="32" rx="9" fill="var(--card)" stroke="var(--violet)" stroke-dasharray="4 3"/>
+      <text x="947" y="586" text-anchor="middle" font-size="12" font-weight="600" fill="var(--violet)">report_*.html</text>
 
-      <!-- ===================== ZONE: asus-4090 (LAN, sim) ===================== -->
+      <!-- ===================== ZONE: asus-4090 (LAN, deploy target) ===================== -->
       <rect x="40" y="620" width="1120" height="150" rx="18" fill="url(#gAsus)" stroke="#8b5cf6" stroke-opacity=".4"/>
       <rect x="40" y="620" width="260" height="34" rx="17" fill="#7c3aed"/>
       <text x="58" y="642" fill="#fff" font-size="14.5" font-weight="700">🤖  asus-4090 · sim box (LAN)</text>
       <text x="1150" y="641" text-anchor="end" fill="#7c3aed" font-size="12" font-weight="600">OMAP-Motion-5G · SSH / paramiko</text>
 
-      <rect x="707" y="664" width="160" height="80" rx="12" fill="var(--card)" stroke="var(--line)" filter="url(#soft)"/>
-      <text x="787" y="694" text-anchor="middle" font-size="13.5" font-weight="700" fill="var(--ink)">SFTP + unzip</text>
-      <text x="787" y="713" text-anchor="middle" font-size="11.5" fill="var(--muted)">→ checkpoints/gr00t/</text>
-
-      <rect x="900" y="664" width="220" height="80" rx="12" fill="var(--card)" stroke="var(--line)" stroke-dasharray="5 4" filter="url(#soft)"/>
-      <text x="1010" y="694" text-anchor="middle" font-size="13.5" font-weight="700" fill="var(--ink)">launch_isaac_policy.py</text>
-      <text x="1010" y="713" text-anchor="middle" font-size="11.5" fill="var(--muted)">manual sim eval (not automated)</text>
+      <rect x="743" y="664" width="180" height="80" rx="12" fill="var(--card)" stroke="var(--line)" filter="url(#soft)"/>
+      <text x="833" y="690" text-anchor="middle" font-size="13.5" font-weight="700" fill="var(--ink)">SFTP + unzip</text>
+      <text x="833" y="709" text-anchor="middle" font-size="11" fill="var(--muted)">→ artifacts/checkpoints/gr00t/</text>
+      <text x="833" y="726" text-anchor="middle" font-size="10.5" fill="var(--muted)">inference-ready model</text>
 
       <!-- ===================== Dashboard (read-only) ===================== -->
       <rect x="940" y="40" width="220" height="54" rx="13" fill="var(--card)" stroke="var(--line)" filter="url(#soft)"/>
@@ -289,9 +302,13 @@
         <p>Launches the fine-tune <em>detached</em> (<code>setsid</code>+<code>nohup</code>) so it survives a
         laptop disconnect, then tails <code>run.log</code> into <code>metrics.jsonl</code>. On resume it
         re-attaches if still running, else relaunches and the HF Trainer auto-resumes from the last checkpoint.</p></div>
+      <div class="tile"><div class="k">eval_runner.py</div><h4>EVAL <span class="pill">gated</span></h4>
+        <p>Runs <code>scripts/eval/run_eval.py</code> <em>detached on the H100</em> (closed-loop IsaacSim),
+        polls the combined-episodes log, records the <b>success rate</b>, and fetches the SVG chart.
+        No-op unless <code>eval.enabled</code> — keeps the pipeline working until the H100 eval env is ready.</p></div>
       <div class="tile"><div class="k">downloader.py</div><h4>DOWNLOADING</h4>
-        <p>Pulls the zipped checkpoint home over HTTP <em>range</em> requests — resumable and
-        <code>sha256</code>-verified, so a dropped connection never leaves a corrupt file.</p></div>
+        <p>Pulls the inference-ready checkpoint home over HTTP <em>range</em> requests — resumable and
+        <code>sha256</code>-verified; the zip excludes <code>checkpoint-*/</code> (~half the transfer).</p></div>
       <div class="tile"><div class="k">deployer.py · net_util</div><h4>DEPLOYING</h4>
         <p>Switches Wi-Fi to the OMAP LAN, then SFTP-pushes the checkpoint to the asus-4090 over
         paramiko SSH and unzips it remotely. Retries on transient SSH/network errors.</p></div>

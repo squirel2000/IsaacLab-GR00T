@@ -101,13 +101,17 @@ def build_finetune_cfg(config: dict, profile: dict, gpu_id: int) -> dict:
     ``env_activate`` maps onto the wrapper's ``conda_activate`` slot (``true`` for uv).
     """
     output_dir = str(profile["output_dir"])
+    base = os.path.basename(output_dir)
     max_steps = profile["max_steps"]
     keep = f"checkpoint-{max_steps}"
     cleanup = (f"find . -maxdepth 1 -type d -name 'checkpoint-*' "
                f"! -name {shlex.quote(keep)} -exec rm -rf {{}} +")
-    zip_name = os.path.basename(output_dir) + ".zip"
+    zip_name = base + ".zip"
+    # Ship the inference-ready top-level model only (config + model-*.safetensors + experiment_cfg
+    # + processor). EXCLUDE checkpoint-*/ — that's the full HF training state (model + optimizer +
+    # scheduler), kept on the server for resume but a duplicate of the weights, ~2x the transfer.
     zip_cmd = (f"rm -f {shlex.quote(zip_name)} && zip -r -y {shlex.quote(zip_name)} "
-               f"{shlex.quote(os.path.basename(output_dir) + '/')}")
+               f"{shlex.quote(base + '/')} -x {shlex.quote(base + '/checkpoint-*/*')}")
     return dict(
         conda_activate=str(profile["env_activate"]),     # wrapper slot name; 'true' for uv
         train_cwd=str(profile["train_cwd"]),
