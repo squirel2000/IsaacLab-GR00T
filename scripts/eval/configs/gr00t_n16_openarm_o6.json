@@ -1,0 +1,9 @@
+{
+  "host": "localhost",
+  "port": 5555,
+  "task": "Isaac-Can-Sorting-OpenArm-DexHand-v0",
+  "model_path": "artifacts/checkpoints/gr00t/openarm_linkerhando6_multitask_N16_150k_dataset_0403_no_tune_visual/checkpoint-150000",
+  "version": "N1.6",
+  "embodiment_tag": "new_embodiment",
+  "openarm_hand_type": "linkerhand_o6"
+}

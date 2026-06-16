@@ -4,6 +4,7 @@
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
+*.pyc
 
 # Project-level shared VLA datasets and fine-tuned checkpoints are intentionally
 # local artifacts. Keep only the layout documentation in git.
@@ -16,3 +17,18 @@ __pycache__/
 !/artifacts/checkpoints/README.md
 
 /tmp/
+
+# Automation pipeline: local config (may hold LAN credentials), runtime state, logs, reports
+/config.yaml
+/scripts/pipeline/config/config.yaml
+/pipeline_state.json
+/logs/
+/report_*.html
+
+# Local environment files
+cookies.txt
+
+# output/ is the local eval & analysis workspace. Keep the runner scripts,
+# analysis generators and the comparison figures, but never version the
+# transient run/eval logs they produce.
+output/

@@ -1,0 +1,5 @@
+# Dependencies for the IsaacLab-GR00T automation pipeline (pipeline_runner.py & modules).
+# pegasus.py already requires: requests, truststore, websocket-client, urllib3.
+# The live progress UI is the web dashboard (stdlib http.server) — no extra UI deps.
+paramiko>=3.0      # SSH/SFTP to the asus-4090 sim box (password auth, cross-platform)
+PyYAML>=6.0        # config.yaml

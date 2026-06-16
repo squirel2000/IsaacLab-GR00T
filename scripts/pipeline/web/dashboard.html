@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GR00T pipeline — live</title>
+<style>
+:root{--bg:#0f1419;--panel:#171d26;--text:#e6edf3;--muted:#8b98a5;--accent:#6ea8fe;
+--border:#2a3441;--ok:#3fb950;--bad:#f85149;--warn:#d29922;--track:#222b36;}
+[data-theme=light]{--bg:#f6f8fa;--panel:#fff;--text:#1f2328;--muted:#656d76;
+--accent:#0969da;--border:#d0d7de;--ok:#1a7f37;--bad:#cf222e;--warn:#9a6700;--track:#eaeef2;}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);
+font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:20px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-size:20px;margin:0}.sub{color:var(--muted);font-size:13px}
+h2{font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:24px 0 10px}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:6px 12px;border-radius:20px;border:1px solid var(--border);font-size:13px;
+background:var(--panel);display:flex;align-items:center;gap:6px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.done .dot{background:var(--ok)}.in_progress .dot{background:var(--warn);animation:pulse 1.2s infinite}
+.failed .dot{background:var(--bad)}.failed{border-color:var(--bad)}
+.in_progress{border-color:var(--warn)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.bigstage{font-size:22px;font-weight:600}
+.bar{height:14px;border-radius:8px;background:var(--track);overflow:hidden;margin:10px 0}
+.bar>div{height:100%;background:linear-gradient(90deg,var(--accent),#9b8cff);width:0;transition:width .4s}
+.metrics{display:flex;gap:24px;flex-wrap:wrap;color:var(--muted);font-size:14px}
+.metrics b{color:var(--text);font-variant-numeric:tabular-nums}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td,th{text-align:left;padding:7px 8px;border-bottom:1px solid var(--border);
+word-break:break-all;vertical-align:top}th{color:var(--muted);width:38%}
+button.toggle{background:var(--panel);color:var(--text);border:1px solid var(--border);
+border-radius:8px;padding:7px 11px;cursor:pointer}
+canvas{max-height:240px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:680px){.grid2{grid-template-columns:1fr}}
+.small{font-size:12px;color:var(--muted);margin-bottom:6px}
+button.stop{background:var(--panel);color:var(--bad);border:1px solid var(--bad);
+border-radius:8px;padding:7px 11px;cursor:pointer}
+.muted{color:var(--muted)}
+</style>
+<script>
+(function(){var k='gr00t-dash-theme',t=localStorage.getItem(k)||'dark';
+document.documentElement.setAttribute('data-theme',t);
+window.__toggle=function(){t=t==='dark'?'light':'dark';
+document.documentElement.setAttribute('data-theme',t);localStorage.setItem(k,t);};})();
+</script>
+</head>
+<body><div class="wrap">
+<header>
+  <div><h1>GR00T pipeline — live</h1><div class="sub" id="sub">connecting…</div></div>
+  <div class="row">
+    <button class="stop" onclick="window.__stop()">■ stop run</button>
+    <button class="toggle" onclick="window.__toggle()">◐ theme</button>
+  </div>
+</header>
+
+<h2>Stages</h2>
+<div class="row" id="stages"></div>
+
+<h2>Current phase</h2>
+<div class="panel">
+  <div class="bigstage" id="phase">—</div>
+  <div class="bar"><div id="barfill"></div></div>
+  <div class="metrics" id="phasemetrics"></div>
+</div>
+
+<h2>Metrics</h2>
+<div class="panel"><div class="small">loss (train + eval) · train color changes at each resume</div><canvas id="lossChart"></canvas>
+  <div class="muted" id="nopts" style="display:none">No metrics yet.</div></div>
+<div class="grid2" style="margin-top:12px">
+  <div class="panel"><div class="small">learning rate</div><canvas id="lrChart"></canvas></div>
+  <div class="panel"><div class="small">gradient norm</div><canvas id="gradChart"></canvas></div>
+</div>
+
+<h2>Run</h2>
+<div class="panel"><table id="outputs"></table></div>
+
+</div>
+<script src="/vendor/chart.umd.min.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const GB = b => (b==null?"—":(b/1e9).toFixed(2)+" GB");
+const DUR = s => { if(s==null) return "—"; s=Math.max(0,Math.round(s));
+  const d=Math.floor(s/86400), h=Math.floor(s%86400/3600), m=Math.floor(s%3600/60);
+  if(d) return `${d}d ${h}h`; if(h) return `${h}h ${m}m`; return `${m}m ${s%60}s`; };
+const PHASE_OF = {TRAINING:"train", EVAL:"eval", DOWNLOADING:"download", DEPLOYING:"deploy"};
+const pts = s => (s&&s.steps)?s.steps.map((x,i)=>({x:x, y:s.vals[i], seg:(s.segs?s.segs[i]:0)})):[];
+// train-loss line cycles colors per resume segment so --resume boundaries are visible.
+const SEG_COLORS = ['#6ea8fe','#9b8cff','#f778ba','#56d364','#e3b341'];
+const segColor = c => SEG_COLORS[(((c.p1&&c.p1.raw&&c.p1.raw.seg)||0)) % SEG_COLORS.length];
+const charts = {};
+
+function renderStages(stages){
+  $('stages').innerHTML = stages.map(s=>{
+    const cls = s.status||'pending';   // server marks DONE 'done' when current==DONE
+    const att = (s.attempts&&s.attempts>1)?` ×${s.attempts}`:'';
+    return `<div class="chip ${cls}"><span class="dot"></span>${s.name}${att}</div>`;
+  }).join('');
+}
+
+function renderPhase(st){
+  const cur = st.current, key = PHASE_OF[cur], d = st.data||{};
+  const p = (st.progress&&key)?(st.progress[key]||{}):{};
+  let pct = p.pct, done = p.done, total = p.total;
+  // fallback for an in-flight download that predates progress.json
+  if(cur==='DOWNLOADING' && (done==null) && st.partial_download_bytes!=null){
+    done = st.partial_download_bytes;
+  }
+  let title = cur, metrics = '';
+  if(key==='train'){
+    title = `Training — step ${p.step??'?'} / ${p.total??'?'}`;
+    metrics = `<span>loss <b>${p.loss??'—'}</b></span>`
+            + `<span>elapsed <b>${DUR(p.elapsed_sec)}</b></span>`
+            + `<span>remaining <b>${DUR(p.eta_sec)}</b></span>`
+            + `<span>status <b>${p.status||'RUNNING'}</b></span>`;
+  } else if(key==='eval'){
+    title = 'Evaluating — closed-loop (IsaacSim)';
+    metrics = `<span>episodes <b>${p.done??'?'} / ${p.total??'?'}</b></span>`
+            + `<span>success <b>${p.success_rate!=null?(p.success_rate*100).toFixed(1)+'%':'—'}</b></span>`
+            + `<span>status <b>${p.status||'RUNNING'}</b></span>`;
+  } else if(key==='download'){
+    title = 'Downloading checkpoint';
+    metrics = `<span><b>${GB(done)}</b> / ${GB(total)}</span><span>rate <b>${p.rate_mbps??'—'} MB/s</b></span><span>ETA <b>${DUR(p.eta_sec)}</b></span>`;
+  } else if(key==='deploy'){
+    title = 'Deploying to asus-4090';
+    metrics = `<span><b>${GB(done)}</b> / ${GB(total)}</span><span>rate <b>${p.rate_mbps??'—'} MB/s</b></span><span>ETA <b>${DUR(p.eta_sec)}</b></span>`;
+  } else if(cur==='DONE'){
+    const base = s => s ? String(s).split(/[\\/]/).pop() : '—';
+    title = '✓ Pipeline complete';
+    metrics = `<span>report <b>${base(d.report_path)}</b></span>`
+            + `<span>deployed <b>${d.deploy_host||'—'}</b></span>`
+            + `<span>checkpoint <b>${d.zip_size?GB(d.zip_size):'—'}</b></span>`;
+    pct = 100;
+  } else {
+    title = cur;
+  }
+  if(pct==null && total) pct = Math.round(100*done/total);
+  $('phase').textContent = title;
+  $('barfill').style.width = (pct!=null?Math.min(100,pct):0)+'%';
+  $('phasemetrics').innerHTML = metrics || '<span class="muted">no live counters for this stage</span>';
+}
+
+function lineChart(id, datasets){
+  if(!window.Chart) return;
+  if(charts[id]){ charts[id].data.datasets = datasets; charts[id].update('none'); return; }
+  charts[id] = new Chart($(id).getContext('2d'), {type:'line', data:{datasets},
+    options:{responsive:true, animation:false, parsing:false,
+      plugins:{legend:{display:datasets.length>1}},
+      scales:{x:{type:'linear', title:{display:true,text:'step'}, ticks:{maxTicksLimit:8}},
+              y:{beginAtZero:false}}}});
+}
+function renderPlots(series){
+  series = series || {};
+  const any = ['train_loss','eval_loss','lr','grad_norm']
+    .some(k => series[k] && series[k].steps && series[k].steps.length);
+  $('nopts').style.display = any ? 'none' : 'block';
+  lineChart('lossChart', [
+    {label:'train loss', data:pts(series.train_loss), borderColor:'#6ea8fe',
+     backgroundColor:'rgba(110,168,254,.12)', borderWidth:2, pointRadius:0, tension:.25, fill:true,
+     segment:{borderColor:segColor}},
+    {label:'eval loss', data:pts(series.eval_loss), borderColor:'#f0883e',
+     borderWidth:2, pointRadius:0, tension:.25},
+  ]);
+  lineChart('lrChart', [{label:'lr', data:pts(series.lr), borderColor:'#3fb950',
+     borderWidth:2, pointRadius:0, tension:.25}]);
+  lineChart('gradChart', [{label:'grad_norm', data:pts(series.grad_norm), borderColor:'#d29922',
+     borderWidth:2, pointRadius:0, tension:.25}]);
+}
+window.__stop = async function(){
+  if(!confirm('Stop the current training run? This kills the detached job on the server.')) return;
+  try{ const r = await (await fetch('/api/stop',{method:'POST'})).json();
+       alert(r.message || (r.ok ? 'stop signal sent' : 'stop failed')); }
+  catch(e){ alert('stop error: ' + e); }
+};
+
+function renderOutputs(st){
+  const d = st.data||{};
+  const rows = [
+    ['Profile', st.profile],
+    ['GPU', d.gpu_id!=null?('index '+d.gpu_id):null],
+    ['Run id', d.runid],
+    ['Eval success', d.eval_success_rate!=null?((d.eval_success_rate*100).toFixed(1)+'%'+(d.eval_episodes?` (${d.eval_episodes} eps)`:'')):null],
+    ['Checkpoint zip', d.zip_size?GB(d.zip_size):null],
+    ['Local zip', d.zip_local],
+    ['Deployed to', d.deploy_host?`${d.deploy_host}:${d.deploy_remote||''}`:null],
+    ['Report', d.report_path],
+    ['Wi-Fi', st.wifi],
+  ].filter(r=>r[1]!=null && r[1]!=='');
+  $('outputs').innerHTML = rows.map(r=>`<tr><th>${r[0]}</th><td>${r[1]}</td></tr>`).join('');
+}
+
+async function tick(){
+  try{
+    const st = await (await fetch('/api/status',{cache:'no-store'})).json();
+    const age = st.updated_at ? (Date.now() - new Date(st.updated_at).getTime())/1000 : null;
+    const stale = (age!=null && age > 180 && st.current!=='DONE')
+      ? ` · <span style="color:var(--bad)">⚠ monitor stale (${DUR(age)} ago) — run: python scripts/gr00t_pipeline.py run</span>` : '';
+    $('sub').innerHTML = `stage ${st.current} · profile ${st.profile||'?'} · updated ${st.updated_at||'—'}${stale}`;
+    renderStages(st.stages||[]);
+    renderPhase(st);
+    renderPlots(st.series);
+    renderOutputs(st);
+  }catch(e){ $('sub').textContent = 'waiting for pipeline… ('+e+')'; }
+}
+tick(); setInterval(tick, 1500);
+</script>
+</body></html>

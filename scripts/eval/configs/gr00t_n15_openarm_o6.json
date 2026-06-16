@@ -1,0 +1,11 @@
+{
+  "host": "localhost",
+  "port": 5555,
+  "task": "Isaac-Can-Sorting-OpenArm-DexHand-v0",
+  "model_path": "artifacts/checkpoints/gr00t/openarm_o6_cansorting_N15_150k_fft_multitask_dataset_0403/checkpoint-150000/",
+  "version": "N1.5",
+  "embodiment_tag": "new_embodiment",
+  "data_config": "openarm_linkerhand_o6",
+  "denoising_steps": 4,
+  "openarm_hand_type": "linkerhand_o6"
+}
