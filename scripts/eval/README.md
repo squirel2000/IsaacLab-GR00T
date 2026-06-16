@@ -38,7 +38,7 @@ edit `configs/eval_config.yaml` — every field has a comment.
 
 | path | contents |
 |---|---|
-| `output/eval/logs[_headless]/` | server / client / `*_combined_episodes.log` (source of truth) |
+| `output/eval/logs/` | server / client / `*_combined_episodes.log` (source of truth; reused by tag) |
 | `output/analysis/eval_results.svg` | success-vs-loss comparison chart (auto) |
 | `IsaacLab/output/infer_record/<save_id>/` | per-run videos + `run_manifest.json` |
 
