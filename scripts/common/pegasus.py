@@ -205,6 +205,12 @@ def download_resumable(s, remote, local, expected_sha256=None,
     local = pathlib.Path(local)
     local.parent.mkdir(parents=True, exist_ok=True)
     total = remote_size(s, rel)
+    # A leftover/corrupt local file LARGER than the remote can never match by appending
+    # (append-only resume would just keep growing it) — discard it and re-download clean.
+    if local.exists() and local.stat().st_size > total:
+        sys.stdout.write(f"  discarding oversized local partial "
+                         f"({local.stat().st_size:,} > remote {total:,}); re-downloading\n")
+        local.unlink()
     attempt = 0
     t0 = time.time()
     while True:
@@ -221,8 +227,12 @@ def download_resumable(s, remote, local, expected_sha256=None,
             with open(local, "ab") as f:                  # append: keep what we already have
                 for blk in r.iter_content(chunk):
                     if blk:
+                        if done + len(blk) > total:        # never write past the expected size
+                            blk = blk[:total - done]
                         f.write(blk)
                         done += len(blk)
+                        if done >= total:
+                            break
                         if progress:
                             rate = done / max(time.time() - t0, 1e-3) / 1e6
                             sys.stdout.write(f"\r  {done/1e9:6.2f} / {total/1e9:.2f} GB "

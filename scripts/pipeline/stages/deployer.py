@@ -151,6 +151,10 @@ def run(config: dict, state) -> str:
         if rc != 0 or "OK" not in out:
             raise RuntimeError(f"deploy verify failed: {unzipped} missing or empty")
 
+        # 7. free space on asus-4090: the unzipped run dir is what's needed; drop the zip
+        run_ssh(ssh, f"rm -f {shlex.quote(remote_zip)}")
+        log.info("Removed transferred zip on %s (kept the unzipped run dir).", host)
+
         state.record_output("deploy_remote", unzipped)
         state.record_output("deploy_host", f"{user}@{host}")
         log.info("Deployed checkpoint to %s@%s:%s", user, host, unzipped)

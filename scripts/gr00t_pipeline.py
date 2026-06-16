@@ -6,29 +6,28 @@ reimplemented): `run/status/stop` share ``pipeline_runner``'s dispatcher, `dashb
 ``dashboard.serve`` (scripts/pipeline/web), and `finetune` delegates to ``run_finetune.main``
 (scripts/common/run_finetune.py — the standalone low-level tool).
 
-    python gr00t_pipeline.py run                 # resume (or start) the full pipeline
-    python gr00t_pipeline.py run --reset         # wipe state and run from the beginning
-    python gr00t_pipeline.py run --profile n1d5  # pick a training profile (default: config)
-    python gr00t_pipeline.py status              # print pipeline state and exit
-    python gr00t_pipeline.py stop                # terminate the detached training run
-    python gr00t_pipeline.py dashboard           # read-only live web dashboard
-    python gr00t_pipeline.py finetune [run|monitor|watch|download|status|stop|selftest]
-                                                 # fine-tune-only tool (run_finetune.py CONFIG block)
+    python scripts/gr00t_pipeline.py run                 # resume (or start) the full pipeline
+    python scripts/gr00t_pipeline.py run --reset         # wipe state, run from the beginning
+    python scripts/gr00t_pipeline.py run --profile n1d5  # pick a training profile (default: config)
+    python scripts/gr00t_pipeline.py status              # print pipeline state and exit
+    python scripts/gr00t_pipeline.py stop                # terminate the detached training run
+    python scripts/gr00t_pipeline.py dashboard           # read-only live web dashboard
+    python scripts/gr00t_pipeline.py finetune [run|monitor|watch|download|status|stop|selftest]
 
-Every subcommand accepts --config PATH (default ./config.yaml). The `finetune` passthrough
-uses run_finetune.py's own CONFIG block, NOT config.yaml — it's the manual low-level tool.
+The `finetune` passthrough uses run_finetune.py's own CONFIG block, NOT config.yaml — it's
+the manual low-level tool. Every subcommand accepts --config PATH.
 """
 import argparse
 import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-ROOT = Path(__file__).resolve().parent
-_PIPE = ROOT / "scripts" / "pipeline"
-sys.path.insert(0, str(ROOT))                            # project_paths (workspace helper)
-sys.path.insert(0, str(ROOT / "scripts" / "common"))     # pegasus / run_finetune / wifi_switch
+HERE = Path(__file__).resolve().parent                   # scripts/
+ROOT = HERE.parent                                       # repo root
+sys.path.insert(0, str(ROOT))                            # project-level modules (if any)
+sys.path.insert(0, str(HERE / "common"))                 # pegasus / run_finetune / wifi_switch
 for _sub in ("core", "stages", "web"):                   # pipeline_* + stage modules + dashboard
-    sys.path.insert(0, str(_PIPE / _sub))
+    sys.path.insert(0, str(HERE / "pipeline" / _sub))
 
 
 def main() -> None:

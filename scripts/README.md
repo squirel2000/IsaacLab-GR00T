@@ -18,9 +18,9 @@ scripts/
 
 ```powershell
 copy scripts\pipeline\config\config.example.yaml scripts\pipeline\config\config.yaml   # edit paths/passwords
-python gr00t_pipeline.py run          # resume or start  (run --reset for fresh)
-python gr00t_pipeline.py dashboard    # live web UI at http://localhost:8770
-python gr00t_pipeline.py status|stop|finetune
+python scripts/gr00t_pipeline.py run          # resume or start  (run --reset for fresh)
+python scripts/gr00t_pipeline.py dashboard    # live web UI at http://localhost:8770
+python scripts/gr00t_pipeline.py status|stop|finetune
 ```
 
 Flow: **`GPU_WAIT → TRAINING → EVAL → DOWNLOADING → DEPLOYING → REPORTING → DONE`**. Every stage

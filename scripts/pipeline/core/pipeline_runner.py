@@ -19,7 +19,10 @@ Usage (PowerShell):
 from __future__ import annotations
 
 import argparse
+import atexit
 import os
+import shlex
+import subprocess
 import sys
 
 import pegasus as pg
@@ -33,6 +36,7 @@ import downloader
 import deployer
 import report_generator
 from pipeline_state import PipelineState, Stage
+from pipeline_paths import LOGS_DIR
 from pipeline_logging import get_logger
 
 log = get_logger("pipeline")
@@ -52,15 +56,36 @@ HANDLERS = {
 
 
 def finalize(config: dict, state: PipelineState) -> None:
-    """收尾: return to the external (internet) Wi-Fi after the LAN deploy, confirm online."""
+    """收尾: return to the external (internet) Wi-Fi after the LAN deploy, confirm online,
+    then free the now-redundant H100 zip (downloaded + deployed already)."""
     if state.get("finalized"):
         return
-    if net_util.ensure_external(config):         # ping-confirmed; drops LAN if needed
+    if net_util.ensure_external(config):         # stable-ping confirmed; drops LAN if needed
         log.info("Internet confirmed; back on the external network.")
+        _cleanup_remote_zip(config, state)       # back online -> delete the H100 zip
+        state.record_output("finalized", True)
     else:
-        log.warning("Could not confirm internet after deploy; switch Wi-Fi to %s manually.",
+        log.warning("Could not confirm internet after deploy; switch Wi-Fi to %s manually, then "
+                    "re-run `run` to finish cleanup (the H100 zip was not removed).",
                     config["wifi"]["external"])
-    state.record_output("finalized", True)
+
+
+def _cleanup_remote_zip(config: dict, state: PipelineState) -> None:
+    """Delete the H100-side run zip once it's downloaded + deployed (frees server space).
+
+    Uses output_dir recorded in state at the end of TRAINING; no-op if absent.
+    """
+    if state.get("remote_zip_removed") or not state.get("output_dir"):
+        return
+    try:
+        out = str(state.get("output_dir")).rstrip("/")
+        zip_path = f"{os.path.dirname(out)}/{os.path.basename(out)}.zip"
+        s = gpu_monitor.connect_with_retry(config)
+        pg.sh(s, f"rm -f {shlex.quote(zip_path)}; echo removed", timeout=60)
+        log.info("Removed H100 zip %s (freed server space).", zip_path)
+        state.record_output("remote_zip_removed", True)
+    except Exception as e:                           # noqa: BLE001
+        log.warning("could not remove H100 zip (free it manually): %s", e)
 
 
 def run_pipeline(config: dict, state: PipelineState, profile_name: str) -> None:
@@ -151,8 +176,50 @@ def cmd_stop(config, state) -> None:
           f"last checkpoint, or --reset to start over.")
 
 
+def _pid_alive(pid: int) -> bool:
+    """Cross-platform: is process ``pid`` currently running?"""
+    if sys.platform.startswith("win"):
+        try:
+            out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"],
+                                 capture_output=True, text=True)
+            return str(pid) in out.stdout
+        except Exception:                            # noqa: BLE001 - can't tell -> assume alive
+            return True
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+def _acquire_single_instance_lock() -> None:
+    """Refuse to start a second concurrent orchestrator.
+
+    Two runners at once fight over the Wi-Fi (one switching to the LAN for deploy, another to the
+    internet) and append to the same download file — which corrupted a checkpoint and left the
+    laptop off the external SSID. A PID lockfile enforces exactly one; a stale lock from a
+    dead/killed process (e.g. the laptop slept) is reclaimed automatically.
+    """
+    lock = LOGS_DIR / "pipeline.lock"
+    if lock.exists():
+        try:
+            old = int(lock.read_text(encoding="utf-8").split()[0])
+        except Exception:                            # noqa: BLE001
+            old = None
+        if old and old != os.getpid() and _pid_alive(old):
+            raise SystemExit(
+                f"another pipeline run is already active (PID {old}). Only one orchestrator may run "
+                f"at a time — stop it (python scripts/gr00t_pipeline.py stop, or kill PID {old}) or "
+                f"wait for it to finish. Lock: {lock}")
+        lock.unlink()                                # stale lock -> reclaim
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    lock.write_text(str(os.getpid()), encoding="utf-8")
+    atexit.register(lambda: lock.exists() and lock.unlink())
+
+
 def cmd_run(config, state, profile_name, reset=False) -> None:
     """Reset (optional) then drive the pipeline; restore connectivity on failure."""
+    _acquire_single_instance_lock()                  # one orchestrator only (no Wi-Fi/download races)
     if reset:
         state.reset()
         pp.clear()

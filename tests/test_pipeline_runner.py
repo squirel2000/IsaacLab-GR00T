@@ -28,7 +28,7 @@ class RunnerTests(unittest.TestCase):
         self.tmp = Path(tempfile.mkdtemp()) / "pipeline_state.json"
         self.calls = []           # ordered (stage) handler invocations
         # network is a no-op that always "succeeds"
-        for fn in ("switch_wifi", "ensure_reachable"):
+        for fn in ("switch_wifi", "ensure_reachable", "ensure_external"):
             p = mock.patch.object(pr.net_util, fn, lambda *a, **k: True)
             p.start(); self.addCleanup(p.stop)
         p = mock.patch.object(pr.net_util, "wait_for_host", lambda *a, **k: True)

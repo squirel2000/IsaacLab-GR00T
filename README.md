@@ -13,10 +13,10 @@ under `scripts/` (`scripts/pipeline/` + shared `scripts/common/`). See
 
 ```powershell
 pip install -r requirements-pipeline.txt
-copy scripts\pipeline\config.example.yaml scripts\pipeline\config.yaml   # edit paths / passwords (gitignored)
-python gr00t_pipeline.py run                   # resume or start  (run --reset for fresh)
-python gr00t_pipeline.py status                # inspect state without touching anything
-python gr00t_pipeline.py dashboard             # live web dashboard at http://localhost:8770
+copy scripts\pipeline\config\config.example.yaml scripts\pipeline\config\config.yaml   # edit paths / passwords (gitignored)
+python scripts/gr00t_pipeline.py run                   # resume or start  (run --reset for fresh)
+python scripts/gr00t_pipeline.py status                # inspect state without touching anything
+python scripts/gr00t_pipeline.py dashboard             # live web dashboard at http://localhost:8770
 ```
 
 ## Repository layout

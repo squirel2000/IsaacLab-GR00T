@@ -94,23 +94,42 @@ def ensure_external(config: dict) -> bool:
     log a LOUD warning telling the user to switch manually (rather than failing silently).
     """
     ip = str(config["wifi"]["internet_check_ip"])
-    if ping(ip):
-        log.info("Already online (ping %s); external Wi-Fi is up.", ip)
+    # STABLE check (not a single ping): right after a deploy the Wi-Fi can be mid-re-association
+    # and a lone ping may transiently succeed, fooling us into skipping the real switch (which is
+    # exactly how a finalize once left the laptop off CJ). Require several spaced probes.
+    if _online_stable(ip):
+        log.info("Already online (stable ping %s); external Wi-Fi is up.", ip)
         return True
     ext = config["wifi"]["external"]
-    log.info("Offline after deploy; restoring internet (drop LAN + try switch to %s).", ext)
+    log.info("Offline/unstable after deploy; restoring internet (drop LAN + try switch to %s).", ext)
     disconnect_wifi()                                # let an auto-connect SSID take over
     try:
         switch_wifi(ext, retries=2)                  # best-effort explicit connect
     except Exception as e:                           # noqa: BLE001
         log.warning("explicit switch to %s failed (%s); relying on auto-reconnect.", ext, e)
-    ok = wait_for_host(ip, int(config["wifi"].get("net_ready_timeout_sec", 60)))
-    if not ok:
-        log.warning("⚠ COULD NOT restore internet automatically — still on the deploy LAN (%s). "
-                    "Connecting to the enterprise SSID via netsh needs elevation/Location, so "
-                    "please switch Wi-Fi back to %s MANUALLY.",
-                    config["wifi"]["local"], wifi_switch.NETWORKS.get(ext, ext))
-    return ok
+    # Wait for STABLE connectivity, not just one ping that might be a re-association blip.
+    deadline = time.time() + int(config["wifi"].get("net_ready_timeout_sec", 60))
+    while time.time() < deadline:
+        if _online_stable(ip, checks=2, gap=2):
+            log.info("Internet restored (stable) on the external network.")
+            return True
+        time.sleep(3)
+    log.warning("⚠ COULD NOT restore internet automatically — still off the internet (deploy LAN %s). "
+                "Connecting to the enterprise SSID via netsh needs elevation/Location, so "
+                "please switch Wi-Fi back to %s MANUALLY.",
+                config["wifi"]["local"], wifi_switch.NETWORKS.get(ext, ext))
+    return False
+
+
+def _online_stable(ip: str, checks: int = 3, gap: int = 2) -> bool:
+    """True only if ``ping`` succeeds on every one of ``checks`` probes spaced ``gap`` seconds
+    apart — so a transient blip during Wi-Fi re-association doesn't read as 'online'."""
+    for i in range(checks):
+        if not ping(ip):
+            return False
+        if i < checks - 1:
+            time.sleep(gap)
+    return True
 
 
 def switch_wifi(key_or_ssid: str, timeout: int = 20, retries: int = 3,

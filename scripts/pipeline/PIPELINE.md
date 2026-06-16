@@ -14,17 +14,17 @@ IDLE → GPU_WAIT → TRAINING → EVAL → DOWNLOADING → DEPLOYING → REPORT
 ## One entry point
 
 ```powershell
-copy config\config.example.yaml config\config.yaml   # edit paths/passwords (gitignored)
-python gr00t_pipeline.py run                 # resume (or start) the full pipeline  ← default
-python gr00t_pipeline.py run --reset         # wipe state, run from IDLE
-python gr00t_pipeline.py run --profile n1d5  # pick a training profile
-python gr00t_pipeline.py status              # print state and exit (no network)
-python gr00t_pipeline.py stop                # terminate the detached training run
-python gr00t_pipeline.py dashboard           # read-only live web UI at http://localhost:8770
-python gr00t_pipeline.py finetune […]        # fine-tune-only tool (scripts/common/run_finetune.py)
+copy scripts\pipeline\config\config.example.yaml scripts\pipeline\config\config.yaml   # edit paths/passwords
+python scripts/gr00t_pipeline.py run                 # resume (or start) the full pipeline  ← default
+python scripts/gr00t_pipeline.py run --reset         # wipe state, run from IDLE
+python scripts/gr00t_pipeline.py run --profile n1d5  # pick a training profile
+python scripts/gr00t_pipeline.py status              # print state and exit (no network)
+python scripts/gr00t_pipeline.py stop                # terminate the detached training run
+python scripts/gr00t_pipeline.py dashboard           # read-only live web UI at http://localhost:8770
+python scripts/gr00t_pipeline.py finetune […]        # fine-tune-only tool (scripts/common/run_finetune.py)
 ```
 
-`gr00t_pipeline.py` (repo root) is a thin dispatcher — one shared implementation per behavior:
+`scripts/gr00t_pipeline.py` is a thin dispatcher — one shared implementation per behavior:
 `run/status/stop` → `pipeline_runner.run_cli`, `dashboard` → `dashboard.serve`, `finetune` →
 `run_finetune.main`. Progress persists to `pipeline_state.json` after every stage; training + eval
 run detached on Pegasus (`setsid`+`nohup`) and survive a laptop drop. `run --reset` is the only
@@ -43,13 +43,29 @@ thing that discards progress.
 
 Pegasus has **no SSH** (Jupyter HTTP/WS via `pegasus.py`); asus-4090 uses SSH (paramiko).
 
-## EVAL stage (gated)
+## EVAL stage — and how to turn it on
 
-Closed-loop IsaacSim eval on the H100, right after training. **Off by default** (`eval.enabled: false`)
-— enable once the H100 has *this* branch's `scripts/eval` plus the IsaacSim + policy-server conda
-envs. When on, `eval_runner` writes a one-run `eval_config.yaml` pointing at the checkpoint, launches
-`run_eval.py` detached, polls `<run>_combined_episodes.log`, records the success rate, and fetches the
-SVG chart for the report. When off, the stage is a no-op so the rest of the pipeline still runs.
+Closed-loop IsaacSim eval on the H100, right after training. **Off by default**, so the pipeline
+runs without it (the stage becomes a no-op). When on, `eval_runner` writes a one-run
+`eval_config.yaml` for the checkpoint, launches `run_eval.py` detached on the H100, polls
+`<run>_combined_episodes.log`, records the success rate, and fetches the SVG chart for the report.
+
+**Enabling EVAL is a config change — there is no command flag.** Steps:
+
+1. On the H100: make sure this branch is checked out (`git pull`) and the IsaacSim +
+   policy-server conda envs exist (the eval harness needs them).
+2. Edit **`scripts/pipeline/config/config.yaml`** → under `eval:` set:
+   ```yaml
+   eval:
+     enabled: true
+     target_episodes: 100
+     isaaclab_conda_env: env_isaaclab    # the H100's IsaacSim env
+     # h100_repo_root / conda_sh: leave blank to auto-detect
+   ```
+3. Run as usual: `python scripts/gr00t_pipeline.py run` — EVAL now runs after TRAINING.
+
+To eval an existing checkpoint **standalone** instead (no pipeline): edit
+`scripts/eval/configs/eval_config.yaml` and run `python scripts/eval/run_eval.py`.
 
 ## Checkpoints
 
@@ -83,5 +99,5 @@ loss (train color changes at each resume) / eval-loss / lr / grad-norm, eval suc
 
 ```powershell
 python -m unittest discover -s tests -p "test_*.py"   # 64 unit tests
-python gr00t_pipeline.py status
+python scripts/gr00t_pipeline.py status
 ```

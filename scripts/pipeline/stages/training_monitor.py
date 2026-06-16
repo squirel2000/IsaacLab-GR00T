@@ -107,11 +107,16 @@ def build_finetune_cfg(config: dict, profile: dict, gpu_id: int) -> dict:
     cleanup = (f"find . -maxdepth 1 -type d -name 'checkpoint-*' "
                f"! -name {shlex.quote(keep)} -exec rm -rf {{}} +")
     zip_name = base + ".zip"
-    # Ship the inference-ready top-level model only (config + model-*.safetensors + experiment_cfg
-    # + processor). EXCLUDE checkpoint-*/ — that's the full HF training state (model + optimizer +
-    # scheduler), kept on the server for resume but a duplicate of the weights, ~2x the transfer.
+    # Ship the inference-ready top-level model (config + model-*.safetensors + experiment_cfg +
+    # processor/) PLUS checkpoint-*/trainer_state.json — the full HF log_history (step/loss/lr/
+    # grad_norm/eval) used for the training curve. EXCLUDE only the heavy resume-only tensors in
+    # the checkpoint (optimizer ~13 GB, the duplicate model shards, rng, scheduler) so the transfer
+    # stays ~the model size instead of doubling.
+    ckpt_heavy = " ".join(
+        shlex.quote(f"{base}/checkpoint-*/{p}")
+        for p in ("optimizer.pt", "model-*.safetensors", "rng_state.pth", "scheduler.pt"))
     zip_cmd = (f"rm -f {shlex.quote(zip_name)} && zip -r -y {shlex.quote(zip_name)} "
-               f"{shlex.quote(base + '/')} -x {shlex.quote(base + '/checkpoint-*/*')}")
+               f"{shlex.quote(base + '/')} -x {ckpt_heavy}")
     return dict(
         conda_activate=str(profile["env_activate"]),     # wrapper slot name; 'true' for uv
         train_cwd=str(profile["train_cwd"]),

@@ -33,7 +33,11 @@
   .flow-line b{color:var(--teal2)}
   .card{background:var(--card); border:1px solid var(--line); border-radius:18px; box-shadow:var(--shadow);
     padding:26px 28px; margin:26px 0}
-  .diagram-card{padding:18px}
+  /* Diagrams render in a LIGHT panel even on the dark page: scope light values to the
+     CSS vars the SVGs use (--card/--ink/--muted/--line), and give the panel a light bg. */
+  .diagram-card{padding:22px; background:#eef2f7; border-color:#d6deea;
+    --card:#ffffff; --ink:#1f2937; --muted:#586577; --line:#d3dbe6;}
+  .diagram-card .cap{color:#586577; font-size:13px; margin:2px 2px 12px}
   h2{font-size:24px; margin:6px 0 6px; letter-spacing:-.01em; display:flex; align-items:center; gap:10px}
   h2 .dot{width:12px; height:12px; border-radius:50%}
   h3{font-size:17px; margin:22px 0 4px}
@@ -79,7 +83,7 @@
         <style>
           .flow{stroke-dasharray:7 7; animation:flowmove .9s linear infinite}
           @keyframes flowmove{to{stroke-dashoffset:-14}}
-          .lbl{font-size:11px}
+          .lbl{font-size:12px}
         </style>
         <linearGradient id="gPeg" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stop-color="#6366f1" stop-opacity=".16"/><stop offset="1" stop-color="#6366f1" stop-opacity=".04"/>
@@ -158,22 +162,22 @@
       <rect x="269" y="196" width="116" height="80" rx="12" fill="var(--card)" stroke="var(--line)" filter="url(#soft)"/>
       <text x="327" y="223" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--ink)">nvidia-smi</text>
       <text x="327" y="241" text-anchor="middle" font-size="10" fill="var(--muted)">GPU util/mem poll</text>
-      <text x="327" y="257" text-anchor="middle" font-size="9.5" fill="var(--muted)">idle &lt;10% · &lt;5GB</text>
+      <text x="327" y="257" text-anchor="middle" font-size="10.5" fill="var(--muted)">idle &lt;10% · &lt;5GB</text>
 
       <rect x="393" y="196" width="116" height="80" rx="12" fill="var(--card)" stroke="var(--line)" filter="url(#soft)"/>
       <text x="451" y="223" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--ink)">detached train</text>
       <text x="451" y="241" text-anchor="middle" font-size="10" fill="var(--muted)">setsid + nohup</text>
-      <text x="451" y="257" text-anchor="middle" font-size="9.5" fill="var(--muted)">run.log · ckpt</text>
+      <text x="451" y="257" text-anchor="middle" font-size="10.5" fill="var(--muted)">run.log · ckpt</text>
 
       <rect x="517" y="196" width="116" height="80" rx="12" fill="var(--card)" stroke="var(--line)" filter="url(#soft)"/>
       <text x="575" y="223" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--ink)">IsaacSim eval</text>
       <text x="575" y="241" text-anchor="middle" font-size="10" fill="var(--muted)">run_eval.py</text>
-      <text x="575" y="257" text-anchor="middle" font-size="9.5" fill="var(--muted)">success rate</text>
+      <text x="575" y="257" text-anchor="middle" font-size="10.5" fill="var(--muted)">success rate</text>
 
       <rect x="641" y="196" width="116" height="80" rx="12" fill="var(--card)" stroke="var(--line)" filter="url(#soft)"/>
       <text x="699" y="223" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--ink)">checkpoint.zip</text>
       <text x="699" y="241" text-anchor="middle" font-size="10" fill="var(--muted)">inference-only</text>
-      <text x="699" y="257" text-anchor="middle" font-size="9.5" fill="var(--muted)">+sha256 · resumable</text>
+      <text x="699" y="257" text-anchor="middle" font-size="10.5" fill="var(--muted)">+sha256 · resumable</text>
 
       <!-- ===================== ZONE: Local laptop (orchestrator) ===================== -->
       <rect x="40" y="340" width="1120" height="220" rx="18" fill="url(#gLap)" stroke="#0ea5e9" stroke-opacity=".4"/>
@@ -182,8 +186,8 @@
 
       <!-- control sidebar -->
       <rect x="64" y="396" width="196" height="40" rx="10" fill="#0284c7" filter="url(#soft)"/>
-      <text x="162" y="414" text-anchor="middle" fill="#fff" font-size="13.5" font-weight="700">gr00t_pipeline.py</text>
-      <text x="162" y="429" text-anchor="middle" fill="#e0f2fe" font-size="10.5">single entry CLI</text>
+      <text x="162" y="414" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">gr00t_pipeline.py</text>
+      <text x="162" y="429" text-anchor="middle" fill="#e0f2fe" font-size="10.5">scripts/ · single entry</text>
       <path d="M162,436 V444" stroke="#64748b" stroke-width="1.6" fill="none" marker-end="url(#ctl)"/>
       <rect x="64" y="444" width="196" height="40" rx="10" fill="var(--card)" stroke="var(--line)" filter="url(#soft)"/>
       <text x="162" y="462" text-anchor="middle" font-size="13" font-weight="700" fill="var(--ink)">pipeline_runner</text>
@@ -199,27 +203,27 @@
       <g>
         <rect x="275" y="440" width="104" height="64" rx="13" fill="url(#gStage)" filter="url(#soft)"/>
         <text x="327" y="468" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="800">GPU_WAIT</text>
-        <text x="327" y="486" text-anchor="middle" fill="#e0f7ff" font-size="9.5">gpu_monitor</text>
+        <text x="327" y="486" text-anchor="middle" fill="#e0f7ff" font-size="10.5">gpu_monitor</text>
 
         <rect x="399" y="440" width="104" height="64" rx="13" fill="url(#gStage)" filter="url(#soft)"/>
         <text x="451" y="468" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="800">TRAINING</text>
-        <text x="451" y="486" text-anchor="middle" fill="#e0f7ff" font-size="9.5">training_monitor</text>
+        <text x="451" y="486" text-anchor="middle" fill="#e0f7ff" font-size="10.5">training_monitor</text>
 
         <rect x="523" y="440" width="104" height="64" rx="13" fill="url(#gStage)" filter="url(#soft)"/>
         <text x="575" y="468" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="800">EVAL</text>
-        <text x="575" y="486" text-anchor="middle" fill="#e0f7ff" font-size="9.5">eval_runner</text>
+        <text x="575" y="486" text-anchor="middle" fill="#e0f7ff" font-size="10.5">eval_runner</text>
 
         <rect x="647" y="440" width="104" height="64" rx="13" fill="url(#gStage)" filter="url(#soft)"/>
         <text x="699" y="467" text-anchor="middle" fill="#fff" font-size="10.5" font-weight="800">DOWNLOADING</text>
-        <text x="699" y="485" text-anchor="middle" fill="#e0f7ff" font-size="9.5">downloader</text>
+        <text x="699" y="485" text-anchor="middle" fill="#e0f7ff" font-size="10.5">downloader</text>
 
         <rect x="771" y="440" width="104" height="64" rx="13" fill="url(#gStage)" filter="url(#soft)"/>
         <text x="823" y="468" text-anchor="middle" fill="#fff" font-size="11.5" font-weight="800">DEPLOYING</text>
-        <text x="823" y="486" text-anchor="middle" fill="#e0f7ff" font-size="9.5">deployer · net_util</text>
+        <text x="823" y="486" text-anchor="middle" fill="#e0f7ff" font-size="10.5">deployer · net_util</text>
 
         <rect x="895" y="440" width="104" height="64" rx="13" fill="url(#gStage)" filter="url(#soft)"/>
         <text x="947" y="468" text-anchor="middle" fill="#fff" font-size="11.5" font-weight="800">REPORTING</text>
-        <text x="947" y="486" text-anchor="middle" fill="#e0f7ff" font-size="9.5">report_generator</text>
+        <text x="947" y="486" text-anchor="middle" fill="#e0f7ff" font-size="10.5">report_generator</text>
 
         <rect x="1019" y="440" width="104" height="64" rx="13" fill="url(#gDone)" filter="url(#soft)"/>
         <text x="1071" y="476" text-anchor="middle" fill="#fff" font-size="14" font-weight="800">✓ DONE</text>
@@ -270,25 +274,14 @@
 
   <!-- ===================== ONE ENTRY POINT ===================== -->
   <section class="card">
-    <h2><span class="dot" style="background:var(--teal)"></span>One entry point, reused parts</h2>
-    <p><code>gr00t_pipeline.py</code> (repo root) is the single CLI — the one entry point. It is a
-    thin dispatcher: every subcommand calls one shared implementation, so there is exactly one
-    copy of each behavior, nothing reimplemented.</p>
-    <table>
-      <thead><tr><th>Command</th><th>What it does</th><th>Delegates to</th></tr></thead>
-      <tbody>
-        <tr><td><code>run</code> <span class="pill">default</span></td><td>Resume (or start) the full pipeline from the saved stage</td><td><code>pipeline_runner.run_cli</code> (core)</td></tr>
-        <tr><td><code>run --reset</code></td><td>Wipe state and run from <code>IDLE</code></td><td><code>pipeline_runner.run_cli</code> (core)</td></tr>
-        <tr><td><code>status</code></td><td>Print the state machine and exit (no network)</td><td><code>pipeline_runner.show_status</code> (core)</td></tr>
-        <tr><td><code>stop</code></td><td>Kill the detached training run, mark state <code>stopped</code></td><td><code>training_monitor.stop_run</code> + <code>state.stop()</code></td></tr>
-        <tr><td><code>dashboard</code></td><td>Read-only live web UI at <code>:8770</code></td><td><code>dashboard.serve</code> (web)</td></tr>
-        <tr><td><code>finetune …</code></td><td>Fine-tune only (no deploy/report)</td><td><code>run_finetune.main</code> (scripts/common, also standalone)</td></tr>
-      </tbody>
-    </table>
-    <div class="note"><b>finetune vs run.</b> <code>finetune</code> is the lower-level manual tool
-    driven by <code>run_finetune.py</code>'s own <code>CONFIG</code> block. The orchestrated
-    <code>run</code> is driven by <code>config.yaml</code> (profiles, paths, secrets) and adds
-    download → deploy → report on top.</div>
+    <h2><span class="dot" style="background:var(--teal)"></span>One entry point</h2>
+    <p><code>scripts/gr00t_pipeline.py</code> is the single CLI — a thin dispatcher with one shared
+    implementation per behavior (nothing reimplemented). For example:</p>
+    <pre style="background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow-x:auto;font:13.5px ui-monospace,Menlo,Consolas,monospace;color:var(--ink)"><code>python scripts/gr00t_pipeline.py run        # resume (or start) the full pipeline
+python scripts/gr00t_pipeline.py dashboard  # read-only live web UI at http://localhost:8770</code></pre>
+    <p>Other subcommands: <code>run --reset</code>, <code>status</code>, <code>stop</code>,
+    <code>finetune …</code>. Full reference + how to turn on EVAL:
+    <code>scripts/pipeline/PIPELINE.md</code>.</p>
   </section>
 
   <!-- ===================== STAGE BY STAGE ===================== -->
@@ -322,50 +315,83 @@
     </div>
   </section>
 
-  <!-- ===================== RESUME / STOP / NETWORK ===================== -->
-  <section class="card">
-    <h2><span class="dot" style="background:var(--green)"></span>Why it survives disconnects</h2>
-    <h3>Resumable state machine</h3>
-    <p><code>pipeline_state.py</code> persists progress to <code>pipeline_state.json</code> after every
-    stage transition. Re-running <code>run</code> re-enters <code>state.current</code>: completed stages
-    are skipped, the interrupted one retries. Training keeps running on Pegasus the entire time.</p>
-    <h3>Resumed loss curve</h3>
-    <p>Each <code>--resume</code> relaunch writes a fresh <code>run.log</code> holding only post-resume
-    steps. The monitor reads <em>every</em> segment in order to rebuild the full curve and tags each
-    point with a segment index, so the dashboard draws step&nbsp;0→now and changes the train-loss color
-    at every resume boundary.</p>
-    <h3>Stop semantics</h3>
-    <p><code>stop</code> (or the dashboard's Stop button) kills the detached server job by matching its
-    <code>output_dir</code> in the process argv, then calls <code>PipelineState.stop()</code> so
-    <code>status</code> honestly shows <code>stopped</code>. A later <code>run</code> resumes from the
-    last checkpoint; <code>run --reset</code> starts over.</p>
-    <h3>Network hand-off (the Windows quirk)</h3>
-    <p>A manual <code>netsh wlan connect</code> to the enterprise SSID needs elevation, and
-    <code>netsh</code> can't read the current SSID without Location access. So <code>net_util</code>
-    never relies on that connect: to go online it <em>disconnects</em> the LAN and lets the system
-    auto-reconnect, confirming with <code>ping</code> — and warns loudly if the internet is still
-    unreachable so you can switch manually.</p>
+  <!-- ===================== EVAL STAGE FLOW ===================== -->
+  <section class="card diagram-card">
+    <div class="cap" style="font-weight:700;font-size:19px;color:var(--ink);margin:0 0 2px">EVAL stage — how <code style="background:rgba(99,102,241,.10)">eval_runner</code> works</div>
+    <p class="cap">Closed-loop IsaacSim eval on the H100, gated by <code>eval.enabled</code>. Detached
+    like training, so it survives a laptop disconnect.</p>
+    <svg viewBox="0 0 1180 312" role="img" aria-label="EVAL stage flow: gate, then write config, launch run_eval, poll, record">
+      <defs>
+        <style>.flow2{stroke-dasharray:7 7; animation:flowmove .9s linear infinite}
+          @keyframes flowmove{to{stroke-dashoffset:-14}} .t{font-size:13.5px; font-weight:700} .s{font-size:12px}</style>
+        <marker id="d2" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7,3 L0,6 Z" fill="#0ea5e9"/></marker>
+        <marker id="g2" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7,3 L0,6 Z" fill="#94a3b8"/></marker>
+        <marker id="v2" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7,3 L0,6 Z" fill="#8b5cf6"/></marker>
+        <linearGradient id="gGate" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#0284c7"/></linearGradient>
+        <filter id="soft2" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#0f172a" flood-opacity="0.16"/></filter>
+      </defs>
+
+      <!-- animated data-flow arrows between the step boxes -->
+      <path class="flow2" d="M250,105 H270" stroke="#0ea5e9" stroke-width="2.4" fill="none" marker-end="url(#d2)"/>
+      <path class="flow2" d="M470,105 H490" stroke="#0ea5e9" stroke-width="2.4" fill="none" marker-end="url(#d2)"/>
+      <path class="flow2" d="M690,105 H710" stroke="#0ea5e9" stroke-width="2.4" fill="none" marker-end="url(#d2)"/>
+      <path class="flow2" d="M910,105 H930" stroke="#0ea5e9" stroke-width="2.4" fill="none" marker-end="url(#d2)"/>
+      <!-- gate -> skip (false branch) -->
+      <path d="M150,152 V206" stroke="#94a3b8" stroke-width="2" fill="none" stroke-dasharray="4 4" marker-end="url(#g2)"/>
+      <text class="s" x="160" y="184" fill="#94a3b8">enabled = false</text>
+
+      <!-- B1: gate -->
+      <rect x="50" y="62" width="200" height="90" rx="14" fill="url(#gGate)" filter="url(#soft2)"/>
+      <text class="t" x="150" y="92" text-anchor="middle" fill="#fff">EVAL · eval_runner.run()</text>
+      <text class="s" x="150" y="114" text-anchor="middle" fill="#e0f7ff">gate: eval.enabled?</text>
+      <text class="s" x="150" y="132" text-anchor="middle" fill="#e0f7ff">true → right · false → down</text>
+
+      <!-- skip box -->
+      <rect x="50" y="206" width="200" height="76" rx="14" fill="var(--card)" stroke="#f59e0b" stroke-dasharray="5 4" filter="url(#soft2)"/>
+      <text class="t" x="150" y="236" text-anchor="middle" fill="var(--ink)">skip — no-op</text>
+      <text class="s" x="150" y="257" text-anchor="middle" fill="var(--muted)">records eval_skipped;</text>
+      <text class="s" x="150" y="273" text-anchor="middle" fill="var(--muted)">pipeline keeps going</text>
+
+      <!-- B2: write config -->
+      <rect x="270" y="62" width="200" height="90" rx="14" fill="var(--card)" stroke="var(--line)" filter="url(#soft2)"/>
+      <text class="t" x="370" y="94" text-anchor="middle" fill="var(--ink)">write eval_config.yaml</text>
+      <text class="s" x="370" y="115" text-anchor="middle" fill="var(--muted)">on the H100 — one run,</text>
+      <text class="s" x="370" y="131" text-anchor="middle" fill="var(--muted)">→ the trained checkpoint</text>
+
+      <!-- B3: launch run_eval -->
+      <rect x="490" y="62" width="200" height="90" rx="14" fill="var(--card)" stroke="var(--line)" filter="url(#soft2)"/>
+      <text class="t" x="590" y="88" text-anchor="middle" fill="var(--ink)">launch run_eval.py</text>
+      <text class="s" x="590" y="108" text-anchor="middle" fill="var(--muted)">detached (setsid+nohup):</text>
+      <text class="s" x="590" y="124" text-anchor="middle" fill="var(--muted)">policy server + IsaacSim</text>
+      <text class="s" x="590" y="140" text-anchor="middle" fill="var(--muted)">client (crash-resilient)</text>
+
+      <!-- B4: poll + parse -->
+      <rect x="710" y="62" width="200" height="90" rx="14" fill="var(--card)" stroke="var(--line)" filter="url(#soft2)"/>
+      <text class="t" x="810" y="94" text-anchor="middle" fill="var(--ink)">poll combined log</text>
+      <text class="s" x="810" y="115" text-anchor="middle" fill="var(--muted)">count episodes ·</text>
+      <text class="s" x="810" y="131" text-anchor="middle" fill="var(--muted)">parse success rate</text>
+
+      <!-- B5: record -->
+      <rect x="930" y="62" width="200" height="90" rx="14" fill="url(#gGate)" filter="url(#soft2)"/>
+      <text class="t" x="1030" y="94" text-anchor="middle" fill="#fff">record results</text>
+      <text class="s" x="1030" y="115" text-anchor="middle" fill="#e0f7ff">success rate → state;</text>
+      <text class="s" x="1030" y="131" text-anchor="middle" fill="#e0f7ff">fetch eval_results.svg</text>
+
+      <!-- feeds into the run outputs -->
+      <path d="M1030,152 V198" stroke="#8b5cf6" stroke-width="2" fill="none" marker-end="url(#v2)"/>
+      <rect x="846" y="198" width="284" height="84" rx="12" fill="var(--card)" stroke="var(--violet)" stroke-dasharray="4 3"/>
+      <text class="t" x="988" y="226" text-anchor="middle" fill="var(--violet)">wired into the run outputs</text>
+      <text class="s" x="988" y="248" text-anchor="middle" fill="var(--muted)">state machine (Stage.EVAL) · report</text>
+      <text class="s" x="988" y="264" text-anchor="middle" fill="var(--muted)">(success rate + SVG) · dashboard (EVAL chip)</text>
+    </svg>
+    <div class="legend">
+      <span><i style="border-color:#0ea5e9; border-top-style:dashed"></i> data flow (animated)</span>
+      <span><i style="border-color:#94a3b8; border-top-style:dashed"></i> false branch (skip)</span>
+      <span><i style="border-color:#8b5cf6; border-top-style:dashed"></i> feeds report / dashboard</span>
+    </div>
   </section>
 
-  <!-- ===================== FILE MAP ===================== -->
-  <section class="card">
-    <h2><span class="dot" style="background:var(--violet)"></span>File map</h2>
-    <table>
-      <thead><tr><th>Location</th><th>Role</th></tr></thead>
-      <tbody>
-        <tr><td><code>gr00t_pipeline.py</code></td><td>Single entry-point CLI (repo root) — the one command</td></tr>
-        <tr><td><code>scripts/common/{pegasus,run_finetune,wifi_switch}.py</code></td><td>Shared lower-level tools (also reused by eval)</td></tr>
-        <tr><td><code>scripts/pipeline/core/{pipeline_runner,pipeline_state,pipeline_config,pipeline_progress,net_util,…}.py</code></td><td>State machine + CLI dispatch (<code>run_cli</code>), config, progress, network</td></tr>
-        <tr><td><code>scripts/pipeline/stages/{gpu_monitor,training_monitor,downloader,deployer,report_generator}.py</code></td><td>One module per pipeline stage</td></tr>
-        <tr><td><code>scripts/pipeline/web/dashboard.py</code> + <code>dashboard.html</code> + <code>vendor/</code></td><td>Read-only live web UI (stdlib server)</td></tr>
-        <tr><td><code>scripts/pipeline/config/config.yaml</code> <span class="pill">gitignored</span></td><td>Paths, profiles, and secrets (Pegasus / asus-4090 / wandb)</td></tr>
-        <tr><td><code>pipeline_state.json</code> · <code>logs/</code> · <code>report_*.html</code></td><td>Generated runtime artifacts (repo root)</td></tr>
-        <tr><td><code>scripts/eval/</code> <span class="pill">phase 2</span></td><td>Closed-loop IsaacSim eval (folds in after merging verification_N1.7)</td></tr>
-      </tbody>
-    </table>
-  </section>
-
-  <footer>IsaacLab-GR00T automation · see <code>PIPELINE.md</code> for the text reference and CLI cheatsheet.</footer>
+  <footer>IsaacLab-GR00T automation · see <code>scripts/pipeline/PIPELINE.md</code> for the text reference + how to enable EVAL.</footer>
 </div>
 </body>
 </html>
