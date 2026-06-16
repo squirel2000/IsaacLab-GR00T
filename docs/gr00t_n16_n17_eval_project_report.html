@@ -3,500 +3,275 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GR00T N1.6 vs N1.7 閉迴路評測專案 — 總結報告</title>
+<title>GR00T N1.6 vs N1.7 閉迴路評測 — 什麼改善了 N1.7</title>
 <style>
   :root {
-    --ink: #1f2933;
-    --muted: #5b6b7a;
-    --line: #d8e0e8;
-    --bg: #f7f9fb;
-    --card: #ffffff;
-    --accent: #0b6e4f;
-    --accent2: #1d4ed8;
-    --warn-bg: #fff7e6;
-    --warn-line: #e8b339;
-    --ok-bg: #ecfdf3;
-    --bad: #b42318;
-    --code-bg: #f1f4f7;
+    --bg: #0d1117; --panel: #161b22; --panel2: #1c2330; --line: #30363d;
+    --ink: #e6edf3; --muted: #9aa7b2; --dim: #6e7681;
+    --green: #3fb950; --amber: #d29922; --red: #f85149; --blue: #58a6ff; --purple: #bc8cff;
+    --ok-bg: #12261a; --warn-bg: #2a2310; --info-bg: #0d2233;
   }
   * { box-sizing: border-box; }
-  body {
-    margin: 0; padding: 0 16px 64px;
-    font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
-    color: var(--ink); background: var(--bg);
-    line-height: 1.75; font-size: 15.5px;
-  }
-  main { max-width: 980px; margin: 0 auto; }
-  header.title {
-    margin: 40px 0 28px; padding: 28px 32px;
-    background: linear-gradient(135deg, #0b3d2e, #0b6e4f);
-    color: #fff; border-radius: 12px;
-  }
-  header.title h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: .5px; }
-  header.title .sub { opacity: .85; font-size: 14px; }
-  h2 {
-    font-size: 21px; margin: 44px 0 14px; padding-bottom: 6px;
-    border-bottom: 2px solid var(--accent); color: #0b3d2e;
-  }
-  h3 { font-size: 17px; margin: 26px 0 10px; color: var(--accent2); }
-  section.card {
-    background: var(--card); border: 1px solid var(--line);
-    border-radius: 10px; padding: 20px 26px; margin: 18px 0;
-  }
-  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14.5px; }
-  th, td { border: 1px solid var(--line); padding: 7px 11px; text-align: left; }
-  th { background: #eef3f7; font-weight: 600; }
-  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-  .hl { color: var(--accent); font-weight: 700; }
-  .bad { color: var(--bad); font-weight: 600; }
-  code, pre {
-    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
-    background: var(--code-bg); border-radius: 4px;
-  }
-  code { padding: 1px 6px; font-size: 13.5px; }
-  pre { padding: 12px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; border: 1px solid var(--line); }
-  pre code { background: none; padding: 0; }
-  .note {
-    background: var(--warn-bg); border-left: 4px solid var(--warn-line);
-    padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 14.5px;
-  }
-  .takeaway {
-    background: var(--ok-bg); border-left: 4px solid var(--accent);
-    padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 14px 0;
-  }
-  /* Q&A */
+  body { margin: 0; padding: 0 18px 72px; background: var(--bg); color: var(--ink);
+    font-family: "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+    line-height: 1.75; font-size: 15.5px; }
+  main { max-width: 1000px; margin: 0 auto; }
+  header.t { margin: 36px 0 24px; padding: 26px 30px; border-radius: 14px;
+    background: linear-gradient(135deg,#10243a,#0d3b2e); border: 1px solid var(--line); }
+  header.t h1 { margin: 0 0 8px; font-size: 25px; }
+  header.t .s { color: #b9c6d1; font-size: 14px; }
+  h2 { font-size: 21px; margin: 44px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 17px; margin: 24px 0 8px; color: var(--blue); }
+  section.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 24px; margin: 16px 0; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+  th,td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; }
+  th { background: var(--panel2); }
+  td.n,th.n { text-align: right; font-variant-numeric: tabular-nums; }
+  code { background: #0b0f14; border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px;
+    font-family: "JetBrains Mono",Consolas,monospace; font-size: 13px; color: #c9d4df; }
+  pre { background: #0b0f14; border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; overflow-x: auto; font-size: 12.5px; }
+  pre code { border: none; padding: 0; background: none; }
+  .hl { color: var(--green); font-weight: 700; }
+  .lo { color: var(--red); font-weight: 700; }
+  .key { background: var(--ok-bg); border-left: 4px solid var(--green); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; }
+  .warn { background: var(--warn-bg); border-left: 4px solid var(--amber); padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 14.5px; }
+  .qa .q { font-weight: 700; background: var(--panel2); padding: 9px 14px; border: 1px solid var(--line); border-bottom: none; border-radius: 8px 8px 0 0; color: var(--blue); }
+  .qa .a { border: 1px solid var(--line); border-radius: 0 0 8px 8px; padding: 12px 16px; }
   .qa { margin: 16px 0; }
-  .qa .q {
-    font-weight: 700; color: #0b3d2e; background: #e7f2ed;
-    padding: 9px 14px; border-radius: 8px 8px 0 0; border: 1px solid #c4ddd2; border-bottom: none;
-  }
-  .qa .a {
-    border: 1px solid var(--line); border-radius: 0 0 8px 8px;
-    padding: 12px 16px; background: var(--card);
-  }
-  /* flow diagrams */
-  .flow { display: flex; flex-direction: column; align-items: stretch; gap: 0; margin: 16px 0; }
-  .fbox {
-    border: 1.5px solid var(--accent2); background: #f0f5ff;
-    border-radius: 8px; padding: 9px 14px; font-size: 14px;
-  }
-  .fbox b { color: var(--accent2); }
-  .fbox.green { border-color: var(--accent); background: #edf7f2; }
-  .fbox.green b { color: var(--accent); }
-  .fbox.gray { border-color: #9aa7b2; background: #f2f4f6; }
-  .fbox.gray b { color: #51606e; }
-  .farrow { text-align: center; color: var(--muted); font-size: 16px; line-height: 1.4; padding: 2px 0; }
-  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  @media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
-  .legend { font-size: 13px; color: var(--muted); margin-top: 6px; }
-  footer { margin-top: 56px; color: var(--muted); font-size: 13px; text-align: center; }
-  .toc { font-size: 14.5px; columns: 2; }
-  .toc a { color: var(--accent2); text-decoration: none; }
-  .toc a:hover { text-decoration: underline; }
-  @media (max-width: 760px) { .toc { columns: 1; } }
+  ul { margin: 8px 0; } li { margin: 4px 0; }
+  .tag { font-variant-numeric: tabular-nums; }
+  .pill { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 10px; border: 1px solid var(--line); }
+  .p-old { background:#2a1416; color:#ff9a93; } .p-hi { background:#2a2310; color:#f0c050; } .p-lo { background:#12261a; color:#79e08a; } .p-ref { background:#0d2233; color:#8ec5ff; }
+  footer { margin-top: 56px; color: var(--dim); font-size: 13px; text-align: center; }
+  .toc { font-size: 14px; columns: 2; } .toc a { color: var(--blue); text-decoration: none; }
+  @media (max-width:760px){ .toc{columns:1;} }
 </style>
 </head>
 <body>
 <main>
 
-<header class="title">
-  <h1>GR00T N1.6 vs N1.7 閉迴路評測專案 — 總結報告</h1>
-  <div class="sub">
-    任務:Isaac-Can-Sorting-OpenArm-DexHand-v0(OpenArm + LinkerHand-O6,multitask dataset 0403,right_only)
-    &nbsp;|&nbsp; 彙整日期:2026-06-11
-  </div>
+<header class="t">
+  <h1>GR00T N1.6 vs N1.7 閉迴路評測 — 什麼改善了 N1.7</h1>
+  <div class="s">任務 Isaac-Can-Sorting-OpenArm-DexHand-v0(OpenArm + LinkerHand-O6,multitask dataset 0403,right_only)
+  &nbsp;·&nbsp; 7 個 checkpoint × 100 episodes(headless)&nbsp;·&nbsp; 2026-06-16</div>
 </header>
 
 <nav class="toc">
   <b>目錄</b><br>
   <a href="#tldr">1. 結論摘要</a><br>
-  <a href="#goal">2. 專案目標與範圍</a><br>
-  <a href="#flow">3. 系統架構與程式流程</a><br>
-  <a href="#qa">4. 問題與結論(Q&amp;A 總整理)</a><br>
-  <a href="#data">5. 最終數據與圖表</a><br>
-  <a href="#cleanup">6. 專案結構整理</a><br>
-  <a href="#lessons">7. 本專案的收獲</a><br>
-  <a href="#appendix">8. 附錄:注意事項與文件索引</a>
+  <a href="#data">2. 數據總表</a><br>
+  <a href="#a">3. 受控比較 A — 動作表示法(主因)</a><br>
+  <a href="#b">4. 受控比較 B — learning rate</a><br>
+  <a href="#c">5. 受控比較 C — 訓練步數</a><br>
+  <a href="#loss">6. 為什麼 loss 不是指標</a><br>
+  <a href="#limit">7. 限制與驗證實驗</a><br>
+  <a href="#method">8. 評測方法</a>
 </nav>
 
-<!-- ============================================================ -->
-<h2 id="tldr">1. 結論摘要(TL;DR)</h2>
+<!-- ===================== -->
+<h2 id="tldr">1. 結論摘要</h2>
 <section class="card">
-  <table>
-    <tr>
-      <th>Checkpoint</th><th>VLM backbone</th><th>LR / steps / warmup</th>
-      <th class="num">最終 train loss</th><th class="num">閉迴路成功率(100 eps)</th><th class="num">成功平均步數</th>
-    </tr>
-    <tr>
-      <td>N1.6-150k</td><td>Eagle-Block2A-2B-v2</td><td>1e-4 / 150k / 0.05</td>
-      <td class="num"><b>0.00281</b></td><td class="num"><b>94%</b></td><td class="num">503</td>
-    </tr>
-    <tr>
-      <td>N1.7-150k</td><td>Cosmos-Reason2-2B(Qwen3VL)</td><td>1e-4 / 150k / 0.05</td>
-      <td class="num">0.00784</td><td class="num">75%</td><td class="num">479</td>
-    </tr>
-    <tr>
-      <td>N1.7-300k</td><td>Cosmos-Reason2-2B(Qwen3VL)</td><td>5e-5 / 300k / 0.10</td>
-      <td class="num">0.00711</td><td class="num"><span class="hl">98%</span></td><td class="num"><b>435(最快)</b></td>
-    </tr>
-  </table>
-  <div class="takeaway">
-    <b>三個核心結論:</b>
-    <ol style="margin:6px 0 0;">
-      <li><b>N1.7 不是結構性比較差。</b>同一個 backbone 換 recipe(較低 LR、更長訓練)後達到
-          98%,反超 N1.6 的 94%,且完成任務更省步。</li>
-      <li><b>Train loss 與閉迴路成功率脫鉤。</b>N1.7-300k 的 loss(0.0071)仍是 N1.6(0.0028)的
-          約 2.5 倍,成功率卻更高——train loss 是「發散哨兵」,不是任務表現的量尺。</li>
-      <li><b>評測環境必須對齊訓練資料分布。</b>multitask 任務若餵固定語言 prompt,所有模型的
-          成功率都會被系統性壓低、且程度不一,足以顛倒排名。</li>
+  <div class="key">
+    <ol style="margin:0;">
+      <li><b>N1.7 進步的主因是「相對(delta)手臂動作表示法」——已用單變數 ablation 證實。</b>
+          同一份新 code、LR=1e-4、150k step,<b>只把 arm 從絕對改回相對</b>:<span class="lo">絕對 76%</span> →
+          <span class="hl">相對 89%</span>;且絕對版 76% ≈ 舊 repo 絕對版 77%,排除了新 code 其他變動的作用(見 §3)。</li>
+      <li><b>N1.7 需要比 N1.6 更小的 learning rate。</b> 同一份新 code 下,LR 5e-5 明顯優於 1e-4
+          (150k:98% vs 89%;300k:100% vs 88%);而 N1.6 在 1e-4 已有 94%。</li>
+      <li><b>train loss 不是閉迴路成功率的指標。</b> loss 最低的是 N1.6(0.0030)卻不是最高成功率;
+          N1.7 相對動作版 loss 反而更高(0.0103)成功率卻更好。改了動作目標表示法後,loss 根本不可跨版本比較。</li>
     </ol>
   </div>
 </section>
 
-<!-- ============================================================ -->
-<h2 id="goal">2. 專案目標與範圍</h2>
+<!-- ===================== -->
+<h2 id="data">2. 數據總表</h2>
 <section class="card">
-  <p>出發點:在相同 recipe(150k steps、LR 1e-4、<code>no_tune_llm / no_tune_visual /
-  tune_projector / tune_diffusion</code>、state_dropout 0.2、global batch 32)下,
-  N1.7 的 train loss 收不到 N1.6 的水準。要回答的問題是:
-  <b>這個差距是「訓練不足(recipe 問題)」還是「新 backbone 的結構性缺陷」?
-  以及 train loss 到底能不能代表任務表現?</b></p>
-  <p>兩版模型的架構差異(讀取 checkpoint config.json 確認):VLM backbone 從
-  Eagle-Block2A-2B-v2 換成 Cosmos-Reason2-2B(Qwen3VL);<b>DiT action head 完全相同</b>
-  (32 層、32 heads、head_dim 48、output 1024);N1.7 新增 4 層 VL self-attention;
-  action_horizon 50→40;max action/state dim 128→132。</p>
-  <p>專案分三條工作線:</p>
+  <table>
+    <tr><th>Run</th><th>repo 版本</th><th>arm 動作</th><th class="n">LR</th><th class="n">steps</th>
+        <th class="n">success</th><th class="n">timeout</th><th class="n">unsafe</th><th class="n">final loss</th></tr>
+    <tr><td>N1.6-150k</td><td>N1.6</td><td>絕對</td><td class="n">1e-4</td><td class="n">150k</td>
+        <td class="n">94%</td><td class="n">6</td><td class="n">0</td><td class="n">0.0030</td></tr>
+    <tr><td>N1.7-150k <span class="pill p-old">舊 0504</span></td><td>≤0504</td><td>絕對</td><td class="n">1e-4</td><td class="n">150k</td>
+        <td class="n"><span class="lo">77%</span></td><td class="n">23</td><td class="n">0</td><td class="n">0.0077</td></tr>
+    <tr style="background:#1d1416"><td>N1.7-150k <span class="pill p-old">新 0615 · ablation</span></td><td>≥0608</td><td>絕對</td><td class="n">1e-4</td><td class="n">150k</td>
+        <td class="n"><span class="lo">76%</span></td><td class="n">24</td><td class="n">0</td><td class="n">—</td></tr>
+    <tr><td>N1.7-150k <span class="pill p-hi">新 0614</span></td><td>≥0608</td><td><b>相對</b></td><td class="n">1e-4</td><td class="n">150k</td>
+        <td class="n">89%</td><td class="n">9</td><td class="n">2</td><td class="n">0.0103</td></tr>
+    <tr><td>N1.7-300k <span class="pill p-hi">新 0609</span></td><td>≥0608</td><td>相對</td><td class="n">1e-4</td><td class="n">300k</td>
+        <td class="n">88%</td><td class="n">9</td><td class="n">3</td><td class="n">0.0079</td></tr>
+    <tr><td>N1.7-150k <span class="pill p-lo">新 0614</span></td><td>≥0608</td><td>相對</td><td class="n"><b>5e-5</b></td><td class="n">150k</td>
+        <td class="n"><span class="hl">98%</span></td><td class="n">0</td><td class="n">2</td><td class="n">0.0088</td></tr>
+    <tr><td>N1.7-300k <span class="pill p-lo">新 0607</span></td><td>≥0608</td><td>相對</td><td class="n"><b>5e-5</b></td><td class="n">300k</td>
+        <td class="n"><span class="hl">100%</span></td><td class="n">0</td><td class="n">0</td><td class="n">0.0069</td></tr>
+  </table>
+  <p style="font-size:13.5px"><b>關鍵 ablation(同一份新 code,只差 arm 動作表示):</b>
+  <span class="lo">絕對 76%</span>(0615)→ <span class="hl">相對 89%</span>(0614)。而 0615 絕對(76%)≈ 0504 舊絕對(77%)
+  → 證明新 code 的其他變動(dataloader/stats/warmup/shard)<b>不是</b>主因,<b>相對動作表示法才是</b>。</p>
+
+  <svg viewBox="0 0 1010 300" style="width:100%;margin-top:8px" font-family="sans-serif">
+    <text x="14" y="18" fill="#9aa7b2" font-size="12.5">success rate ·&nbsp; 同 code 下:絕對→相對 = 76→89,再降 LR 1e-4→5e-5 = 89→98 / 88→100</text>
+    <line x1="62" y1="250" x2="990" y2="250" stroke="#30363d"/>
+    <line x1="62" y1="60" x2="62" y2="250" stroke="#30363d"/>
+    <text x="54" y="64" text-anchor="end" fill="#6e7681" font-size="11">100%</text>
+    <text x="54" y="157" text-anchor="end" fill="#6e7681" font-size="11">50%</text>
+    <text x="54" y="252" text-anchor="end" fill="#6e7681" font-size="11">0</text>
+    <rect x="95" y="71.4" width="62" height="178.6" fill="#58a6ff"/><text x="126" y="63" text-anchor="middle" fill="#e6edf3" font-size="13" font-weight="bold">94%</text>
+    <rect x="223" y="103.7" width="62" height="146.3" fill="#f85149"/><text x="254" y="95" text-anchor="middle" fill="#e6edf3" font-size="13" font-weight="bold">77%</text>
+    <rect x="351" y="105.6" width="62" height="144.4" fill="#f85149"/><text x="382" y="97" text-anchor="middle" fill="#e6edf3" font-size="13" font-weight="bold">76%</text>
+    <rect x="479" y="80.9" width="62" height="169.1" fill="#d29922"/><text x="510" y="72" text-anchor="middle" fill="#e6edf3" font-size="13" font-weight="bold">89%</text>
+    <rect x="607" y="82.8" width="62" height="167.2" fill="#d29922"/><text x="638" y="74" text-anchor="middle" fill="#e6edf3" font-size="13" font-weight="bold">88%</text>
+    <rect x="735" y="63.8" width="62" height="186.2" fill="#3fb950"/><text x="766" y="55" text-anchor="middle" fill="#e6edf3" font-size="13" font-weight="bold">98%</text>
+    <rect x="863" y="60.0" width="62" height="190.0" fill="#3fb950"/><text x="894" y="52" text-anchor="middle" fill="#e6edf3" font-size="13" font-weight="bold">100%</text>
+    <text x="126" y="266" text-anchor="middle" fill="#8ec5ff" font-size="10.5">N1.6 絕對 1e-4</text>
+    <text x="254" y="266" text-anchor="middle" fill="#ff9a93" font-size="10.5">N1.7 絕對 舊0504</text>
+    <text x="382" y="266" text-anchor="middle" fill="#ff9a93" font-size="10.5">N1.7 絕對 新0615※</text>
+    <text x="510" y="266" text-anchor="middle" fill="#f0c050" font-size="10.5">相對 1e-4·150k</text>
+    <text x="638" y="266" text-anchor="middle" fill="#f0c050" font-size="10.5">相對 1e-4·300k</text>
+    <text x="766" y="266" text-anchor="middle" fill="#79e08a" font-size="10.5">相對 5e-5·150k</text>
+    <text x="894" y="266" text-anchor="middle" fill="#79e08a" font-size="10.5">相對 5e-5·300k</text>
+    <text x="382" y="282" text-anchor="middle" fill="#6e7681" font-size="10">※ ablation:新 code、僅 arm 改回絕對</text>
+  </svg>
+  <p style="font-size:13px;color:var(--muted)">資料來源:<code>output/eval/logs/*_combined_episodes.log</code>(逐 episode,
+  crash-resilient 的事實來源)+ 各 checkpoint 的 <code>trainer_state.json</code> / <code>finetune_params.txt</code> / <code>statistics.json</code>。
+  另有資料驅動的 <code>output/analysis/eval_results.svg</code> 由 <code>run_eval.py</code> 自動產生。</p>
+</section>
+
+<!-- ===================== -->
+<h2 id="a">3. 受控比較 A — 動作表示法是主因(已用 ablation 證實)</h2>
+<section class="card">
+  <div class="key">
+    <b>單變數 ablation(2026-06-16,definitive):</b> 用<b>同一份新 code</b>、LR 1e-4、150k step,
+    <b>只把 arm 動作從相對改回絕對</b>重訓(<code>N1_7_fft_0615_150k_lr1e4_absolute</code>)→
+    成功率 <span class="hl">相對 89%</span>(0614)掉到 <span class="lo">絕對 76%</span>(0615)。
+    而 0615 絕對(76%)≈ 0504 舊絕對(77%)→ 新 code 的其他變動(dataloader / stats / warmup / shard)
+    <b>單獨並不能</b>提升成功率;<b>相對(delta)手臂動作表示法才是那 +13 點的來源</b>。
+  </div>
+  <p>另有一組舊→新對照(<b>N1.7-150k 舊 0504 絕對 77%</b> vs <b>新 0614 相對 89%</b>)也指向同一結論;
+  兩者 base model、dataset、LR(1e-4)、steps(150k)、batch、freeze、<code>state_dropout</code>(都 0.2)相同
+  (逐項比對 <code>finetune_params.txt</code> 與 baked <code>conf.yaml</code>),只差 arm rep 與兩個次要項(warmup、shard_size)。
+  上面的 0615 ablation 把那兩個次要項也一併控制掉,所以結論不再有歧義。</p>
+
+  <h3>「舊=絕對、新=相對」的 config 證據(與 ablation 互相印證)</h3>
   <ol>
-    <li><b>訓練側評測基礎設施</b>:hold-out(held-out)資料集切分、訓練中 open-loop eval
-        callback、最佳 checkpoint 保存、early stopping。</li>
-    <li><b>閉迴路評測</b>:IsaacSim 內實跑 policy 算成功率,crash-resilient orchestrator,
-        三個 checkpoint × 100 episodes ×(視窗 + headless)。</li>
-    <li><b>專案結構整理</b>:評測 harness 集中到父 repo <code>scripts/eval/</code>(單一入口 <code>run_eval.py</code>),
-        IsaacLab submodule 瘦身到對 develop 幾乎零差異。</li>
+    <li><b>finetune_params 顯示 modality config 換了:</b>
+        <code>modality_config_right_only.py</code>(舊)→ <code>openarm_o6_config_right_only.py</code>(新)。</li>
+    <li><b>repo commit:</b> 新的 OpenArm-O6 config 由 <code>c35bd6e</code>(2026-05-30)、<code>2c755ba</code>(05-31)
+        加入,<b>晚於 0504 那次訓練</b>,所以舊 run 不可能用到它。</li>
+    <li><b>程式碼自述用途:</b> <code>openarm_o6_modalities.py</code> 明文寫著
+        「arms → <b>RELATIVE</b>(delta from current joint state;<i>N1.7 generalizes better with relative</i>);
+        hands → ABSOLUTE(像夾爪開合)」。</li>
+    <li><b>原始 config 檔(最直接):</b> 舊 run 用的
+        <code>Isaac-GR00T/examples/Openarm_LinkerHandO6/modality_config_right_only.py</code> 明寫
+        <code>right_arm → rep=ActionRepresentation.ABSOLUTE</code>(且 right_hand 也是 ABSOLUTE);
+        新的 <code>openarm_o6_modalities.py</code> 的 <code>_ARM_ACTION</code> 為 <code>rep=RELATIVE</code>(hand 仍 ABSOLUTE)。</li>
+    <li><b>checkpoint 內 baked 的 resolved config(鐵證):</b> 直接 diff 兩個 checkpoint 的
+        <code>experiment_cfg/conf.yaml</code>(預設值已 resolve)——<code>modality_keys=[right_arm, right_hand]</code>,
+        其 <code>action_configs</code> 第一筆(right_arm)的 <code>rep</code> 在<b>舊=ABSOLUTE、新=RELATIVE</b>。
+        這是各 run 實際訓練時烤進權重的設定,最可靠。</li>
   </ol>
-</section>
+  <div class="warn"><b>更正紀錄:</b> 早先曾以 <code>statistics.json</code> 多出 <code>relative_action</code> 區塊來推論,
+  那其實只是新版 stats <i>計算</i>的輸出,不足為證(已從證據鏈移除)。以上以原始 config + baked conf.yaml 為準。</div>
 
-<!-- ============================================================ -->
-<h2 id="flow">3. 系統架構與程式流程</h2>
-
-<h3>3.1 閉迴路評測:server / client 架構</h3>
-<section class="card">
-  <div class="flow">
-    <div class="fbox gray"><b>Orchestrator</b> — <code>scripts/eval/run_eval.py</code>(讀 <code>eval_config.yaml</code>)<br>
-      對每個 checkpoint:啟動 server → 等就緒 → 反覆啟動 client 直到收滿 target episodes</div>
-    <div class="farrow">▼ 啟動並等待 <code>"Server is ready and listening"</code></div>
-    <div class="fbox"><b>Policy Server</b> — <code>python3 -m gr00t.eval.run_gr00t_server --model-path &lt;ckpt&gt; --port 5555</code><br>
-      N1.6:conda <code>env_gr00t</code> @ <code>Isaac-GR00T</code>;N1.7:<code>Isaac-GR00T_n1d7/.venv</code>。
-      載入 checkpoint(bf16),在 ZMQ :5555 等觀測、回傳去噪後的 action chunk</div>
-    <div class="farrow">▲ ZMQ(觀測 ↑ / 動作 ↓)▼</div>
-    <div class="fbox green"><b>IsaacSim Client</b> — <code>scripts/eval/gr00t_infer_agent.py</code>(conda <code>env_isaaclab</code>,cwd=IsaacLab)<br>
-      建 IsaacLab 環境、跑 episodes、寫 log/影片/<code>run_manifest.json</code>。
-      N1.7 時加 <code>PYTHONPATH=Isaac-GR00T_n1d7</code> 使 ZMQ wire format 與 server 一致</div>
-  </div>
-  <div class="legend">想肉眼看模擬畫面時把 <code>eval_config.yaml</code> 的 <code>headless</code> 設為 false
-  (在 :0 顯示 IsaacSim 視窗);預設 headless(相機仍離屏渲染)。</div>
-</section>
-
-<h3>3.2 Client 每一步的資料流(multitask 修正後)</h3>
-<section class="card">
-  <div class="flow">
-    <div class="fbox green"><b>① 環境觀測</b> — <code>env.step()</code> 回傳
-      head 相機影像(dataset 0403 僅此一台,<code>--pov_list head</code>)+ 右臂 7 軸 + 右手 6 軸關節狀態
-      + <code>scene_obs.target_object_color</code>(0 或 1)</div>
-    <div class="farrow">▼</div>
-    <div class="fbox green"><b>② 語言 prompt 切換(本專案的關鍵修正)</b><br>
-      color id 0(視覺橘)→ <code>"place the can on the orange plate"</code>;
-      id 1(視覺綠)→ <code>"place the can on the green plate"</code>
-      (字串取自 dataset <code>meta/tasks.jsonl</code>,避免 OOD 語言)</div>
-    <div class="farrow">▼ <code>Gr00tClientAdapter._format_obs()</code> 打包 → ZMQ 送 server</div>
-    <div class="fbox"><b>③ Server 推論</b> — VLM backbone 編碼影像+語言 → DiT flow-matching
-      去噪 → 回傳 action chunk(每次 16 步)</div>
-    <div class="farrow">▼ <code>map_gr00t_action_to_isaac_action()</code></div>
-    <div class="fbox green"><b>④ 執行</b> — 將 chunk 映射到 IsaacLab 關節順序,連續執行 16 個 sim 步,
-      再回到 ①。episode 出口:<b>Success</b> / <b>Terminated</b>(不安全行為)/
-      <b>Truncated</b>(595 步 horizon 超時)→ <code>EpisodeDataSaver</code> 存影片與結果</div>
+  <div class="key">
+    <b>結論:</b> 把手臂動作從「絕對關節目標」改成「相對 current state 的 delta」是 N1.7 進步的主因。
+    這是模仿學習(behavioral cloning)中已知的強力槓桿,理由見 §6。
   </div>
 </section>
 
-<h3>3.3 Crash-resilient 迴圈(為什麼能無人值守過夜)</h3>
+<!-- ===================== -->
+<h2 id="b">4. 受控比較 B — N1.7 需要更小的 learning rate</h2>
 <section class="card">
-  <p>IsaacSim client 會間歇性死於 Omniverse PhysX 重入 bug
-  (<code>carb.tasking Mutex Recursion not allowed</code>,發生在 episode reset)。對策:</p>
-  <div class="flow">
-    <div class="fbox gray"><b>while 已收 episodes &lt; TARGET 且 attempt &lt; MAX_ATTEMPTS</b></div>
-    <div class="farrow">▼</div>
-    <div class="fbox">server 還活著?(<code>kill -0</code>)— 死了就重啟並重新 <code>wait_ready</code></div>
-    <div class="farrow">▼</div>
-    <div class="fbox">啟動 client 補跑「還缺的」episodes(<code>--max_eps_num $need</code>,外層 <code>timeout 14400</code>)</div>
-    <div class="farrow">▼</div>
-    <div class="fbox green">把本次 attempt 的 <code>"Episode N finished ..."</code> 行累加進
-      <code>&lt;tag&gt;_combined_episodes.log</code> ← <b>事實來源</b>(manifest 在 crash 時不會寫出)</div>
-  </div>
-  <div class="legend">統計與比較:<code>run_eval.py</code> 跑完自動解析各 run 的 combined log,印出
-  success/timeout/unsafe 並輸出 success-vs-loss 比較圖。</div>
-</section>
-
-<h3>3.4 訓練側:三層評測訊號與訓練中評測流程</h3>
-<section class="card">
+  <p>在<b>同一份新 code、同一動作表示、同步數</b>下,只變 LR:</p>
   <table>
-    <tr><th>訊號</th><th>量什麼</th><th>成本</th><th>用途與限制</th></tr>
-    <tr><td><b>① train loss</b></td><td>flow-matching velocity MSE,<i>訓練資料</i>上</td><td>免費</td>
-        <td>發散/崩壞哨兵。<span class="bad">不是任務表現的代理</span>(本專案的鐵證)</td></tr>
-    <tr><td><b>② held-out open-loop action MSE</b></td><td>未參與訓練的 episodes 上,完整去噪後的動作誤差</td><td>低</td>
-        <td>泛化訊號:選最佳 checkpoint、抓 overfitting 起點、驅動 early stopping;但仍是 open-loop</td></tr>
-    <tr><td><b>③ closed-loop success rate</b></td><td>IsaacSim 實跑任務成功率</td><td>高(數小時)</td>
-        <td>最終真理;留給關鍵決策</td></tr>
+    <tr><th>steps</th><th class="n">LR 1e-4</th><th class="n">LR 5e-5</th><th class="n">差</th></tr>
+    <tr><td>150k</td><td class="n">89%</td><td class="n"><span class="hl">98%</span></td><td class="n">+9</td></tr>
+    <tr><td>300k</td><td class="n">88%</td><td class="n"><span class="hl">100%</span></td><td class="n">+12</td></tr>
   </table>
-  <p><b>hold-out dataset</b>:從同一份 LeRobot dataset 依 <i>episode</i> 切出訓練不碰的子集
-  (以 episode 為單位、不是以 frame,否則相鄰 frame 高度相關會洩漏)。
-  為此在 <code>Isaac-GR00T_n1d7</code> 加了訓練中評測(方案 B,in-loop callback):</p>
-  <div class="flow">
-    <div class="fbox">dataset 依 episode indices 切 train / val(in-memory split,啟動時驗證兩邊皆非空)</div>
-    <div class="farrow">▼ 每 eval_steps</div>
-    <div class="fbox">eval 迴圈:對 val batch 以<b>固定 seed 的 noise/timestep</b>(common random numbers)
-      算 <code>eval_action_mse</code>(+ 各關節分項)——曲線只反映模型變化,不含 RNG 抖動</div>
-    <div class="farrow">▼</div>
-    <div class="fbox green">依 metric 保存 best checkpoint(<code>checkpoint-*-best-eval_action_mse_*</code>);
-      可選 early stopping(patience / min_delta,預設關閉);多 GPU 情境 fail-loud 防 gather 死鎖</div>
-  </div>
-  <div class="legend">這個 held-out MSE 在訓練過程中由上述 callback 即時計算;訓練後要回看,
-  讀各 checkpoint 的 <code>trainer_state.json</code> 即可(見 §5 圖表)。</div>
+  <p>兩組獨立對照都指向同一方向:<b>N1.7 在 LR 5e-5 明顯優於 1e-4。</b> 而 N1.6 在 LR 1e-4 已達 94%
+  (它的最佳 recipe),不需要降。所以工程準則是:
+  <b>fine-tune N1.7 時用比 N1.6 更小的 learning rate(此處 5e-5,N1.6 用 1e-4)</b>。
+  直覺上,N1.7 換了更大的 VLM backbone(Cosmos-Reason2 / Qwen3VL),對 projector / diffusion head 的
+  學習率更敏感,過大的 LR 會擾動已對齊的表徵。</p>
+  <div class="warn">這是兩點對照(150k、300k)歸納的工程結論,方向一致、效果量大(+9 / +12,遠超 100-eps 約 ±3–4% 的抽樣噪音);
+  若要更細的最佳 LR(例如 7e-5 / 3e-5)需再掃。</div>
 </section>
 
-<!-- ============================================================ -->
-<h2 id="qa">4. 問題與結論(Q&amp;A 總整理)</h2>
-
-<div class="qa">
-  <div class="q">Q1.「N1.7 大幅落後」的第一輪結果,為什麼是假象?怎麼修?</div>
-  <div class="a">
-    <p>第一輪評測對所有 episode 餵<b>同一句固定的語言描述</b>。但 dataset 0403 是
-    <b>multitask</b>:語言標註隨目標顏色而變(橘盤/綠盤兩種指令)。固定 prompt 等於約一半的
-    episode 收到與目標不符的指令——所有模型成功率被系統性壓低、且受影響程度不一,
-    導致第一輪數字(已作廢)嚴重失真、甚至顛倒了對 N1.7 的判斷。</p>
-    <p><b>修正(三處,參考 commit <code>2069bbdd</code> 但描述字串以 dataset
-    <code>meta/tasks.jsonl</code> 為準):</b></p>
-    <ul>
-      <li><code>can_sorting/mdp/observations.py</code>:新增 <code>target_object_color_obs()</code>
-          把目標顏色 id 暴露成 observation;</li>
-      <li><code>can_sorting_env_cfg.py</code>:<code>SceneObsCfg</code> 加對應 ObsTerm;</li>
-      <li><code>gr00t_infer_agent.py</code>:每步依 color id 切換 task description;
-          並把 <code>--pov_list</code> 改為 head-only(dataset 只有一台相機,三相機不對齊訓練分布)。</li>
-    </ul>
-    <p>誠實但書:修正同時動了「prompt 切換」與「相機數」兩件事;但切相機前以
-    3 相機 + multitask prompt 試跑 4 集得 4/4,顯示 <b>prompt 是主因</b>。</p>
-  </div>
-</div>
-
-<div class="qa">
-  <div class="q">Q2. train loss 幾乎一樣(0.0078 → 0.0071),成功率卻 75% → 98%。不是質變嗎?</div>
-  <div class="a">
-    <p>不需要「質變」,這是模仿學習(behavioral cloning)的標準現象,兩個機制:</p>
-    <ul>
-      <li><b>Covariate shift / 誤差累積</b>:train loss 量的是「訓練資料分布」上的誤差;
-          閉迴路 rollout 時 policy 自己走,state 逐步偏離訓練分布。兩個模型在訓練分布上
-          誤差相同,在「偏離後的 state」上可以差很多;595 步的 horizon 把每步小差異滾成
-          「能不能完成」的差別。</li>
-      <li><b>平均 loss 被簡單樣本主導</b>:任務成敗卡在少數 bottleneck state(抓取、對位那幾步),
-          它們對「對所有 (state, noise, timestep) 取平均」的 loss 幾乎沒貢獻。模型可以在關鍵
-          state 上變好(成功率上升)而平均 loss 不動。</li>
-    </ul>
-  </div>
-</div>
-
-<div class="qa">
-  <div class="q">Q3. 那 train loss 還能拿來當訓練依據嗎?</div>
-  <div class="a">
-    <p><b>Necessary but not sufficient(必要但不充分)。</b>本專案把這點推到極致:
-    N1.7-300k 的 train loss 比 N1.6 <i>差約 2.5 倍</i>,閉迴路成功率卻<i>更高</i>(98% &gt; 94%)。</p>
-    <ul>
-      <li>loss 爆掉一定有問題(發散哨兵),但 loss 漂亮不代表任務會成功;</li>
-      <li>正確的訊號層級:train loss → held-out open-loop MSE → closed-loop success(見 §3.4);</li>
-      <li>這正是建 held-out eval + early stopping 基礎設施的理由:只看 train loss 會被誤導。</li>
-    </ul>
-  </div>
-</div>
-
-<div class="qa">
-  <div class="q">Q4. 75% → 98% 的改善,可以歸因於「LR 減半 + steps 加倍」嗎?</div>
-  <div class="a">
-    <p><b>不能乾淨歸因。</b>逐項比對兩個 run 的設定後,已控制的變數:base model、dataset、
-    modality、state_dropout、batch、freeze 設定全部相同;但<b>混淆變數</b>有:</p>
-    <table>
-      <tr><th>變數</th><th>N1.7-150k</th><th>N1.7-300k</th></tr>
-      <tr><td>learning rate</td><td>1e-4</td><td>5e-5</td></tr>
-      <tr><td>max steps / warmup</td><td>150k / 0.05</td><td>300k / 0.10</td></tr>
-      <tr><td><b>code repo(相差約一個月的大改版)</b></td><td><code>Isaac-GR00T</code></td><td><code>Isaac-GR00T_n1d7</code></td></tr>
-      <tr><td>shard / sampling 參數</td><td>預設</td><td>明確指定</td></tr>
-    </table>
-    <p>所以誠實的結論只能是:<b>「新 recipe + 新 code 整體把 N1.7 推到 98%,且是在 train-loss
-    差距沒有縮小的情況下達成」</b>。要單因子歸因,需補一個 controlled run
-    (用新 code 重跑 LR 1e-4 / 150k)——目前沒有。</p>
-  </div>
-</div>
-
-<div class="qa">
-  <div class="q">Q5.「誤差沿 horizon 累積」有理論根據嗎?</div>
-  <div class="a">
-    <p><b>有,但要分清楚哪部分有根據。</b></p>
-    <ul>
-      <li><b>有根據</b>:behavioral cloning 的 covariate shift 是經典結果——Ross &amp; Bagnell
-          (AISTATS 2011,DAgger 論文)證明純 BC 的 worst-case regret 隨 horizon 成長約
-          <b>O(T²·ε)</b>(DAgger 改善為 O(T·ε))。這直接支撐 Q2 的「小誤差沿 595 步放大」。</li>
-      <li><b>沒有根據(只是假說)</b>:「較低 LR + 更長訓練讓 flow-matching 的 velocity field
-          更平滑、ODE 積分更穩」——無具體文獻支持,且與 Q4 的混淆變數糾纏,當 hypothesis 看待。</li>
-    </ul>
-  </div>
-</div>
-
-<div class="qa">
-  <div class="q">Q6. backbone 從 Eagle 換成 Cosmos/Qwen3VL(DiT 不變),最終判決是什麼?</div>
-  <div class="a">
-    <ul>
-      <li><b>不是結構性缺陷</b>:同一個 N1.7 backbone 換 recipe/code 後達到 98%,反超 N1.6。</li>
-      <li><b>但 N1.7 的 train-loss floor 結構性偏高</b>(150k:2.8×;300k 仍 2.5× N1.6),
-          retrain 沒有改變這點——很可能源自不同 VLM/normalization;</li>
-      <li>而這個 loss 差距與閉迴路表現<b>完全脫鉤</b>(loss 較差的模型任務表現較好)。
-          工程結論:<b>N1.7 可用且優於 N1.6,不要拿 train loss 跨版本比較。</b></li>
-    </ul>
-  </div>
-</div>
-
-<div class="qa">
-  <div class="q">Q7. 沒有螢幕的 H100 可以跑閉迴路評測嗎?(headless 驗證)</div>
-  <div class="a">
-    <p><b>可以。</b>以 headless 模式且完全無 X display 重跑三個 checkpoint × 100 eps,
-    與視窗(:0)基準比較:94→98、75→78、98→95(總計 267/300 → 271/300)。
-    所有差異都在 binomial 抽樣噪音內,且成功 episode 的步數分布高度重疊
-    (渲染觀測等價的最強證據)。關鍵:agent 強制 <code>enable_cameras=True</code>,
-    headless 下相機仍離屏渲染。→ 成功率評測與參數調校可直接搬上無螢幕的 H100,
-    用 <code>HEADLESS=1</code> 開關。</p>
-  </div>
-</div>
-
-<div class="qa">
-  <div class="q">Q8. 評測數字的統計可信度?</div>
-  <div class="a">
-    <p>每個 checkpoint 100 episodes 的 binomial 標準誤 ≈ √(p(1−p)/100):p≈0.9 時約 ±3%、
-    p≈0.75 時約 ±4.3%。因此 94 / 75 / 98 之間的差距遠超噪音;而視窗 vs headless 的
-    ±3~4 點差異則在噪音內。失敗型態也一致:幾乎全是 timeout(595 步內未完成),
-    <b>0 例不安全終止</b>——模型「慢」而不「危險」。</p>
-  </div>
-</div>
-
-<div class="qa">
-  <div class="q">Q9. 專案結構(submodule)怎麼收斂?(Q3 清理)</div>
-  <div class="a">
-    <p>原則(使用者定):<b>IsaacLab submodule merge 回 develop 時差異量要最少;
-    不在 develop 上的東西盡量不要留在 IsaacLab 內。</b>做法見 §6。</p>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<h2 id="data">5. 最終數據與圖表</h2>
+<!-- ===================== -->
+<h2 id="c">5. 受控比較 C — 訓練步數幾乎不影響</h2>
 <section class="card">
-  <table>
-    <tr><th>Checkpoint</th><th class="num">視窗(:0)</th><th class="num">headless</th>
-        <th class="num">成功步數 mean/min/max(視窗)</th><th>失敗型態</th></tr>
-    <tr><td>N1.6-150k</td><td class="num">94/100</td><td class="num">98/100</td>
-        <td class="num">503 / 425 / 590</td><td>timeout 6%,unsafe 0%</td></tr>
-    <tr><td>N1.7-150k</td><td class="num">75/100</td><td class="num">78/100</td>
-        <td class="num">479 / 368 / 589</td><td>timeout 25%,unsafe 0%</td></tr>
-    <tr><td>N1.7-300k</td><td class="num"><span class="hl">98/100</span></td><td class="num">95/100</td>
-        <td class="num">435 / 341 / 533</td><td>timeout 2%,unsafe 0%(headless 2 例 unsafe,屬隨機)</td></tr>
-  </table>
-  <p><b>圖表</b>(每次 <code>run_eval.py</code> 跑完自動產生):</p>
+  <p>同 code、同 LR,150k 對 300k:</p>
   <ul>
-    <li><code>output/analysis/eval_results.svg</code> — 三面板 data-driven 圖:① train loss(log 曲線)
-        ② grad norm ③ 各 run 的 success/timeout/unsafe 長條(白底),直接呈現 loss 與 success 脫鉤。</li>
+    <li>LR 1e-4:150k <b>89%</b> vs 300k <b>88%</b> → 幾乎相同。</li>
+    <li>LR 5e-5:150k <b>98%</b> vs 300k <b>100%</b> → 差 2 點,落在抽樣噪音內。</li>
   </ul>
-  <p>原始證據:<code>output/eval/logs_mt/</code>(視窗)、<code>output/eval/logs_mt_headless/</code>
-  (headless)各 tag 的 <code>*_combined_episodes.log</code>;
-  manifest 在 <code>IsaacLab/output/infer_record/*_mt/</code>。
-  文字版報告:<code>output/eval/n16_vs_n17_300k_report.md</code>。</p>
+  <p><b>把步數從 150k 加到 300k 沒有帶來有意義的提升。</b> 真正的槓桿是動作表示(§3)與 LR(§4),不是更長的訓練。
+  150k step 對此任務已足夠。</p>
 </section>
 
-<!-- ============================================================ -->
-<h2 id="cleanup">6. 專案結構整理(評測 harness 與 submodule 瘦身)</h2>
+<!-- ===================== -->
+<h2 id="loss">6. 為什麼 train loss 不是指標</h2>
 <section class="card">
-  <div class="cols">
-    <div>
-      <h3 style="margin-top:0;">父 repo:<code>scripts/eval/</code>(自包含評測 harness)</h3>
-<pre><code>scripts/eval/
-├── run_eval.py           # ★ 唯一指令:top-level 排程(eval 缺的 run → 呼叫 analysis)
-├── gr00t_infer_agent.py  # IsaacSim client(gr00t+starvla)
-├── configs/              # eval_config.yaml(計畫+旋鈕)+ n15/n16/n17/starvla JSON
-├── analysis/             # aggregate.py、compare_runs.py(表)、make_loss_svg.py(圖)、make_curve_svg.py
-└── utils/                # factory、adapters、manifest、saver…</code></pre>
-      <p style="font-size:14px;">頂層排程 <code>run_eval.py</code> 讀 <code>eval_config.yaml</code>、跑缺的 run,
-      再交給 <code>analysis/</code> 出比較表與圖表;取代了舊的 4 個 shell 與互動啟動器。
-      starVLA adapter 為 lazy import,跑純 gr00t 不會載入 starVLA。</p>
-    </div>
-    <div>
-      <h3 style="margin-top:0;">IsaacLab submodule(貼齊 develop)</h3>
-      <ul style="font-size:14px;">
-        <li><code>gr00t_infer_agent.py</code>:對 develop <b>只剩 2 行</b>
-            (multitask prompt 字串修正,這是真 bug fix,該進 develop);</li>
-        <li><code>joint_mapper / episode_data_saver / gr00t_client_adapter</code>:
-            已 revert,對 develop <b>零差異</b>;</li>
-        <li>評測共用的 8 檔(factory、manifest、adapters、policy_configs、compare_runs)
-            已移出到 harness(其中僅 starvla adapter/config 為 starVLA 專用);</li>
-        <li>A 類(can_sorting env cfg + observations 的 multitask 觀測)留在 IsaacLab,
-            屬於要 merge 回 develop 的功能。</li>
-      </ul>
-    </div>
-  </div>
-  <div class="note">既有的 <code>feature/starVLA</code> ↔ develop 大量分歧(資料收集、teleop、
-  constants 等約 23 檔)為分支既有工作,不在本次清理範圍,維持現狀(使用者決定)。</div>
-</section>
-
-<!-- ============================================================ -->
-<h2 id="lessons">7. 本專案的收獲</h2>
-<section class="card">
+  <p>六個 checkpoint 的 final loss(0.0030 ~ 0.0103)與成功率<b>沒有單調關係</b>:</p>
+  <ul>
+    <li>loss 最低的是 N1.6(0.0030),成功率 94%,不是最高。</li>
+    <li>N1.7 相對動作 LR1e-4 的 loss(0.0103)比舊絕對動作(0.0077)<b>更高</b>,成功率卻從 77%→89%。</li>
+  </ul>
+  <p><b>兩個原因:</b></p>
   <ol>
-    <li><b>評測 harness 本身要先被驗證。</b>結論被「測試環境的一個 prompt 設定」翻轉過一次——
-        在相信任何模型比較前,先確認評測輸入(語言、相機、modality)與訓練資料分布一致。</li>
-    <li><b>Train loss 只能當哨兵。</b>跨 backbone 比 loss 沒有意義;訓練決策要靠
-        held-out open-loop MSE,最終判決靠 closed-loop success。</li>
-    <li><b>模仿學習的成敗在 rollout 分布,不在訓練分布。</b>O(T²ε) 的誤差累積讓
-        「平均誤差相同」的兩個模型在長 horizon 任務上表現迥異。</li>
-    <li><b>下結論前先列混淆變數。</b>150k→300k 同時換了 code repo,所以只能下
-        「整體 recipe 有效」的結論,不能歸因單一因子;需要 controlled run 才能切開。</li>
-    <li><b>100 episodes 的噪音是 ±3~4%。</b>個位數百分點的差異不要解讀;
-        失敗型態(timeout vs unsafe)比單一數字更有資訊量。</li>
-    <li><b>無人值守的評測需要 crash-resilient 設計。</b>server 常駐 + client 重啟補跑 +
-        以逐 episode log 為事實來源,讓 PhysX 隨機崩潰不再毀掉整晚的 run。</li>
-    <li><b>Headless 渲染與視窗等價</b>(本任務、RTX 4090 驗證)→ 評測可遷移到無螢幕的 H100。</li>
-    <li><b>訓練中評測要控制隨機性。</b>flow-matching 的 eval 若每次抽新 noise/timestep,
-        曲線的抖動來自 RNG 而非模型;固定 per-batch seed(common random numbers)才能看趨勢。</li>
-    <li><b>Submodule 衛生:</b>fork 專用工具放父 repo,submodule 對上游保持最小 diff,
-        merge 才不痛。</li>
+    <li><b>改了動作目標,loss 不可跨版本比較。</b> train loss 是 flow-matching 在「訓練資料動作目標」上的
+        velocity MSE。絕對動作與相對動作是<b>不同的目標分布</b>,兩者的 loss 數值本來就不可直接比大小——
+        所以「相對版 loss 較高」完全不代表它較差。</li>
+    <li><b>相對動作天生對閉迴路更友善。</b>(a)相對 delta 對絕對位置不變,policy 學的是「從現在狀態做小修正」;
+        (b)目標值接近 0、分布更集中,較好擬合且數值條件好;(c)閉迴路 rollout 時能抑制誤差累積 / drift。
+        這些改善的是<b>閉迴路行為</b>,不必然降低訓練分布上的 loss。</li>
+  </ol>
+  <p>正確的訊號層級仍是:train loss(只當發散哨兵)→ held-out open-loop action MSE → closed-loop success(最終真理)。</p>
+</section>
+
+<!-- ===================== -->
+<h2 id="limit">7. 限制與驗證實驗</h2>
+<section class="card">
+  <p><b>真正的差異(直接 diff 兩個 baked <code>conf.yaml</code>,預設值已 resolve):</b></p>
+  <ul>
+    <li><b>right_arm action rep:ABSOLUTE → RELATIVE</b>(主因,§3)。</li>
+    <li>warmup_ratio 0.05 → 0.1;shard_size 1024 → 2048(次要)。</li>
+    <li><b>相同(已排除為原因):</b> LR(1e-4)、steps(150k)、dataset(0403)、global_batch(32)、freeze 設定、
+        <code>state_dropout_prob</code>(<b>兩者都 0.2</b>——舊 run 是吃預設值,非差異)。</li>
+  </ul>
+  <p><b>關於 eval / open-loop / early-stopping 那批 commit(0605–0608):</b> 對<b>訓練出的權重沒有影響</b>——
+  0614 的 conf.yaml 顯示 <code>train_episode_indices: null</code> / <code>val_episode_indices: null</code>
+  (沒有切走任何訓練 episode)、<code>early_stopping_patience: 0</code>(關閉),且 <code>eval_strategy=no</code>;
+  那些是純監控功能,不改權重。</p>
+  <p><b>結論已被 ablation 鎖定:</b> 0615(新 code、只把 arm 改回絕對)把 warmup / shard_size / 626af89 等
+  全部一起控制住,成功率掉回 <b>76% ≈ 舊絕對 77%</b> → 這些都<b>不是</b>主因,<b>arm rep 才是</b>。
+  唯一沒被獨立切開的,只剩 warmup / shard_size 對「相對動作」可能的微小加成(89% 與 76/77% 的差距太大,不影響主結論)。</p>
+
+  <h3>驗證實驗狀態</h3>
+  <ol>
+    <li><b>✔ 已完成(關鍵 ablation):</b> 新 code、LR 1e-4 / 150k、arm 改回<b>絕對</b>
+        (<code>N1_7_fft_0615_150k_lr1e4_absolute</code>)→ <b>76%</b>(vs 相對 89%)。坐實相對動作是主因。</li>
+    <li><b>✔ 已確認:</b> arm rep 改變的 config 證據(原始 config 檔 + baked <code>conf.yaml</code>);
+        <code>state_dropout</code> 兩版皆 0.2(本來就不是候選);eval 基礎設施不改權重(<code>episode_indices=null</code>、early-stop off)。</li>
+    <li>(可選,未來)細掃 N1.7 最佳 LR(3e-5 / 5e-5 / 7e-5);以及在相對動作上單獨驗 warmup / shard_size(預期影響小)。</li>
   </ol>
 </section>
 
-<!-- ============================================================ -->
-<h2 id="appendix">8. 附錄:注意事項與文件索引</h2>
+<!-- ===================== -->
+<h2 id="method">8. 評測方法</h2>
 <section class="card">
-  <div class="note">
-    <b>注意事項</b>
-    <ul style="margin:6px 0 0;">
-      <li><code>artifacts/checkpoints/gr00t/N1_7_fft_0605_no_tune_visual</code>(0605 的 300k)
-          是 <b>bimanual</b> 模式訓練(MODE 未切到 right_only),只能當收斂/訓練動態參考,
-          不可與 right_only 系列比任務表現;正式 300k 是 0607 的
-          <code>N1_7_fft_0607_300k_no_tune_visual</code>。</li>
-      <li>2026-06 的原始證據在 <code>output/eval/logs_mt*/</code>;舊版固定-prompt 評測的 18%/51% 數字已作廢。</li>
-      <li>跑任何新評測前先備份既有 logs(<code>run_eval.py</code> 啟動時會清空同 tag 的 combined log)。</li>
-    </ul>
-  </div>
-  <table>
-    <tr><th>文件</th><th>內容</th></tr>
-    <tr><td><a href="../scripts/eval/README.md"><code>scripts/eval/README.md</code></a></td>
-        <td>評測 harness 的執行 + 分析 + 圖表 + 驗證的統一說明(指令與變數修改檔)</td></tr>
-    <tr><td><code>output/eval/n16_vs_n17_300k_report.md</code></td>
-        <td>評測結果的完整技術報告(Q1a–Q1e 原文)</td></tr>
-  </table>
+  <ul>
+    <li>入口:<code>scripts/eval/run_eval.py</code>(讀 <code>configs/eval_config.yaml</code>);每個 checkpoint 收 100 episodes,
+        crash-resilient(server 常駐、client 當掉自動重啟補跑),headless。</li>
+    <li>multitask:每步依 <code>scene_obs.target_object_color</code> 切換語言指令(橘盤 / 綠盤);
+        dataset 0403 僅一台相機,故 <code>pov_list=[head]</code>。失敗幾乎全是 timeout(595 步 horizon),unsafe 極少。</li>
+    <li>統計可信度:100 eps 的 binomial 標準誤約 ±3–4%;本報告所有結論的效果量都遠超此噪音。</li>
+    <li>成本參考:headless 下單一 checkpoint 100 eps 約 43 分鐘(RTX 4090)。</li>
+    <li>圖表:<code>output/analysis/eval_results.svg</code> 由 <code>run_eval.py</code> 跑完自動產生(三面板:train loss / grad norm / 成功率)。</li>
+  </ul>
 </section>
 
-<footer>GR00T N1.6 vs N1.7 閉迴路評測專案總結 · IsaacLab-GR00T · 2026-06-11</footer>
+<footer>GR00T N1.6 vs N1.7 閉迴路評測 · IsaacLab-GR00T · 重寫於 2026-06-16(含 0615 ablation)</footer>
 </main>
 </body>
 </html>

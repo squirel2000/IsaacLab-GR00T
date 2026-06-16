@@ -27,7 +27,7 @@ defaults:
   client_timeout_s: 14400     # hard cap per client attempt
   server_ready_timeout_s: 900
   server_ready_string: "Server is ready and listening"
-  logdir: output/eval/logs    # results land here; "_headless" is appended when headless
+  logdir: output/eval/logs    # all run logs land here
 
 env:
   isaaclab_repo: IsaacLab           # client (IsaacSim) checkout
@@ -42,22 +42,37 @@ env:
     DBUS_SESSION_BUS_ADDRESS: unix:path=/run/user/1000/bus
 
 runs:
-  - tag: n17_lr1e4_300k
-    config: gr00t_n17_openarm_o6.json
-    checkpoint: artifacts/checkpoints/gr00t/N1_7_fft_0609_300k_no_tune_visual/checkpoint-300000
-    save_id: n17_lr1e4_300k_multitask_checkpoint-300000_mt
-
   - tag: n16_lr1e4_150k
     config: gr00t_n16_openarm_o6.json
     checkpoint: artifacts/checkpoints/gr00t/openarm_linkerhando6_multitask_N16_150k_dataset_0403_no_tune_visual/checkpoint-150000
-    save_id: n16_lr1e4_150k_multitask_checkpoint-150000_mt
+    save_id: n16_lr1e4_150k_multitask_checkpoint-150000
 
   - tag: n17_lr1e4_150k
     config: gr00t_n17_openarm_o6.json
     checkpoint: artifacts/checkpoints/gr00t/openarm_linkerhando6_multitask_N17_150k_dataset_0403_no_tune_visual/checkpoint-150000
-    save_id: n17_lr1e4_150k_multitask_checkpoint-150000_mt
+    save_id: n17_lr1e4_150k_multitask_checkpoint-150000
+
+  - tag: n17_lr1e4_300k
+    config: gr00t_n17_openarm_o6.json
+    checkpoint: artifacts/checkpoints/gr00t/N1_7_fft_0609_300k_no_tune_visual/checkpoint-300000
+    save_id: n17_lr1e4_300k_multitask_checkpoint-300000
 
   - tag: n17_lr5e5_300k
     config: gr00t_n17_openarm_o6.json
     checkpoint: artifacts/checkpoints/gr00t/N1_7_fft_0607_300k_no_tune_visual/checkpoint-300000
-    save_id: n17_lr5e5_300k_multitask_checkpoint-300000_mt
+    save_id: n17_lr5e5_300k_multitask_checkpoint-300000
+
+  - tag: n17_lr1e4_150k_0614
+    config: gr00t_n17_openarm_o6.json
+    checkpoint: artifacts/checkpoints/gr00t/N1_7_fft_0614_150k_lr1e4_no_tune_visual/checkpoint-150000
+    save_id: n17_lr1e4_150k_0614_multitask_checkpoint-150000
+
+  - tag: n17_lr5e5_150k_0614
+    config: gr00t_n17_openarm_o6.json
+    checkpoint: artifacts/checkpoints/gr00t/N1_7_fft_0614_150k_lr5e5_no_tune_visual/checkpoint-150000
+    save_id: n17_lr5e5_150k_0614_multitask_checkpoint-150000
+
+  - tag: n17_lr1e4_absolute_150k_0615
+    config: gr00t_n17_openarm_o6.json
+    checkpoint: artifacts/checkpoints/gr00t/N1_7_fft_0615_150k_lr1e4_absolute_no_tune_visual
+    save_id: n17_lr1e4_absolute_150k_0615_multitask_checkpoint-150000

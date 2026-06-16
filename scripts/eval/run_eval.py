@@ -35,7 +35,7 @@ from pathlib import Path
 import yaml
 
 from analysis import compare_runs
-from analysis.aggregate import count_eps
+from analysis.aggregate import aggregate, count_eps, final_train_loss
 
 HERE = Path(__file__).resolve().parent       # scripts/eval/
 ROOT = HERE.parents[1]                        # IsaacLab-GR00T repo root
@@ -45,6 +45,12 @@ DEFAULT_CONFIG = HERE / "configs" / "eval_config.yaml"
 
 def log(msg: str) -> None:
     print(f"[{datetime.now():%F %T}] {msg}", flush=True)
+
+
+def fmt_elapsed(sec: float) -> str:
+    h, rem = divmod(int(sec), 3600)
+    m, s = divmod(rem, 60)
+    return f"{h}h{m:02d}m{s:02d}s" if h else f"{m}m{s:02d}s"
 
 
 def resolve_path(value) -> Path:
@@ -173,8 +179,20 @@ def wait_ready(server_log: Path, proc, ready: str, timeout: int) -> int:
     return 1
 
 
+def server_error_hint(server_log: Path) -> str:
+    """A short reason for a failed server launch, pulled from its log."""
+    if not server_log.exists():
+        return ""
+    txt = server_log.read_text(errors="ignore")
+    if "Address already in use" in txt:
+        return " (port busy — an old server is still running; run: pkill -9 -f run_gr00t_server)"
+    lines = [ln for ln in txt.splitlines() if ln.strip()]
+    return f" (last server log: {lines[-1][:160]})" if lines else ""
+
+
 def run_batch(r: dict, d: dict, env: dict, isaaclab: Path, logdir: Path, headless: bool, port=None) -> None:
     tag = r["tag"]
+    t0 = time.time()
     if port is not None:
         r["cfg"]["port"] = port  # parallel mode: a distinct port per concurrent run
     combined = logdir / f"{tag}_combined_episodes.log"
@@ -190,48 +208,54 @@ def run_batch(r: dict, d: dict, env: dict, isaaclab: Path, logdir: Path, headles
 
     log(f"=== {tag}: launching server ({r['cfg'].get('embodiment_tag', '?')}) on :{r['cfg']['port']} — ckpt {r['ckpt'].name} ===")
     proc = launch_server()
-    if wait_ready(server_log, proc, d["server_ready_string"], d["server_ready_timeout_s"]) != 0:
-        log(f"=== {tag}: SERVER NOT READY -- skipping ===")
-        kill_server(proc)
-        return
-    log(f"=== {tag}: server ready (pid {proc.pid}) ===")
+    try:
+        if wait_ready(server_log, proc, d["server_ready_string"], d["server_ready_timeout_s"]) != 0:
+            log(f"=== {tag}: SERVER NOT READY{server_error_hint(server_log)} -- skipping ===")
+            return
+        log(f"=== {tag}: server ready (pid {proc.pid}) ===")
 
-    cenv = client_env(env, r["cfg"])
-    attempt, done = 0, 0
-    while done < d["target"] and attempt < d["max_attempts"]:
-        attempt += 1
-        need = d["target"] - done
-        if proc.poll() is not None:
-            log(f"=== {tag}: server died; restarting ===")
-            proc = launch_server()
-            if wait_ready(server_log, proc, d["server_ready_string"], d["server_ready_timeout_s"]) != 0:
-                log(f"=== {tag}: server restart failed -- abort ===")
+        cenv = client_env(env, r["cfg"])
+        attempt, done = 0, 0
+        while done < d["target"] and attempt < d["max_attempts"]:
+            attempt += 1
+            need = d["target"] - done
+            if proc.poll() is not None:
+                log(f"=== {tag}: server died; restarting ===")
+                proc = launch_server()
+                if wait_ready(server_log, proc, d["server_ready_string"], d["server_ready_timeout_s"]) != 0:
+                    log(f"=== {tag}: server restart failed -- abort ===")
+                    break
+            clog = logdir / f"{tag}_client_attempt{attempt}.log"
+            log(f"=== {tag}: client attempt {attempt} -- need {need} more (have {done}/{d['target']}) ===")
+            cc = shlex.join(client_cmd(r, need, d, headless))
+            cbash = f"cd {shlex.quote(str(isaaclab))} && source {shlex.quote(env['conda_sh'])} && conda activate {env['isaaclab_conda_env']} && exec {cc}"
+            rc = 0
+            with open(clog, "w") as f:
+                try:
+                    rc = subprocess.run(["bash", "-c", cbash], stdout=f, stderr=subprocess.STDOUT,
+                                        env=cenv, timeout=d["client_timeout_s"]).returncode
+                except subprocess.TimeoutExpired:
+                    log(f"=== {tag}: client attempt {attempt} hit {d['client_timeout_s']}s timeout ===")
+                    rc = 124
+            got = [ln for ln in clog.read_text(errors="ignore").splitlines() if "finished after" in ln]
+            with combined.open("a") as f:
+                if got:
+                    f.write("\n".join(got) + "\n")
+            done = count_eps(combined)
+            log(f"=== {tag}: attempt {attempt} rc={rc}, +{len(got)} eps -> {done}/{d['target']} ===")
+            if rc == 0 and len(got) >= need:
                 break
-        clog = logdir / f"{tag}_client_attempt{attempt}.log"
-        log(f"=== {tag}: client attempt {attempt} -- need {need} more (have {done}/{d['target']}) ===")
-        cc = shlex.join(client_cmd(r, need, d, headless))
-        cbash = f"cd {shlex.quote(str(isaaclab))} && source {shlex.quote(env['conda_sh'])} && conda activate {env['isaaclab_conda_env']} && exec {cc}"
-        rc = 0
-        with open(clog, "w") as f:
-            try:
-                rc = subprocess.run(["bash", "-c", cbash], stdout=f, stderr=subprocess.STDOUT,
-                                    env=cenv, timeout=d["client_timeout_s"]).returncode
-            except subprocess.TimeoutExpired:
-                log(f"=== {tag}: client attempt {attempt} hit {d['client_timeout_s']}s timeout ===")
-                rc = 124
-        got = [ln for ln in clog.read_text(errors="ignore").splitlines() if "finished after" in ln]
-        with combined.open("a") as f:
-            if got:
-                f.write("\n".join(got) + "\n")
-        done = count_eps(combined)
-        log(f"=== {tag}: attempt {attempt} rc={rc}, +{len(got)} eps -> {done}/{d['target']} ===")
-        if rc == 0 and len(got) >= need:
-            break
-        time.sleep(5)
-
-    kill_server(proc)
-    time.sleep(4)
-    log(f"=== {tag}: DONE -- {done}/{d['target']} eps across {attempt} attempt(s) ===")
+            time.sleep(5)
+        a = aggregate(combined)
+        loss = final_train_loss(r["ckpt"] / "trainer_state.json")
+        loss_s = f"{loss:.4f}" if loss is not None else "—"
+        log(f"=== {tag}: DONE -- success {a['success']}/{a['n']} ({100 * a['rate']:.0f}%) | "
+            f"timeout {a['truncated']} | unsafe {a['terminated']} | loss {loss_s} | "
+            f"elapsed {fmt_elapsed(time.time() - t0)} | {attempt} attempt(s) ===")
+    finally:
+        # Always reap THIS run's server — incl. on Ctrl-C / exception — so it never orphans on :port.
+        kill_server(proc)
+        time.sleep(2)
 
 
 # --------------------------------------------------------------------------
@@ -255,7 +279,7 @@ def main() -> None:
     if not headless:
         run_env.update({k: str(v) for k, v in env_cfg.get("display", {}).items()})
 
-    logdir = resolve_path(d["logdir"] + ("_headless" if headless else ""))
+    logdir = resolve_path(d["logdir"])  # one logdir keyed by tag; headless/windowed share it (so reuse works across modes)
     logdir.mkdir(parents=True, exist_ok=True)
     jobs = max(1, int(d.get("jobs", 1)))
     log(f"########## EVAL START (target={d['target']}, headless={headless}, jobs={jobs}, logdir={logdir}) ##########")
@@ -283,7 +307,7 @@ def main() -> None:
     # hand off to analysis: comparison table + figure
     items = [(run["tag"], logdir / f"{run['tag']}_combined_episodes.log", load_run(run, cfg_dir)["ckpt"])
              for run in runs if count_eps(logdir / f"{run['tag']}_combined_episodes.log")]
-    chart = ROOT / "output" / "analysis" / f"eval_results{'_headless' if headless else ''}.svg"
+    chart = ROOT / "output" / "analysis" / "eval_results.svg"
     chart.parent.mkdir(parents=True, exist_ok=True)
     compare_runs.report(items, chart)
     log(f"comparison chart -> {chart}")

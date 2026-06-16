@@ -12,26 +12,38 @@ Integration glue for training and evaluating GR00T / StarVLA VLA models inside I
 
 ## 1. Collect a dataset
 
-Two paths produce a GR00T-compatible dataset for the G1 "open drawer, pick-and-place mug, pour water" task. Adjust target poses in [IsaacLab/scripts/gr00t_script/utils/constants.py](IsaacLab/scripts/gr00t_script/utils/constants.py).
+Two paths produce a GR00T-compatible dataset for the G1 "open drawer, pick-and-place mug, pour water" task. Adjust target poses in [IsaacLab/scripts/gr00t_script/utils/constants/](IsaacLab/scripts/gr00t_script/utils/constants/).
+
+Run IsaacLab commands from [IsaacLab/](IsaacLab/). Use `../datasets/...` paths when the output should land in the shared root [datasets/](datasets/) directory.
 
 **Option A — data-collection agent** (99.1% success / 2000 trials):
 ```bash
+cd IsaacLab
 ./isaaclab.sh -p scripts/gr00t_script/data_collect_agent.py
 ```
 
 **Option B — IsaacLab mimic pipeline** (98.5% success / 2000 trials):
 ```bash
-# Record 10 demonstrations → ./datasets/g1_cabinet_pour/g1_pour_dataset.hdf5
-./isaaclab.sh -p scripts/gr00t_script/record_g1.py --num_demos 10
+# Record 10 demonstrations -> ../datasets/g1_cabinet_pour/g1_pour_dataset.hdf5
+cd IsaacLab
+./isaaclab.sh -p scripts/gr00t_script/record_g1.py \
+  --num_demos 10 \
+  --dataset_file ../datasets/g1_cabinet_pour/g1_pour_dataset.hdf5
 
-# Annotate the recorded demonstrations → g1_pour_annotated.hdf5
-./isaaclab.sh -p scripts/gr00t_script/annotate_demos_g1.py
+# Annotate the recorded demonstrations -> g1_pour_annotated.hdf5
+./isaaclab.sh -p scripts/imitation_learning/isaaclab_mimic/annotate_demos_g1.py \
+  --input_file ../datasets/g1_cabinet_pour/g1_pour_dataset.hdf5 \
+  --output_file ../datasets/g1_cabinet_pour/g1_pour_annotated.hdf5
 
 # Generate the full HDF5 dataset
-./isaaclab.sh -p scripts/gr00t_script/generate_dataset_g1.py
+./isaaclab.sh -p scripts/imitation_learning/isaaclab_mimic/generate_dataset_g1.py \
+  --input_file ../datasets/g1_cabinet_pour/g1_pour_annotated.hdf5 \
+  --output_file ../datasets/g1_cabinet_pour/g1_pour_generated.hdf5
 
-# Convert HDF5 → Parquet + MP4 for GR00T
-python ./scripts/gr00t_script/convert_hdf5_to_parquet.py
+# Convert HDF5 -> Parquet + MP4 for GR00T
+python scripts/gr00t_script/convert_hdf5_to_parquet.py \
+  --hdf5_path ../datasets/g1_cabinet_pour/g1_pour_generated.hdf5 \
+  --output_dataset_dir ../datasets/G1_Inspire_Cabinet_Pour_Dataset
 ```
 
 ## 2. Generate dataset metadata for GR00T
@@ -39,7 +51,10 @@ python ./scripts/gr00t_script/convert_hdf5_to_parquet.py
 GR00T expects `info.json` and `episodes.jsonl` inside `<dataset>/meta/`. Generate them with:
 
 ```bash
-python scripts/utils/generate_dataset_meta.py ../datasets/G1_Inspire_Cabinet_Pour_Dataset
+cd IsaacLab
+python scripts/gr00t_script/utils/generate_dataset_meta.py \
+  --robot_type g1_inspire \
+  --dataset_root ../datasets/G1_Inspire_Cabinet_Pour_Dataset
 ```
 
 Requirements:
@@ -119,7 +134,7 @@ tensorboard --logdir ./artifacts/checkpoints/gr00t
 ### Recommended — single entry point
 
 [scripts/eval/run_eval.py](scripts/eval/run_eval.py) is the only eval entry point. It reads
-[scripts/eval/eval_config.yaml](scripts/eval/eval_config.yaml) (the eval plan + global knobs),
+[scripts/eval/configs/eval_config.yaml](scripts/eval/configs/eval_config.yaml) (the eval plan + global knobs),
 evals each checkpoint that lacks a complete log (crash-resilient: server stays up, client relaunches
 and accumulates episodes), then prints a comparison and writes a success-rate chart. Re-running with
 no new checkpoints just re-summarises existing logs.
