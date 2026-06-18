@@ -235,3 +235,12 @@ conda deactivate
 conda env remove --name isaaclab
 conda env create -f isaaclab_environment.yml -n isaaclab
 ```
+
+## AgentBot (agentic layer)
+
+`agentbot/` is the agentic stack from `architecture.png`: User Input → Brain (LLM) → Skill Layer → the GR00T
+VLA engine, watched by a Monitor/event bus. It reuses `scripts/eval/*` as block 5 (VLA in IsaacLab).
+
+- Architecture report: [`docs/agentbot_architecture.html`](docs/agentbot_architecture.html)
+- Package + run instructions: [`agentbot/README.md`](agentbot/README.md)
+

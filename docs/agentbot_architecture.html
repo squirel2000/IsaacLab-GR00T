@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IsaacLab-GR00T · AgentBot Architecture</title>
+<style>
+  :root{
+    --bg:#eef2f9; --card:#ffffff; --ink:#1f2937; --muted:#64748b; --line:#e2e8f0;
+    --teal:#0ea5e9; --teal2:#0284c7; --indigo:#6366f1; --violet:#8b5cf6;
+    --green:#10b981; --amber:#f59e0b; --rose:#f43f5e;
+    --shadow:0 10px 30px rgba(15,23,42,.08), 0 2px 6px rgba(15,23,42,.05);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0b1120; --card:#111a2e; --ink:#e5edf7; --muted:#94a3b8; --line:#1e293b;
+           --shadow:0 10px 30px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.35); }
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:radial-gradient(1200px 600px at 70% -10%, rgba(99,102,241,.14), transparent 60%),
+                       radial-gradient(900px 500px at 0% 0%, rgba(14,165,233,.12), transparent 55%), var(--bg);
+    color:var(--ink); font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,"PingFang TC","Microsoft JhengHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px; margin:0 auto; padding:48px 24px 80px}
+  header.hero{margin-bottom:28px}
+  .eyebrow{font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--teal2); font-weight:700}
+  h1{font-size:clamp(28px,4vw,42px); line-height:1.12; margin:8px 0 10px; letter-spacing:-.02em}
+  .lede{font-size:18px; color:var(--muted); max-width:820px; margin:0}
+  .flow-line{font:600 15px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:var(--ink);
+    background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 16px; margin:18px 0 0;
+    box-shadow:var(--shadow); overflow-x:auto; white-space:nowrap}
+  .flow-line b{color:var(--teal2)} .flow-line .f{color:var(--muted)}
+  .toc{display:flex; flex-wrap:wrap; gap:8px 16px; margin:20px 0 0; font-size:14px}
+  .toc a{color:var(--teal2); text-decoration:none} .toc a:hover{text-decoration:underline}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:18px; box-shadow:var(--shadow);
+    padding:26px 28px; margin:26px 0}
+  .diagram-card{padding:22px; background:#eef2f7; border-color:#d6deea;
+    --card:#ffffff; --ink:#1f2937; --muted:#586577; --line:#d3dbe6;}
+  .diagram-card .cap{color:#586577; font-size:13px; margin:2px 2px 12px}
+  h2{font-size:24px; margin:6px 0 6px; letter-spacing:-.01em; display:flex; align-items:center; gap:10px}
+  h2 .dot{width:12px; height:12px; border-radius:50%}
+  h3{font-size:17px; margin:22px 0 4px}
+  p{margin:10px 0}
+  code{font:13.5px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; background:rgba(99,102,241,.10);
+    padding:2px 6px; border-radius:6px}
+  pre{background:rgba(99,102,241,.06); border:1px solid var(--line); border-radius:12px; padding:14px 16px;
+    overflow-x:auto; font:12.5px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:var(--ink)}
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:16px; margin-top:18px}
+  .tile{border:1px solid var(--line); border-radius:14px; padding:16px 18px; background:linear-gradient(180deg,rgba(148,163,184,.05),transparent)}
+  .tile .k{font:600 13px ui-monospace,monospace; color:var(--teal2)}
+  .tile h4{margin:4px 0 6px; font-size:16px}
+  .tile p{margin:0; font-size:14px; color:var(--muted)}
+  table{width:100%; border-collapse:collapse; margin-top:16px; font-size:14.5px}
+  th,td{text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top}
+  th{color:var(--muted); font-weight:600; font-size:13px; letter-spacing:.03em}
+  td code{font-size:12.5px}
+  .pill{display:inline-block; font:600 12px ui-monospace,monospace; padding:2px 9px; border-radius:999px;
+    background:rgba(14,165,233,.14); color:var(--teal2)}
+  .pill.v{background:rgba(139,92,246,.16); color:var(--violet)}
+  .pill.g{background:rgba(16,185,129,.16); color:var(--green)}
+  .pill.a{background:rgba(245,158,11,.16); color:var(--amber)}
+  .note{border-left:4px solid var(--amber); background:rgba(245,158,11,.08); border-radius:0 12px 12px 0;
+    padding:12px 16px; margin:16px 0; font-size:14.5px}
+  .ok{border-left-color:var(--green); background:rgba(16,185,129,.08)}
+  img.shot{width:100%; border-radius:14px; border:1px solid var(--line); box-shadow:var(--shadow); display:block}
+  svg{width:100%; height:auto; display:block}
+  footer{color:var(--muted); font-size:13px; text-align:center; margin-top:36px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="eyebrow">IsaacLab-GR00T · AgentBot · v0.1 scaffold</div>
+    <h1>AgentBot — an agentic robot environment</h1>
+    <p class="lede">A natural-language command flows through an LLM brain that reasons, plans, and picks
+    parameterized <em>skills</em>; each skill drives the GR00T VLA to execute — today in the IsaacLab
+    simulator, tomorrow on the real OpenArm. A Monitor/event-bus watches every layer and closes the
+    feedback and immediate-safety loops. This document is the architecture for building that, mapped onto
+    the existing repo.</p>
+    <div class="flow-line"><b>1 User Input</b> <span class="f">→</span> <b>2 Brain / ClawBot</b>
+      <span class="f">→</span> <b>4 Skill Layer</b> <span class="f">→</span> <b>5 VLA Engine</b>
+      <span class="f">→</span> 6 Robot Control <span class="f">→</span> 7 Physical
+      &nbsp;&nbsp;|&nbsp;&nbsp; <b>3 Monitor</b> <span class="f">observes all + feedback</span></div>
+    <div class="toc">
+      <a href="#planes">① How 1·2·4·5 connect</a>
+      <a href="#blocks">② Block map</a>
+      <a href="#protocol">③ Protocol</a>
+      <a href="#stores">④ Monitor vs Memory vs Console</a>
+      <a href="#stack">⑤ Tools &amp; reuse</a>
+      <a href="#tree">⑥ Folders</a>
+      <a href="#hw">⑦ Sim → Hardware</a>
+      <a href="#roadmap">⑧ Roadmap</a>
+      <a href="#proof">⑨ Live proof</a>
+      <a href="#run">⑩ Run</a>
+    </div>
+  </header>
+
+  <!-- ===================== SYSTEM MAP (regenerated, animated, corrected) ===================== -->
+  <section class="card diagram-card">
+    <div class="cap">系統地圖（System Map）— 七個區塊的資料流，<b>重新繪製為高解析、可動畫版本</b>（取代原始低解析 <code>architecture.png</code>，資料流已校正）。虛線沿箭頭方向流動＝資料流方向。
+      &nbsp;<a href="agentbot_system_map.svg" target="_blank">↗ 開啟獨立大圖（.svg）</a></div>
+    <img class="shot" src="agentbot_system_map.svg" alt="AgentBot 系統地圖">
+    <div class="cap" style="margin-top:10px">本次交付上層 agentic stack <b>1·2·4·5 + 3</b>（模擬）；<span style="color:#be123c">6·7（實機）為未來，以紅色破折框表示</span>。圖塊顏色 = 區塊；箭頭顏色 = 資料流種類（見圖右圖例）。</div>
+  </section>
+
+  <!-- ===================== THREE PLANES ===================== -->
+  <section class="card" id="planes">
+    <h2><span class="dot" style="background:var(--teal)"></span>① How 1·2·4·5 connect — three planes over a shared bus</h2>
+    <p>The connection is <strong>not one big API</strong>. Three different communication shapes call for three
+    transports, and one hard constraint forces a process split: <strong>the VLA engine must run in the
+    <code>env_isaaclab</code> conda env and own a GPU</strong>, so block 4→5 has to cross a process (and possibly
+    machine) boundary.</p>
+    <div class="grid">
+      <div class="tile"><div class="k">Control plane</div><h4>HTTP + WebSocket</h4>
+        <p>Request/response + streaming dialogue for <b>1→2→4</b>. FastAPI. Low-rate, user-facing.</p></div>
+      <div class="tile"><div class="k">Execution plane</div><h4>Redis job queue</h4>
+        <p><b>4→5</b>: submit a <code>VlaTaskRequest</code> → get a <code>task_id</code>. Decouples the heavy GPU
+        rollout from the request, exactly like the pipeline's detached workers.</p></div>
+      <div class="tile"><div class="k">Event plane</div><h4>Redis Streams (pub/sub)</h4>
+        <p>The Monitor (3). Every layer publishes typed <code>Event</code>s; Console, Brain feedback, and the
+        SafetyWatchdog subscribe. This is the diagram's Event/State + Feedback + red Immediate-Safety arrows.</p></div>
+    </div>
+  </section>
+
+  <section class="card diagram-card">
+    <div class="cap">執行期拓樸（Runtime Topology）— 三個程序；Redis 是常駐 Core 與吃 GPU 的 VLA Worker 之間的接縫。<b>上下兩條平行軌道</b>＝任務佇列（紫）與事件串流（綠），互不交叉；虛線沿箭頭流動＝資料流方向。
+      &nbsp;<a href="agentbot_runtime_topology.svg" target="_blank">↗ 開啟獨立大圖（.svg）</a></div>
+    <img class="shot" src="agentbot_runtime_topology.svg" alt="AgentBot 執行期拓樸">
+  </section>
+
+  <section class="card">
+    <h2><span class="dot" style="background:var(--indigo)"></span>The data-flow, end to end</h2>
+    <table>
+      <tr><th style="width:34px">#</th><th>Step</th><th>Edge · transport</th></tr>
+      <tr><td>1</td><td>User speaks/types → <code>Gateway.normalize()</code> → <code>UserMessage</code></td><td>1→2 · <span class="pill">POST /v1/chat</span></td></tr>
+      <tr><td>2</td><td>Brain loads skills as LLM tools + recent memory, reasons (CoT), emits a structured <code>SkillPlan</code></td><td>2→4 · in-proc tool-calling</td></tr>
+      <tr><td>3</td><td>Skill validates the call against its spec, resolves the checkpoint, builds a <code>VlaTaskRequest</code>, enqueues it</td><td>4→5 · <span class="pill v">LPUSH agentbot:vla:tasks</span></td></tr>
+      <tr><td>4</td><td>VLA worker (env_isaaclab) dequeues, ensures the GR00T server is up, runs the IsaacLab rollout</td><td>5 · BRPOP + ZMQ</td></tr>
+      <tr><td>5</td><td>Worker streams <code>VlaTelemetry</code> + a terminal <code>VlaTaskResult</code> as <code>Event</code>s</td><td>5→3 · <span class="pill g">XADD agentbot:events</span></td></tr>
+      <tr><td>6</td><td>Monitor ingests → live state; Console + Brain feedback subscribe; the Brain replies or continues the plan</td><td>3→2→1 · WS <span class="pill g">/v1/events</span></td></tr>
+    </table>
+    <p class="note">Immediate safety short-circuits this: any <code>Event</code> of type <code>safety</code> with
+    <code>immediate=true</code> trips the <code>SafetyWatchdog</code> synchronously (sim: abort the task; hardware:
+    ROS2 e-stop) — the red 立即安全停止 arrow in the System Map above.</p>
+  </section>
+
+  <!-- ===================== BLOCK MAP ===================== -->
+  <section class="card" id="blocks">
+    <h2><span class="dot" style="background:var(--violet)"></span>② Block-by-block → where it lives</h2>
+    <table>
+      <tr><th>#</th><th>Diagram block</th><th>Component(s)</th></tr>
+      <tr><td><b>1</b></td><td>User Input — voice (ASR/TTS) · text · UI/button</td><td><code>brain/gateway.py</code> + <code>/v1/chat</code>, <code>/v1/chat/stream</code></td></tr>
+      <tr><td><b>2</b></td><td>ClawBot / Brain — gateway, LLM (Qwen3-VL), memory; reason · plan · select; <em>structured output</em></td><td><code>brain/agent.py</code>, <code>llm_client.py</code>, <code>memory/</code></td></tr>
+      <tr><td><b>3</b></td><td>Monitor / Event Bus — robot state · environment · safety · system; feedback loop</td><td><code>monitor/</code> — <code>event_bus · state_store · safety · ingest</code></td></tr>
+      <tr><td><b>4</b></td><td>Skill Layer — parameterized semantic action tools</td><td><code>skills/</code> — <code>base · registry · builtin/</code></td></tr>
+      <tr><td><b>5</b></td><td>VLA Execution Engine (System 2 + System 1) — GR00T + IsaacLab</td><td><code>vla/</code> — <code>worker · isaac_runner · policy_server</code> · reuses <code>scripts/eval/*</code></td></tr>
+      <tr><td><b>6</b></td><td>Robot Control (low-level) — motion/gripper/base; e-stop</td><td><span class="pill a">future</span> <code>vla/backends/hardware.py</code></td></tr>
+      <tr><td><b>7</b></td><td>Physical World</td><td><span class="pill a">future</span> OpenArm via <code>openarm_ros2</code></td></tr>
+    </table>
+  </section>
+
+  <!-- ===================== PROTOCOL ===================== -->
+  <section class="card" id="protocol">
+    <h2><span class="dot" style="background:var(--teal2)"></span>③ The protocol — Pydantic contracts</h2>
+    <p>The schemas in <code>agentbot/contracts/</code> <strong>are</strong> the protocol: one shared vocabulary,
+    serialized as JSON over both the API and the event bus, so every layer (and the future hardware backend)
+    speaks the same language. The "ClawBot Structured Output" box in the diagram is literally <code>SkillPlan</code>.</p>
+    <table>
+      <tr><th>Boundary</th><th>Message</th><th>Purpose</th></tr>
+      <tr><td>1↔2</td><td><code>UserMessage</code> / <code>AgentResponse</code></td><td>user turn in; NL reply + optional plan out</td></tr>
+      <tr><td>2→4</td><td><code>SkillPlan</code> → <code>SkillCall[]</code></td><td>intent + ordered, parameterized skill calls + safety flags</td></tr>
+      <tr><td>4</td><td><code>SkillSpec</code> · <code>.to_tool_schema()</code></td><td>declares params/constraints; exported as an LLM tool</td></tr>
+      <tr><td>4→5</td><td><code>VlaTaskRequest</code></td><td>task_name (gym id) · instruction · <b>checkpoint (resolved) + checkpoint_name</b> · params</td></tr>
+      <tr><td>5→3</td><td><code>VlaTelemetry</code> / <code>VlaTaskResult</code></td><td>per-step stream; terminal result + artifacts</td></tr>
+      <tr><td>any→3</td><td><code>Event</code> (+ <code>RobotState</code>, <code>SafetyEvent</code>, <code>SystemStatus</code>)</td><td>typed events on the bus</td></tr>
+    </table>
+    <div class="grid" style="grid-template-columns:1fr 1fr">
+      <div><h3>SkillPlan — the Brain's structured output (2→4)</h3>
+<pre>{
+  "intent": "tidy the table",
+  "goal": "can on the orange plate",
+  "calls": [
+    { "skill_call_id": "call_ab12",
+      "name": "sort_can",
+      "args": { "target_color": "orange" },
+      "safety_flags": ["avoid_human"],
+      "rationale": "user asked to sort onto orange" }
+  ]
+}</pre></div>
+      <div><h3>VlaTaskRequest — skill → engine (4→5)</h3>
+<pre>{
+  "task_id": "task_77f0",
+  "skill_call_id": "call_ab12",
+  "embodiment": "sim",
+  "task_name": "Isaac-Can-Sorting-OpenArm-DexHand-v0",
+  "instruction": "place the can on the orange plate",
+  "checkpoint": ".../N1_7_fft_0615_150k_lr1e4_absolute_no_tune_visual",
+  "checkpoint_name": "n17_150k_lr1e4_absolute",
+  "gr00t_ver": "N1.7",
+  "params": { "target_color": "orange" }
+}</pre></div>
+      <div><h3>sort_can as an LLM tool (so the Brain can pick it)</h3>
+<pre>{
+  "name": "sort_can",
+  "description": "Pick up the can and place it on the plate of the given color.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "target_color": { "enum": ["orange","green"], "description": "..." }
+    },
+    "required": ["target_color"]
+  }
+}</pre></div>
+      <div><h3>Event — telemetry on the bus (5→3)</h3>
+<pre>{
+  "event_id": "evt_5c1a",
+  "type": "vla_telemetry",
+  "source": "vla.isaac_runner",
+  "task_id": "task_77f0",
+  "payload": { "step": 8, "sim_time": 0.33, "inference_latency_s": 0.12 }
+}</pre></div>
+    </div>
+  </section>
+
+  <!-- ===================== STORES ===================== -->
+  <section class="card" id="stores">
+    <h2><span class="dot" style="background:var(--green)"></span>④ Monitor vs Memory vs Console — the DB/UI answer</h2>
+    <p>狀態 / 資料 / 記憶要算在 3·Monitor 還是另開一個？<strong>拆成三個關注點，不要混在一起</strong> — they have
+    different lifecycles, schemas, and consumers.</p>
+    <table>
+      <tr><th>Concern</th><th>Holds</th><th>Store</th><th>Owner</th></tr>
+      <tr><td><b>Monitor / Event Bus (3)</b></td><td>real-time events, live state, safety, feedback</td><td><span class="pill a">Redis</span> Streams + Hash</td><td><code>monitor/</code></td></tr>
+      <tr><td><b>Memory (block 2)</b></td><td>conversation, episodic outcomes, long-term semantic (RAG)</td><td><span class="pill">SQLite</span> + vector store</td><td><code>brain/memory/</code></td></tr>
+      <tr><td><b>Console / 介面</b></td><td>visualizes Monitor + Memory + artifacts</td><td>reads both (no store)</td><td><code>ui/</code> + <code>api/</code></td></tr>
+    </table>
+    <p class="note ok"><b>Why separate.</b> The Monitor must stay light and real-time because the immediate-safety
+    path runs through it. The Brain's memory is cognitive data with a different schema and a durable lifecycle.
+    The Console is just a read-only view of both — folding it into the Monitor would drag the real-time layer
+    down. Episode videos / parquet / manifest reuse <code>scripts/eval/utils/episode_data_saver.py</code>.</p>
+  </section>
+
+  <!-- ===================== STACK ===================== -->
+  <section class="card" id="stack">
+    <h2><span class="dot" style="background:var(--teal)"></span>⑤ Tools, tech stack &amp; reuse</h2>
+    <div class="grid">
+      <div class="tile"><div class="k">api</div><h4>FastAPI + Uvicorn</h4><p>HTTP + WebSocket control/event planes.</p></div>
+      <div class="tile"><div class="k">contracts</div><h4>Pydantic v2</h4><p>The protocol; JSON over API + bus.</p></div>
+      <div class="tile"><div class="k">backbone</div><h4>Redis</h4><p>Streams (events) · List (jobs) · Hash (state). One dependency, cross-process.</p></div>
+      <div class="tile"><div class="k">memory</div><h4>SQLite + vector</h4><p>Conversation/episodic + semantic RAG (Chroma, optional).</p></div>
+      <div class="tile"><div class="k">brain</div><h4>Pluggable LLM</h4><p>Default Qwen3-VL (local, vision); adapters for Claude / OpenAI.</p></div>
+      <div class="tile"><div class="k">ui</div><h4>Chart.js console</h4><p>Mirrors <code>scripts/pipeline/web/dashboard.py</code>.</p></div>
+    </div>
+    <h3>Block 5 is reused, not rewritten</h3>
+    <table>
+      <tr><th>Need</th><th>Existing asset</th></tr>
+      <tr><td>GR00T inference</td><td><code>python3 -m gr00t.eval.run_gr00t_server</code> (ZMQ :5555)</td></tr>
+      <tr><td>Policy client / version abstraction</td><td><code>scripts/eval/utils/gr00t_client_adapter.py</code>, <code>policy_client_factory.py</code></td></tr>
+      <tr><td>Rollout loop (obs→action→step)</td><td>port <code>scripts/eval/gr00t_infer_agent.py</code> → <code>vla/isaac_runner.py</code></td></tr>
+      <tr><td>Joint mapping · filter · saving · manifest</td><td><code>scripts/eval/utils/{joint_mapper,filter,episode_data_saver,run_manifest}.py</code></td></tr>
+      <tr><td>Server launch + readiness</td><td>lifted from <code>scripts/eval/run_eval.py</code> → <code>vla/policy_server.py</code></td></tr>
+    </table>
+    <p class="note"><b>Swappable checkpoint registry (never hardcoded).</b> Checkpoints are named in config
+    (<code>vla.checkpoints</code>) with a <code>default_checkpoint</code> pointer; <code>VlaCfg.resolve_checkpoint(name|path)</code>
+    resolves either a registry name or a literal path. Swap three ways: edit <code>default_checkpoint</code>, add an
+    entry, or pass <code>checkpoint</code> per request. Today's default is
+    <code>n17_150k_lr1e4_absolute</code> → <code>…/N1_7_fft_0615_150k_lr1e4_absolute_no_tune_visual</code>; the future
+    <code>n17_150k_lr5e5</code> → <code>…/N1_7_fft_0614_150k_lr5e5_no_tune_visual</code> is already registered.</p>
+  </section>
+
+  <!-- ===================== TREE ===================== -->
+  <section class="card" id="tree">
+    <h2><span class="dot" style="background:var(--violet)"></span>⑥ Folder / repo structure — one new top-level package</h2>
+    <p>新增一個與 <code>Isaac-GR00T/ · IsaacLab/ · scripts/</code> 並列的頂層 <code>agentbot/</code> 套件（留在 monorepo，
+    共用 <code>datasets/ · artifacts/checkpoints/</code>）。No separate repo — keeps cross-layer imports and deployment simple.</p>
+<pre>agentbot/
+  pyproject.toml            config/agentbot.example.yaml      # swappable checkpoint registry lives here
+  agentbot/
+    settings.py             # AppConfig + VlaCfg.resolve_checkpoint()
+    contracts/   common · messages · skills · vla · events   # THE PROTOCOL
+    monitor/     event_bus · state_store · job_queue · safety · ingest    # block 3 (Redis)
+    skills/      base · registry · builtin/{sort_can,pour_water}          # block 4
+    brain/       gateway · agent · llm_client · memory/{store,conversation,episodic,semantic}   # block 2
+    vla/         worker · isaac_runner · policy_server · backends/{sim,hardware}                 # block 5
+    api/         app · deps · routes_{chat,skills,vla,events}             # wires 1·2·4·5
+    ui/          console.html (Monitor · Chat · History · Memory)
+  tests/         contracts · skills · registry · event_bus · gateway · brain
+docs/agentbot_architecture.html      # this report</pre>
+  </section>
+
+  <!-- ===================== HARDWARE ===================== -->
+  <section class="card" id="hw">
+    <h2><span class="dot" style="background:var(--rose)"></span>⑦ Sim → Hardware (blocks 6·7, future)</h2>
+    <p><code>embodiment</code> is a first-class field on every request. Today <code>embodiment=sim</code> →
+    <code>vla/backends/sim.py</code> (IsaacLab). Switching to <code>embodiment=hardware</code> selects
+    <code>vla/backends/hardware.py</code>, which bridges the action chunk to the real robot via the existing
+    <code>Isaac-GR00T/scripts/sim2real/gr00t_control_robot.py</code> → ROS2 JointTrajectoryController → OpenArm
+    (<code>openarm_ros2</code>), and republishes <code>/joint_states</code>, <code>/vla/diagnostics</code>, and safety
+    back onto the same event bus (optionally through an MQTT↔ROS2 bridge). <strong>The Brain, Skill, and Monitor
+    layers do not change — only the backend.</strong></p>
+  </section>
+
+  <!-- ===================== ROADMAP ===================== -->
+  <section class="card" id="roadmap">
+    <h2><span class="dot" style="background:var(--amber)"></span>⑧ Phased roadmap</h2>
+    <table>
+      <tr><th>Phase</th><th>Scope</th><th>Status</th></tr>
+      <tr><td><b>0 · Scaffold</b></td><td>This report + the <code>agentbot/</code> package: contracts, services, event bus, API, console, tests. Demoable end-to-end with a fake VLA (no GPU).</td><td><span class="pill g">delivered</span></td></tr>
+      <tr><td><b>1 · MVP slice</b></td><td>Port <code>isaac_runner.run_rollout</code> from <code>gr00t_infer_agent.py</code>; real Qwen3-VL tool-calling; one skill drives a real IsaacLab episode.</td><td>next</td></tr>
+      <tr><td><b>2 · Breadth</b></td><td>More skills, multi-step plans, episodic + semantic memory (RAG), and a <b>hierarchical dashboard with control</b> (drill-down System→process→block→task→episode; pause / abort / e-stop; pick checkpoint; trigger skills) on top of the read-only Console.</td><td>—</td></tr>
+      <tr><td><b>3 · Hardware</b></td><td><code>backends/hardware.py</code> → ROS2; safety on real signals; sim/real parity.</td><td>—</td></tr>
+    </table>
+  </section>
+
+  <!-- ===================== PROOF ===================== -->
+  <section class="card" id="proof">
+    <h2><span class="dot" style="background:var(--green)"></span>⑨ Live proof — the scaffold runs today</h2>
+    <p>The whole 1·2·4·5 + 3 chain runs in a single process with no Redis and no GPU (an in-proc fake VLA
+    executor stands in for block 5). A text command becomes a <code>SkillPlan</code>, the skill is dispatched with
+    a chosen checkpoint, the fake engine streams telemetry, and the Monitor ingests it — all visible on the
+    read-only Console below.</p>
+    <img class="shot" src="agentbot-console-monitor.png" alt="AgentBot console — live Monitor tab">
+    <div class="legend" style="margin-top:12px">
+      <span>23 unit tests green</span> · <span>POST /v1/chat → SkillPlan</span> ·
+      <span>checkpoint override n17_150k_lr5e5 honored</span> · <span>bad enum → 422</span>
+    </div>
+  </section>
+
+  <!-- ===================== RUN ===================== -->
+  <section class="card" id="run">
+    <h2><span class="dot" style="background:var(--teal2)"></span>⑩ How to run</h2>
+<pre># 1. install — uv builds an isolated .venv from pyproject (不會動到你的 conda envs)
+cd agentbot && uv sync
+
+# 2. tests (no Redis / GPU)
+uv run pytest -q                         # 23 passed
+
+# 3. single-process demo (in-proc bus + fake VLA) — open http://localhost:8780
+uv run uvicorn agentbot.api.app:app --port 8780
+
+# 4. real, multi-process:
+redis-server &                                          # set backbone: redis in config/agentbot.yaml
+uv run uvicorn agentbot.api.app:app --port 8780         # Core + Console
+# VLA worker runs in env_isaaclab (has IsaacLab); install agentbot there once:
+conda activate env_isaaclab && pip install -e . && python -m agentbot.vla.worker
+uv run python -m agentbot.vla.worker --fake --selftest  # no-GPU plumbing check
+
+# swap the checkpoint: edit vla.default_checkpoint, or per request:
+curl -X POST :8780/v1/skills/sort_can/invoke \
+  -d '{"args":{"target_color":"orange"},"checkpoint":"n17_150k_lr5e5"}'</pre>
+  </section>
+
+  <footer>IsaacLab-GR00T · AgentBot v0.1 scaffold · updated 2026-06-18 · 圖表為動畫 SVG（虛線沿箭頭流動＝資料流）· see <code>agentbot/README.md</code> · 進度追蹤 <code>agentbot/TASKS.md</code></footer>
+</div>
+</body>
+</html>
