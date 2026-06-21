@@ -170,21 +170,35 @@ def put(s, local, remote):
 # --------------------------------------------------------------------------- #
 #  Resumable, verified download via the raw /files endpoint (HTTP Range)
 # --------------------------------------------------------------------------- #
-def remote_size(s, rel):
-    """Return a server file's total byte size, probed with a Range 0-0 request."""
+def remote_size(s, rel, _max_tries=6):
+    """Return a server file's total byte size, probed with a Range 0-0 request.
+    Retries transient network errors (e.g. ReadTimeout) with backoff — otherwise a single
+    server hiccup on one file's probe would abort a whole recursive directory download."""
+    import requests
+
     rel = relpath(rel)
-    r = s.get(files_url(rel), params={"_xsrf": s.cookies.get("_xsrf")},
-              headers={"Range": "bytes=0-0"}, stream=True, timeout=(30, 60))
-    if r.status_code in (401, 403):
-        r.close(); relogin(s); return remote_size(s, rel)
-    if r.status_code == 206:
-        total = int(r.headers["Content-Range"].split("/")[-1])   # "bytes 0-0/TOTAL"
-    elif r.status_code == 200:
-        total = int(r.headers.get("Content-Length", 0))
-    else:
-        r.close(); r.raise_for_status()
-    r.close()
-    return total
+    for attempt in range(1, _max_tries + 1):
+        try:
+            r = s.get(files_url(rel), params={"_xsrf": s.cookies.get("_xsrf")},
+                      headers={"Range": "bytes=0-0"}, stream=True, timeout=(30, 60))
+            if r.status_code in (401, 403):
+                r.close(); relogin(s); continue
+            if r.status_code == 206:
+                total = int(r.headers["Content-Range"].split("/")[-1])   # "bytes 0-0/TOTAL"
+            elif r.status_code == 200:
+                total = int(r.headers.get("Content-Length", 0))
+            else:
+                r.close(); r.raise_for_status()
+            r.close()
+            return total
+        except (requests.exceptions.RequestException, ssl.SSLError, OSError) as e:
+            if attempt >= _max_tries:
+                raise
+            wait = min(30, 2 ** attempt)
+            sys.stdout.write(f"\n  ! size probe interrupted ({type(e).__name__}); "
+                             f"retry in {wait}s (try {attempt})\n")
+            sys.stdout.flush()
+            time.sleep(wait)
 
 
 def sha256_file(path, chunk=1 << 20):
