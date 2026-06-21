@@ -12,5 +12,16 @@
       "envManager": "ms-python.python:conda",
       "packageManager": "ms-python.python:conda"
     }
-  ]
+  ],
+  "livePreview.defaultPreviewPath": "/docs/agentbot_architecture.html",
+  "chat.tools.terminal.autoApprove": {
+    "/^python - <<'PY'\nfrom pathlib import Path\nimport re\nimport xml\\.etree\\.ElementTree as ET\nroot = Path\\('/home/asus/Gits/IsaacLab-GR00T/agentbot/docs'\\)\nfiles = sorted\\(root\\.glob\\('\\*\\.svg'\\)\\)\nns = \\{'svg':'http://www\\.w3\\.org/2000/svg'\\}\nfor path in files:\n    tree = ET\\.parse\\(path\\)\n    bad = \\[\\]\n    for el in tree\\.getroot\\(\\)\\.iter\\('\\{http://www\\.w3\\.org/2000/svg\\}path'\\):\n        cls = el\\.attrib\\.get\\('class', ''\\)\n        if any\\(token in cls\\.split\\(\\) for token in \\('flow','fut','safe','rt'\\)\\):\n            d = el\\.attrib\\.get\\('d', ''\\)\n            if re\\.search\\(r'\\[CcQqSsTt\\]', d\\):\n                bad\\.append\\(d\\)\n    print\\(f'\\{path\\.name\\}: XML OK; connector curves=\\{len\\(bad\\)\\}'\\)\n    for d in bad:\n        print\\('  ', d\\)\nPY$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^python - <<'PY'\nfrom pathlib import Path\nimport re\nfor path in sorted\\(Path\\('/home/asus/Gits/IsaacLab-GR00T/agentbot/docs'\\)\\.glob\\('\\*\\.svg'\\)\\):\n    text = path\\.read_text\\(encoding='utf-8'\\)\n    viewbox = re\\.search\\(r'viewBox=\"\\(\\[\\^\"\\]\\+\\)\"', text\\)\\.group\\(1\\)\n    markers = re\\.findall\\(r'markerWidth=\"\\(\\[\\^\"\\]\\+\\)\"', text\\)\n    print\\(f'\\{path\\.name\\}: viewBox=\\{viewbox\\}; markerWidth=\\{sorted\\(set\\(markers\\)\\)\\}'\\)\nPY$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
+  }
 }
