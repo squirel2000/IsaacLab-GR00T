@@ -1,0 +1,29 @@
+# Minimal config: Product B (swapped backbone) vs baseline 0614 (reused). Item 3.
+defaults:
+  task: Isaac-Can-Sorting-OpenArm-DexHand-v0
+  target: 30
+  max_attempts: 12
+  jobs: 1
+  headless: true
+  save_video: false
+  filter: true
+  multitask: true
+  pov_list: [head]
+  openarm_hand_type: linkerhand_o6
+  client_timeout_s: 14400
+  server_ready_timeout_s: 900
+  server_ready_string: "Server is ready and listening"
+  logdir: output/eval/logs
+env:
+  isaaclab_repo: IsaacLab
+  isaaclab_conda_env: env_isaaclab
+  conda_sh:
+runs:
+  - tag: n17_lr1e4_150k_0614
+    config: gr00t_n17_openarm_o6.json
+    checkpoint: artifacts/checkpoints/gr00t/N1_7_fft_0614_150k_lr1e4_no_tune_visual/checkpoint-150000
+    save_id: n17_lr1e4_150k_0614_multitask_checkpoint-150000
+  - tag: n17_cosmosR2lora_6phase_swapped
+    config: gr00t_n17_openarm_o6.json
+    checkpoint: artifacts/checkpoints/gr00t/swapped_checkpoints/N1_7_cosmosR2lora_6phase_swapped
+    save_id: n17_cosmosR2lora_6phase_swapped
