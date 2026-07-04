@@ -1,0 +1,87 @@
+# Pipeline configuration template. Copy to config.yaml (same dir) and fill in:
+#     copy scripts\pipeline\config.example.yaml scripts\pipeline\config.yaml
+# config.yaml is gitignored (it holds LAN/server credentials + your wandb key).
+
+pegasus:
+  state_root: /data/VLA/<you>/pegasus_runs
+  password: "<PEGASUS_PASSWORD>"        # company-internal Jupyter password for the H100 box
+
+wandb:
+  # Per-user key, injected into the training job's ENV at launch (never committed/logged).
+  api_key: "<YOUR_WANDB_API_KEY>"
+
+active_profile: n1d7
+
+profiles:
+  n1d5:
+    train_cwd: /data/VLA/<you>/IsaacLab-GR00T/Isaac-GR00T
+    env_activate: 'eval "$(/home/<user>/miniforge3/bin/conda shell.bash hook)" && conda activate /path/to/envs/gr00t_n1d5'
+    import_check: 'python3 -c "import gr00t"'
+    dataset_path: /data/VLA/datasets/<dataset>
+    output_dir: /data/VLA/experiments/<.../checkpoint_dir>
+    max_steps: 100000
+    train_cmd_template: >
+      TOKENIZERS_PARALLELISM=false CUDA_VISIBLE_DEVICES={gpu} python3 scripts/gr00t_finetune.py
+      --dataset-path {dataset_path} --output-dir {output_dir} --gpu-id {gpu} --num-gpus 1
+      --batch-size 32 --data-config openarm_linkerhand_o6 --embodiment_tag new_embodiment
+      --max-steps {max_steps} --save-steps 2000 --dataloader-num-workers 4 --learning-rate 1e-4
+
+  n1d7:
+    train_cwd: /data/VLA/<you>/IsaacLab-GR00T/Isaac-GR00T_n1d7
+    env_activate: 'true'                 # n1d7 uses uv, no conda activation needed
+    import_check: 'uv run python -c "import gr00t"'
+    dataset_path: /data/VLA/datasets/OpenArm_CanSorting_MultiTask_dataset_O6_0403
+    output_dir: /data/VLA/<you>/IsaacLab-GR00T/artifacts/checkpoints/gr00t/<run_name>
+    max_steps: 300000
+    # Drives the repo's own right_only finetune script via env overrides. DATALOADER_NUM_WORKERS=4
+    # avoids the in-process video-decode stall (the script default 0 idles the GPU on shard caches).
+    train_cmd_template: >
+      MODE=right_only NUM_GPUS=1 USE_WANDB=1 CUDA_VISIBLE_DEVICES={gpu}
+      DATASET_PATH={dataset_path} OUTPUT_DIR={output_dir}
+      MAX_STEPS={max_steps} SAVE_STEPS=5000 LEARNING_RATE=1e-4 DATALOADER_NUM_WORKERS=4
+      EVAL_STRATEGY=steps EVAL_STEPS=5000 EVAL_SPLIT=0.1 EVAL_MAX_SHARDS=8
+      bash examples/Openarm_LinkerHandO6/finetune_openarm_o6.sh
+
+training:
+  gpu_idle_threshold_util: 10
+  gpu_idle_threshold_mem_gb: 5.0
+  gpu_poll_interval_min: 30
+  monitor_interval_sec: 60
+  connect_retry_max: 3
+  connect_retry_interval_sec: 10
+  force_gpu: null                        # null = auto-pick by gpu_priority; set 0/1 to hard-pin
+  gpu_priority: [1, 0]                    # search order: prefer GPU1, fall back to GPU0
+
+local:
+  download_dir: D:\Gits\IsaacLab-GR00T\artifacts\checkpoints\gr00t
+
+asus4090:
+  host: 192.168.32.185
+  user: asus
+  password: "<ASUS4090_PASSWORD>"
+  deploy_dir: /home/asus/Gits/IsaacLab-GR00T/artifacts/checkpoints/gr00t/
+  retry_max: 3
+
+wifi:
+  external: cj                           # internet SSID key (see tools/common/wifi_switch.py NETWORKS)
+  local: omap                            # OMAP lab LAN SSID key
+  internet_check_ip: 8.8.8.8
+  net_ready_timeout_sec: 60
+
+# EVAL stage: closed-loop IsaacSim eval on the H100, right after training.
+# Disabled by default — enable only once the H100 has THIS branch's agents/evalbot/harness AND the
+# IsaacSim + policy-server conda envs. Then the pipeline runs eval before download/deploy
+# and the report embeds the success-rate chart.
+eval:
+  enabled: false
+  target_episodes: 100                   # episodes to collect per checkpoint
+  task: Isaac-Can-Sorting-OpenArm-DexHand-v0
+  backend_config: agents/evalbot/harness/configs/gr00t_n17_openarm_o6.json  # server/connection spec
+  openarm_hand_type: linkerhand_o6
+  save_video: false
+  # H100-side paths (absolute or relative to the superproject root). h100_repo_root defaults
+  # to the parent of the n1d7 train_cwd (the superproject that holds agents/evalbot/harness).
+  h100_repo_root:                        # e.g. /data/VLA/<you>/IsaacLab-GR00T  (empty = auto)
+  isaaclab_repo: IsaacLab                # IsaacSim client checkout (relative to repo root)
+  isaaclab_conda_env: env_isaaclab
+  conda_sh:                              # empty = auto-detect from CONDA_EXE/PATH

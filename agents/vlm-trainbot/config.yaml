@@ -1,0 +1,16 @@
+# vlm-trainbot — agent settings (paths always via workspace.yaml keys)
+agent: vlm-trainbot
+purpose: VQA-gen -> LoRA -> merge (Product A) -> swap (Product B) -> eval
+
+engines:
+  - isaac_gr00t_vlm
+  - isaac_gr00t_n1d7   # swap-target baseline VLA
+
+datasets: datasets      # workspace.yaml key
+outputs:
+  product_a: artifacts/checkpoints/gr00t/lora_tuned_vlm
+  product_b: artifacts/checkpoints/gr00t/swapped_checkpoints
+
+entrypoints:
+  runbook: agents/vlm-trainbot/README.md
+  engine_config: engines/vlm/Isaac-GR00T-VLM/configs/default.yaml

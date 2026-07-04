@@ -1,0 +1,13 @@
+# teleopbot — agent settings (paths always via workspace.yaml keys)
+agent: teleopbot
+purpose: teleoperation + demonstration data collection for VLA training
+
+engines:
+  - openarm_teleop
+  - openarm_ros2
+
+outputs:
+  datasets: datasets    # LeRobot v2 episodes for fine-tuning
+
+entrypoints:
+  engine_doc: engines/robot/openarm_teleop/README.md

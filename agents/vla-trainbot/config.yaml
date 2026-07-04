@@ -1,0 +1,23 @@
+# vla-trainbot — agent settings (paths always via workspace.yaml keys)
+agent: vla-trainbot
+purpose: fine-tune GR00T N1.x / starVLA into deployable VLA checkpoints
+
+engines:                        # workspace.yaml keys
+  - isaac_gr00t
+  - isaac_gr00t_n1d7
+  - starvla
+
+harness: vla_harness            # workspace.yaml key -> the train->eval->deploy state machine
+tools: common_tools             # pegasus.py / run_finetune.py / wifi_switch.py
+
+outputs:
+  checkpoints: gr00t_checkpoints  # workspace.yaml key
+  state: var/pipeline_state.json
+  metrics: var/logs/metrics.jsonl
+  reports: var/
+
+entrypoints:
+  run: python agents/vla-trainbot/trainbot.py run
+  status: python agents/vla-trainbot/trainbot.py status
+  dashboard: python agents/vla-trainbot/trainbot.py dashboard
+  tests: python3 -m unittest discover -s agents/vla-trainbot/tests

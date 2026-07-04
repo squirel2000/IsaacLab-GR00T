@@ -1,0 +1,20 @@
+# evalbot — agent settings (paths always via workspace.yaml keys)
+agent: evalbot
+purpose: closed-loop IsaacLab evaluation of trained VLA checkpoints
+
+engines:
+  - isaaclab
+  - isaac_gr00t
+  - isaac_gr00t_n1d7
+  - starvla
+
+harness: eval_harness           # workspace.yaml key -> run_eval.py + configs/ + utils/
+checkpoints: gr00t_checkpoints
+
+outputs:
+  logs: var/eval/logs
+  analysis: var/analysis
+
+entrypoints:
+  run: python agents/evalbot/harness/run_eval.py
+  plan: agents/evalbot/harness/configs/eval_config.yaml

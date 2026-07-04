@@ -18,17 +18,13 @@ __pycache__/
 
 /tmp/
 
-# Automation pipeline: local config (may hold LAN credentials), runtime state, logs, reports
+# Automation pipeline: local config (may hold LAN credentials)
 /config.yaml
-/scripts/pipeline/config/config.yaml
-/pipeline_state.json
-/logs/
-/report_*.html
+/agents/vla-trainbot/harness/config/config.yaml
+
+# Per-agent runtime workspace (state, logs, reports, eval recordings) — never versioned.
+# agents/agentbot has its own repo/.gitignore for its var/.
+agents/*/var/
 
 # Local environment files
 cookies.txt
-
-# output/ is the local eval & analysis workspace. Keep the runner scripts,
-# analysis generators and the comparison figures, but never version the
-# transient run/eval logs they produce.
-output/

@@ -1,0 +1,9 @@
+# rosbot — agent settings (paths always via workspace.yaml keys)
+agent: rosbot
+purpose: OpenArm ROS2 bring-up (sim / RViz / controllers / diagnostics)
+
+engines:
+  - openarm_ros2
+
+entrypoints:
+  engine_doc: engines/robot/openarm_ros2/README.md

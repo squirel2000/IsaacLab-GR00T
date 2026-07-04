@@ -1,0 +1,34 @@
+# =============================================================================
+# workspace.yaml — single source of truth for WHERE everything lives in this
+# monorepo. It is also the ROOT MARKER: scripts discover the workspace root by
+# walking up from their own location until they find this file.
+#
+# Format: flat `key: relative/path` lines (parsed by agents/tools/workspace_paths.py
+# and paths.env without a YAML library — keep it flat, one `key: value` per
+# line, `#` comments only).
+#
+# When a directory moves, update its line here; consumers resolve through these
+# keys instead of hardcoding.
+# =============================================================================
+
+# --- agents (control plane) ---
+agentbot: agents/agentbot
+eval_harness: agents/evalbot/harness
+vla_harness: agents/vla-trainbot/harness
+
+# --- engines (execution plane) ---
+isaac_gr00t: engines/vla/Isaac-GR00T
+isaac_gr00t_n1d7: engines/vla/Isaac-GR00T_n1d7
+starvla: engines/vla/starVLA
+isaac_gr00t_vlm: engines/vlm/Isaac-GR00T-VLM
+isaaclab: engines/sim/IsaacLab
+openarm_ros2: engines/robot/openarm_ros2
+openarm_teleop: engines/robot/openarm_teleop
+
+# --- shared tools (inside the control plane) ---
+common_tools: agents/tools/common
+
+# --- data plane (stable; not expected to move) ---
+datasets: datasets
+artifacts: artifacts
+gr00t_checkpoints: artifacts/checkpoints/gr00t
