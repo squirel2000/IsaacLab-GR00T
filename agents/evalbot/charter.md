@@ -24,6 +24,11 @@ compute success rates → produce comparison charts and analysis.
 - **agentbot**'s runtime reuses this harness (`gr00t_infer_agent.py` + configs +
   utils), resolved through its `vla.eval_harness` setting — keep the client
   interface stable or update agentbot in lockstep.
+- The IsaacLab repo keeps its own independent `scripts/gr00t_script/gr00t_infer_agent.py`
+  (older interface, `--record_episode`; used by its `run_simulation.sh` in
+  standalone `$HOME` checkouts, maintained by multiple contributors). It is NOT
+  this harness — in this workspace, `harness/gr00t_infer_agent.py` is authoritative
+  and the two are intentionally left to evolve separately.
 
 ## Notes
 

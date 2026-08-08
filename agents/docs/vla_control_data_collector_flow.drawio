@@ -1,0 +1,95 @@
+<mxfile host="65bd71144e">
+    <diagram name="diagram" id="d1">
+        <mxGraphModel dx="3031" dy="1662" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1540" pageHeight="1205" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="c_inputs" parent="1" style="rounded=1;arcSize=4;container=1;collapsible=0;verticalAlign=top;dashed=1;whiteSpace=wrap;html=1;fillColor=#f4f6f9;strokeColor=#7a8694;fontColor=#3a4452;fontSize=13;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;" value="&lt;b&gt;Inputs — sampled every tick&lt;/b&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;&quot;&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;" vertex="1">
+                    <mxGeometry height="165" width="1040" x="60" y="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_cam" parent="c_inputs" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7a8694;fontColor=#1b2330;fontSize=12;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;" value="&lt;b&gt;Camera (ZED / webcam)&lt;/b&gt;&lt;br/&gt;opened directly via CameraFactory&lt;br/&gt;— raw decoded RGB frames, NOT a&lt;br/&gt;ROS topic" vertex="1">
+                    <mxGeometry height="90" width="280" x="40" y="55" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_topic_state" parent="c_inputs" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7a8694;fontColor=#1b2330;fontSize=12;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;" value="&lt;b&gt;/joint_states&lt;/b&gt;&lt;br/&gt;ROS2 topic — state" vertex="1">
+                    <mxGeometry height="90" width="260" x="375" y="55" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_topic_action" parent="c_inputs" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7a8694;fontColor=#1b2330;fontSize=12;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;" value="&lt;b&gt;/joint_actions&lt;/b&gt;&lt;br/&gt;ROS2 topic — action" vertex="1">
+                    <mxGeometry height="90" width="280" x="700" y="55" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_sampling" parent="1" style="rounded=1;arcSize=4;container=1;collapsible=0;verticalAlign=top;dashed=1;whiteSpace=wrap;html=1;fillColor=#eaf1fd;strokeColor=#2f6fd0;fontColor=#1b2330;fontSize=13;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=6;" value="&lt;b&gt;collection_loop() — background thread, fixed 30 Hz (control_hz)&lt;/b&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;" vertex="1">
+                    <mxGeometry height="165" width="740" x="60" y="305" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_loop_ram" parent="c_sampling" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#2f6fd0;fontColor=#1b2330;fontSize=12;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;" value="&lt;b&gt;Sample all 3 sources -&amp;gt; current_episode (RAM)&lt;/b&gt;&lt;br/&gt;one synchronized read per tick; appended only while recording =&lt;br/&gt;True" vertex="1">
+                    <mxGeometry height="90" width="620" x="40" y="55" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_ui" parent="1" style="rounded=1;arcSize=4;container=1;collapsible=0;verticalAlign=top;dashed=1;whiteSpace=wrap;html=1;fillColor=#f1ebf9;strokeColor=#6b3fa0;fontColor=#1b2330;fontSize=13;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;" value="&lt;b&gt;Dashboard UI (PySide6)&lt;/b&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;" vertex="1">
+                    <mxGeometry height="152" width="280" x="700" y="480" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_keys" parent="c_ui" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6b3fa0;fontColor=#1b2330;fontSize=12;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;" value="&lt;b&gt;Keyboard shortcuts&lt;/b&gt;&lt;br/&gt;O start/stop&lt;br/&gt;R discard + reset pose&lt;br/&gt;T toggle teleop&lt;br/&gt;M next task  ·  Q quit" vertex="1">
+                    <mxGeometry height="82.9090909090909" width="220" x="41" y="40.00424242424243" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_trigger" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#d97706;fontColor=#1b2330;fontSize=12;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;" value="&lt;b&gt;take_episode() -&amp;gt; save_episode()&lt;/b&gt;&lt;br/&gt;triggered by the UI&amp;#x27;s O key (stop) or app quit — runs&lt;br/&gt;on a background worker thread" vertex="1">
+                    <mxGeometry height="110" width="460" x="181" y="510" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_writes" parent="1" style="rounded=1;arcSize=4;container=1;collapsible=0;verticalAlign=top;dashed=1;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#d97706;fontColor=#7a4a06;fontSize=13;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=6;" value="&lt;b&gt;save_episode() — worker thread (event-triggered write, NOT a fixed schedule)&lt;/b&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;" vertex="1">
+                    <mxGeometry height="185" width="940" x="-59" y="660" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_parquet" parent="c_writes" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d97706;fontColor=#1b2330;fontSize=12;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;" value="&lt;b&gt;episode_NNNNNN.parquet&lt;/b&gt;&lt;br/&gt;columns: observation.state, action,&lt;br/&gt;timestamp, frame_index, episode_index,&lt;br/&gt;index, task_index" vertex="1">
+                    <mxGeometry height="110" width="400" x="40" y="55" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_videos" parent="c_writes" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d97706;fontColor=#1b2330;fontSize=12;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;" value="&lt;b&gt;episode_NNNNNN.mp4  ×N cameras&lt;/b&gt;&lt;br/&gt;cv2.VideoWriter, mp4v codec — same raw&lt;br/&gt;decoded RGB-&amp;gt;BGR frames (no compression, no&lt;br/&gt;ROS transport)" vertex="1">
+                    <mxGeometry height="110" width="400" x="500" y="55" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_meta" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#f4f6f9;strokeColor=#7a8694;fontColor=#1b2330;fontSize=12;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;" value="&lt;b&gt;regenerate_meta()&lt;/b&gt;&lt;br/&gt;meta/info.json + episodes.jsonl + tasks.jsonl —&lt;br/&gt;only at Quit, or after delete-last-episode (NOT&lt;br/&gt;after every single episode)" vertex="1">
+                    <mxGeometry height="110" width="480" x="171" y="885" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_dataset" parent="1" style="shape=cylinder3;boundedLbl=1;whiteSpace=wrap;html=1;fillColor=#e7f5ec;strokeColor=#1f8a4c;fontColor=#1b2330;fontSize=12;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;" value="&lt;b&gt;LeRobot v2.0 dataset/&lt;/b&gt;&lt;br/&gt;data/chunk-000/episode_*.parquet  ·  videos/chunk-&lt;br/&gt;000/observation.images.&amp;lt;cam&amp;gt;/episode_*.mp4  ·&lt;br/&gt;meta/{info.json, episodes.jsonl, tasks.jsonl}" vertex="1">
+                    <mxGeometry height="130" width="600" x="111" y="1035" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_e1" edge="1" parent="1" source="c_cam" style="endArrow=block;rounded=1;html=1;strokeColor=#2f6fd0;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;fontSize=12;fontColor=#2f6fd0;labelBackgroundColor=#ffffff;entryX=0.227;entryY=0.011;entryDx=0;entryDy=0;entryPerimeter=0;" target="c_loop_ram" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_e2" edge="1" parent="1" source="c_topic_state" style="endArrow=block;rounded=1;html=1;strokeColor=#2f6fd0;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;fontSize=12;fontColor=#2f6fd0;labelBackgroundColor=#ffffff;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" target="c_loop_ram" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_e3" edge="1" parent="1" source="c_topic_action" style="endArrow=block;rounded=1;html=1;strokeColor=#2f6fd0;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;fontSize=12;fontColor=#2f6fd0;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.999;entryY=0.449;entryDx=0;entryDy=0;entryPerimeter=0;" target="c_loop_ram" value="">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="900.01" y="400.04"/>
+                            <mxPoint x="719.41" y="400.04"/>
+                        </Array>
+                        <mxPoint x="1070.04" y="250.00347826086963" as="sourcePoint"/>
+                        <mxPoint x="719.9965217391305" y="409.96" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="c_e4" edge="1" parent="1" source="c_loop_ram" style="endArrow=block;rounded=1;html=1;strokeColor=#d97706;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;fontSize=12;fontColor=#d97706;labelBackgroundColor=#ffffff;" target="c_trigger" value="stop">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_e5" edge="1" parent="1" source="c_keys" style="endArrow=block;rounded=1;html=1;strokeColor=#6b3fa0;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;fontSize=12;fontColor=#6b3fa0;labelBackgroundColor=#ffffff;" target="c_trigger" value="O key">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_e6a" edge="1" parent="1" source="c_trigger" style="endArrow=block;rounded=1;html=1;strokeColor=#d97706;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;fontSize=12;fontColor=#d97706;labelBackgroundColor=#ffffff;" target="c_parquet" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_e6b" edge="1" parent="1" source="c_trigger" style="endArrow=block;rounded=1;html=1;strokeColor=#d97706;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;fontSize=12;fontColor=#d97706;labelBackgroundColor=#ffffff;" target="c_videos" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_e7a" edge="1" parent="1" source="c_parquet" style="endArrow=block;rounded=1;html=1;strokeColor=#d97706;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;fontSize=12;fontColor=#d97706;labelBackgroundColor=#ffffff;" target="c_meta" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_e7b" edge="1" parent="1" source="c_videos" style="endArrow=block;rounded=1;html=1;strokeColor=#d97706;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;fontSize=12;fontColor=#d97706;labelBackgroundColor=#ffffff;" target="c_meta" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_e8" edge="1" parent="1" source="c_meta" style="endArrow=block;rounded=1;html=1;strokeColor=#7a8694;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;fontSize=12;fontColor=#7a8694;labelBackgroundColor=#ffffff;" target="c_dataset" value="at Quit">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="c___title" parent="1" style="text;html=1;align=left;verticalAlign=top;strokeColor=none;fillColor=none;whiteSpace=wrap;" value="&lt;font style=&quot;font-size:20px&quot;&gt;&lt;b&gt;vla_control — data_collector recording pipeline&lt;/b&gt;&lt;/font&gt;&lt;br/&gt;&lt;font color=&quot;#56616f&quot;&gt;src/vla_control_tools/vla_control_tools/{data_collector_node.py, collector_dashboard.py}&lt;/font&gt;" vertex="1">
+                    <mxGeometry height="44" width="700" x="210" y="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="c___legend" parent="1" style="rounded=1;html=1;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;whiteSpace=wrap;fillColor=#f7f9fc;strokeColor=#c9d3df;fontSize=12;" value="&lt;b&gt;Legend&lt;/b&gt;&lt;br/&gt;&lt;font color=&quot;#2f6fd0&quot;&gt;■&lt;/font&gt; Continuous, fixed 30 Hz sampling&lt;br/&gt;&lt;font color=&quot;#6b3fa0&quot;&gt;■&lt;/font&gt; User-driven UI control (PySide6)&lt;br/&gt;&lt;font color=&quot;#d97706&quot;&gt;■&lt;/font&gt; Event-triggered write (not fixed)" vertex="1">
+                    <mxGeometry height="100" width="260" x="720" y="880" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

@@ -293,8 +293,9 @@ docs/agentbot_architecture.html      # this report</pre>
     <h2><span class="dot" style="background:var(--rose)"></span>⑦ Sim → Hardware (blocks 6·7, future)</h2>
     <p><code>embodiment</code> is a first-class field on every request. Today <code>embodiment=sim</code> →
     <code>vla/backends/sim.py</code> (IsaacLab). Switching to <code>embodiment=hardware</code> selects
-    <code>vla/backends/hardware.py</code>, which bridges the action chunk to the real robot via the existing
-    <code>engines/vla/Isaac-GR00T/scripts/sim2real/gr00t_control_robot.py</code> → ROS2 JointTrajectoryController → OpenArm
+    <code>vla/backends/hardware.py</code>, which bridges the action chunk to the real robot via
+    <code>vla_control</code>'s <code>vla_executor</code> ROS2 node (the extracted, refactored successor to
+    Isaac-GR00T's old <code>scripts/sim2real/gr00t_control_robot.py</code>) → ROS2 FollowJointTrajectory → OpenArm
     (<code>openarm_ros2</code>), and republishes <code>/joint_states</code>, <code>/vla/diagnostics</code>, and safety
     back onto the same event bus (optionally through an MQTT↔ROS2 bridge). <strong>The Brain, Skill, and Monitor
     layers do not change — only the backend.</strong></p>

@@ -27,5 +27,6 @@ engine repo so they cannot drift.
 
 A healthy control chain is the prerequisite for **teleopbot** (data collection) and
 for **agentbot**'s future hardware backend (`vla/backends/hardware.py`, which bridges
-VLA action chunks → JointTrajectoryController via
-`engines/vla/Isaac-GR00T/scripts/sim2real/gr00t_control_robot.py`).
+VLA action chunks → JointTrajectoryController via `vla_control`'s `vla_executor`
+service — the extracted, ROS2-node successor to Isaac-GR00T's old
+`scripts/sim2real/gr00t_control_robot.py`).

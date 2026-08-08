@@ -1,13 +1,17 @@
 # teleopbot — agent settings (paths always via workspace.yaml keys)
 agent: teleopbot
-purpose: teleoperation + demonstration data collection for VLA training
+purpose: teleoperation (leader-follower or wearable/XR) + demonstration data collection
 
 engines:
-  - openarm_teleop
-  - openarm_ros2
+  - openarm_teleop     # leader-follower (physical leader arm)
+  - gallop_teleop      # wearable/XR (MANUS glove / PICO tracker / UDCAP glove)
+  - openarm_ros2       # control chain; also the EE-delta -> IK -> joint bridge
+  - vla_control        # data_collector_node.py + collector_dashboard.py (the recorder)
 
 outputs:
   datasets: datasets    # LeRobot v2 episodes for fine-tuning
 
 entrypoints:
-  engine_doc: engines/robot/openarm_teleop/README.md
+  leader_follower_doc: engines/robot/openarm_teleop/README.md
+  wearable_xr_doc: engines/robot/gallop_teleop/README.md
+  recorder_doc: engines/vla/vla_control/src/vla_control_tools/README.md
