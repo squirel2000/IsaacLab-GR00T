@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-06-30
+goal: Prove RL measurably lifts a GR00T-N1.7 policy on one LIBERO suite,
+  retiring infra/methodology risk before porting to IsaacLab

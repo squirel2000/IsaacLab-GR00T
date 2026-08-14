@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1150" height="582" viewBox="0 0 1150 582" font-family="Arial">
+<defs><marker id="m_5b8def" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto"><path d="M0 0 L9 4 L0 8 z" fill="#5b8def"/></marker><marker id="m_94a3b8" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto"><path d="M0 0 L9 4 L0 8 z" fill="#94a3b8"/></marker><marker id="m_3fae6a" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto"><path d="M0 0 L9 4 L0 8 z" fill="#3fae6a"/></marker><marker id="m_e0a800" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto"><path d="M0 0 L9 4 L0 8 z" fill="#e0a800"/></marker></defs>
+<rect width="1150" height="582" fill="#ffffff"/>
+<text x="40" y="34" font-size="19" font-weight="800" fill="#1b2330" font-family="Arial">系統架構：本地 ↔ Pegasus 容器 ↔ 單張 H100 (GPU1)</text>
+<text x="40" y="54" font-size="12.5" fill="#56616f" font-family="Arial">RLinf GR00T-N1.7 PPO on LIBERO；GPU0 全程閒置（合作式單卡）</text>
+<rect x="40" y="90" width="310" height="452" rx="8" fill="#eef5ff" stroke="#5b8def" stroke-width="1.6" stroke-dasharray="6 5"/>
+<text x="52" y="112" font-size="14" font-weight="700" fill="#1d4ed8" text-anchor="start" font-family="Arial">本地 (Windows)</text>
+<rect x="430" y="90" width="680" height="452" rx="8" fill="#eefaf0" stroke="#3fae6a" stroke-width="1.6" stroke-dasharray="6 5"/>
+<text x="442" y="112" font-size="14" font-weight="700" fill="#15803d" text-anchor="start" font-family="Arial">Pegasus 容器 pa-jp-v1（cgroup pids.max=2048, EGL, 無 Docker）</text>
+<path d="M330 347.0 H390.0 V261.0 H450" fill="none" stroke="#5b8def" stroke-width="2" marker-end="url(#m_5b8def)"/>
+<rect x="327.5" y="294.0" width="125.0" height="20" rx="9" fill="#fff" stroke="#5b8def"/>
+<text x="390.0" y="308.0" font-size="12" font-weight="600" fill="#5b8def" text-anchor="middle" font-family="Arial">setsid nohup 啟動</text>
+<path d="M655 261.0 H663.5 V261.0 H672" fill="none" stroke="#e0a800" stroke-width="2" marker-end="url(#m_e0a800)"/>
+<rect x="612.1" y="251.0" width="102.80000000000001" height="20" rx="9" fill="#fff" stroke="#e0a800"/>
+<text x="663.5" y="265.0" font-size="12" font-weight="600" fill="#e0a800" text-anchor="middle" font-family="Arial">sync weights</text>
+<path d="M872 261.0 H880.0 V261.0 H888" fill="none" stroke="#e0a800" stroke-width="2" marker-end="url(#m_e0a800)"/>
+<rect x="828.6" y="251.0" width="102.80000000000001" height="20" rx="9" fill="#fff" stroke="#e0a800"/>
+<text x="880.0" y="265.0" font-size="12" font-weight="600" fill="#e0a800" text-anchor="middle" font-family="Arial">action / obs</text>
+<path d="M552.5 294 V305.0 H600.0 V316" fill="none" stroke="#3fae6a" stroke-width="2" marker-end="url(#m_3fae6a)"/>
+<path d="M655 261.0 H713.5 V350.0 H772" fill="none" stroke="#3fae6a" stroke-width="2" marker-end="url(#m_3fae6a)"/>
+<path d="M772 350.0 H551.0 V279.0 H330" fill="none" stroke="#94a3b8" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#m_94a3b8)"/>
+<rect x="525.5" y="304.5" width="51.0" height="20" rx="9" fill="#fff" stroke="#94a3b8"/>
+<text x="551.0" y="318.5" font-size="12" font-weight="600" fill="#94a3b8" text-anchor="middle" font-family="Arial">fetch</text>
+<rect x="60" y="132" width="270" height="54" rx="10" fill="#ffffff" stroke="#5b8def" stroke-width="1.6"/>
+<text x="195.0" y="158.0" font-size="14" font-weight="700" fill="#1b2330" text-anchor="middle" font-family="Arial">launch.py</text>
+<text x="195.0" y="176.0" font-size="12" font-weight="400" fill="#1b2330" text-anchor="middle" font-family="Arial">選空閒 GPU→組 Hydra overrides→啟動</text>
+<rect x="60" y="198" width="270" height="42" rx="10" fill="#ffffff" stroke="#5b8def" stroke-width="1.6"/>
+<text x="195.0" y="218.0" font-size="14" font-weight="700" fill="#1b2330" text-anchor="middle" font-family="Arial">poll.py</text>
+<text x="195.0" y="236.0" font-size="12" font-weight="400" fill="#1b2330" text-anchor="middle" font-family="Arial">本地監看</text>
+<rect x="60" y="252" width="270" height="54" rx="10" fill="#ffffff" stroke="#5b8def" stroke-width="1.6"/>
+<text x="195.0" y="278.0" font-size="14" font-weight="700" fill="#1b2330" text-anchor="middle" font-family="Arial">report.py + extract_metrics</text>
+<text x="195.0" y="296.0" font-size="12" font-weight="400" fill="#1b2330" text-anchor="middle" font-family="Arial">TB scalars → JSON → HTML</text>
+<rect x="60" y="318" width="270" height="58" fill="#eef2f7" stroke="#94a3b8" stroke-width="1.6"/>
+<text x="195.0" y="346.0" font-size="14" font-weight="700" fill="#1b2330" text-anchor="middle" font-family="Arial">common/pegasus.py</text>
+<text x="195.0" y="364.0" font-size="12" font-weight="400" fill="#1b2330" text-anchor="middle" font-family="Arial">Jupyter kernel 遠端執行 / 傳檔</text>
+<rect x="60" y="388" width="270" height="42" fill="#eef2f7" stroke="#94a3b8" stroke-width="1.6"/>
+<text x="195.0" y="408.0" font-size="14" font-weight="700" fill="#1b2330" text-anchor="middle" font-family="Arial">config/phase1.yaml</text>
+<text x="195.0" y="426.0" font-size="12" font-weight="400" fill="#1b2330" text-anchor="middle" font-family="Arial">所有旋鈕</text>
+<rect x="60" y="442" width="270" height="54" fill="#eef2f7" stroke="#94a3b8" stroke-width="1.6"/>
+<text x="195.0" y="468.0" font-size="14" font-weight="700" fill="#1b2330" text-anchor="middle" font-family="Arial">patch_rlinf_clone.py</text>
+<text x="195.0" y="486.0" font-size="12" font-weight="400" fill="#1b2330" text-anchor="middle" font-family="Arial">6 個 RLinf 修補（冪等）</text>
+<rect x="450" y="130" width="640" height="26" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.6"/>
+<text x="770.0" y="149.0" font-size="12" font-weight="400" fill="#166534" text-anchor="middle" font-family="Arial">Ray cluster（num_cpus=4, dashboard off）</text>
+<polygon points="488.4,162 1051.6,162 1090,189.0 1051.6,216 488.4,216 450,189.0" fill="#e6fbff" stroke="#0e9bb5" stroke-width="1.6"/>
+<text x="770.0" y="188.0" font-size="14" font-weight="700" fill="#1b2330" text-anchor="middle" font-family="Arial">GR00T-N1.7 模型 (FSDP, NO_SHARD)</text>
+<text x="770.0" y="206.0" font-size="12" font-weight="400" fill="#1b2330" text-anchor="middle" font-family="Arial">Cosmos-Reason2-2B backbone ＋ flow-matching action head ＋ value head(隨機初始化)</text>
+<rect x="450" y="228" width="205" height="66" rx="10" fill="#fef7db" stroke="#e0a800" stroke-width="1.6"/>
+<text x="552.5" y="260.0" font-size="14" font-weight="700" fill="#1b2330" text-anchor="middle" font-family="Arial">ActorGroup @GPU1</text>
+<text x="552.5" y="278.0" font-size="12" font-weight="400" fill="#1b2330" text-anchor="middle" font-family="Arial">PPO 更新 actor+critic</text>
+<rect x="672" y="228" width="200" height="66" rx="10" fill="#fef7db" stroke="#e0a800" stroke-width="1.6"/>
+<text x="772.0" y="260.0" font-size="14" font-weight="700" fill="#1b2330" text-anchor="middle" font-family="Arial">RolloutGroup @GPU1</text>
+<text x="772.0" y="278.0" font-size="12" font-weight="400" fill="#1b2330" text-anchor="middle" font-family="Arial">產生 rollout（推論）</text>
+<rect x="888" y="228" width="202" height="66" rx="10" fill="#fef7db" stroke="#e0a800" stroke-width="1.6"/>
+<text x="989.0" y="260.0" font-size="14" font-weight="700" fill="#1b2330" text-anchor="middle" font-family="Arial">EnvGroup @GPU1</text>
+<text x="989.0" y="278.0" font-size="12" font-weight="400" fill="#1b2330" text-anchor="middle" font-family="Arial">in-process LIBERO×4</text>
+<path d="M450 326.88 a150.0 10.88 0 0 1 300 0 v46.239999999999995 a150.0 10.88 0 0 1 -300 0 z" fill="#ffffff" stroke="#3fae6a" stroke-width="1.6"/><path d="M450 326.88 a150.0 10.88 0 0 0 300 0" fill="none" stroke="#3fae6a" stroke-width="1.6"/>
+<text x="600.0" y="349.0" font-size="14" font-weight="700" fill="#1b2330" text-anchor="middle" font-family="Arial">checkpoints</text>
+<text x="600.0" y="367.0" font-size="12" font-weight="400" fill="#1b2330" text-anchor="middle" font-family="Arial">global_step_N</text>
+<path d="M772 326.88 a159.0 10.88 0 0 1 318 0 v46.239999999999995 a159.0 10.88 0 0 1 -318 0 z" fill="#ffffff" stroke="#3fae6a" stroke-width="1.6"/><path d="M772 326.88 a159.0 10.88 0 0 0 318 0" fill="none" stroke="#3fae6a" stroke-width="1.6"/>
+<text x="931.0" y="349.0" font-size="14" font-weight="700" fill="#1b2330" text-anchor="middle" font-family="Arial">logs/&lt;ts&gt;/tensorboard</text>
+<text x="931.0" y="367.0" font-size="12" font-weight="400" fill="#1b2330" text-anchor="middle" font-family="Arial">TB scalars</text>
+<rect x="450" y="404" width="640" height="44" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.6"/>
+<text x="460" y="432.0" font-size="12" font-weight="400" fill="#475569" text-anchor="start" font-family="Arial">GPU0 全程閒置；jupyter PID1 無法回收 zombie → 壓低 num_cpus 留 pid 餘裕</text>
+</svg>

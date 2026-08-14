@@ -1,0 +1,126 @@
+# Orchestration config for RLinf GR00T-N1.5 LIBERO spatial RL reproduction -- SCALED SINGLE-GPU.
+# Read by agents/rl-trainbot/harness/{launch,poll,report}.py via --config-file. This is OUR config, NOT an
+# RLinf config.
+#
+# Context: the dual-GPU run (phase1_n15_spatial_dualgpu.yaml, 72 epochs, envs=4/batch=32)
+# showed the first real lift in this project (explained_variance 93% positive, success_once
+# +15.3pp). GPU0 is now busy with another user's real fine-tune job (torchrun, gr00t_n1d6,
+# ~75GB/80% util) -- back to single-GPU-only (GPU1), per the standing cooperative-use rule.
+# User asked: can we get env count AND epoch count closer to RLinf's official recipe
+# (envs=64/500, global_batch=1024, max_epochs=1000) on ONE GPU, budget extended to 60h
+# (the weekend)?
+#
+# Key insight from the dual-GPU run: global_batch_size does NOT need extra data collection
+# as long as it stays <= rollout_size (= total_num_envs * env.train.rollout_epoch, default
+# rollout_epoch=8). The dual-GPU run's batch=32 was exactly rollout_size (4*8) -- it was a
+# free reorganization of the SAME collected data into one big gradient step, not "more data".
+# So on a single GPU we can (a) raise total_num_envs (this DOES cost wall-clock -- our in-
+# process env vector steps sequentially, no true parallelism) and (b) raise global_batch_size
+# up to the new (bigger) rollout_size for ~free, without a second GPU.
+#
+# Wall-clock math (60h = 216000s budget), calibrated from the single-GPU baseline's rollout
+# time (~330s at envs=4) scaling ~linearly with envs, train/eval roughly as measured:
+#   envs=8   -> ~240 epochs   envs=24 -> ~90 epochs (BALANCED, chosen)   envs=64 -> ~36 epochs
+# User chose "balanced": envs=24 (37.5% of official's 64), ~90 epochs (9% of official's 1000),
+# global_batch_size=192 (=24*8, i.e. rollout_size, no mini-batching -- same "reorganize, don't
+# collect more" trick as the dual-GPU run), single GPU1 (NO_SHARD, no FSDP split needed).
+
+suite: libero_spatial
+
+gpu:
+  prefer_index: 1
+  require_free: true            # GPU0 is busy with another user's real job -- must land on GPU1
+  idle_mem_used_mb: 2000
+  idle_util_pct: 10
+
+remote:
+  rlinf_dir: /data/VLA/tingying/RLinf-n15
+  results_dir: /data/VLA/tingying/RLinf-n15/results
+  ckpt_dir: /data/VLA/tingying/RLinf-n15/checkpoints
+  venv_activate: /data/VLA/tingying/RLinf-n15/.venv/bin/activate
+
+rlinf:
+  install_model: gr00t
+  install_env: maniskill_libero
+  entry_script: examples/embodiment/run_embodiment.sh
+  base_config: libero_spatial_ppo_gr00t                     # reverted to single-GPU placement ("1")
+  smoke_config: libero_spatial_ppo_gr00t_n15_scaled_smoke    # our run tag (log dir name only)
+  full_config: libero_spatial_ppo_gr00t_n15_scaled_phase1    # our run tag (log dir name only)
+
+checkpoints:
+  single_tier: true
+  model_path: RLinf-Gr00t-SFT-Spatial
+
+env_exports:
+  MUJOCO_GL: egl
+  PYOPENGL_PLATFORM: egl
+  ROBOT_PLATFORM: LIBERO
+
+runtime:
+  cpu_cores: 4                  # single GPU, no replica doubling this time -- same as every
+  thread_env:                   # proven single-GPU run so far, no reason to change.
+    OMP_NUM_THREADS: 1
+    MKL_NUM_THREADS: 1
+    OPENBLAS_NUM_THREADS: 1
+    NUMEXPR_NUM_THREADS: 1
+    TOKENIZERS_PARALLELISM: "false"
+    TORCHINDUCTOR_COMPILE_THREADS: 1
+    RAYON_NUM_THREADS: 1
+
+metrics:
+  success_key: env/success_once
+  tb_subdir: logs
+
+smoke:                          # measure REAL per-epoch wall-clock at this new envs=24/batch=192
+  max_epochs: 3                 # scale before committing max_epochs for the full run.
+  val_check_interval: 1
+  save_interval: 3
+
+full:                           # FINAL, for the 58h-targeted main run (deadline: done well
+                                 # before Monday 10:00 so GPUs are free for colleagues).
+                                 # Switched here from dual-GPU (envs=16/batch=128, 125 epochs)
+                                 # after that run crashed ~1.5h in (Ray internal thread-pool
+                                 # creation hit the container's cgroup pids.max=2048 -- dual-GPU
+                                 # asymmetric sharding runs more Ray actors than single-GPU,
+                                 # raising the odds of hitting this). This single-GPU envs=8
+                                 # config was independently validated for 3 clean epochs
+                                 # (870-897s each, val_check_interval=1 i.e. eval EVERY epoch).
+                                 # Full run evaluates only 1/10 epochs, so the average drops:
+                                 # non-eval epoch ~= 882 - ~78 (est. eval cost, envs=8 scales
+                                 # eval time down from the dual-GPU envs=16 case's 157s) ~= 804s;
+                                 # amortized average ~= 804 + 78/10 ~= 812s/epoch. Target ~52h
+                                 # (187200s) of actual training, leaving ~6h of the 58h budget as
+                                 # contingency buffer (today's crash-and-restart cost real time):
+                                 # 187200/812 ~= 230 epochs. save_interval=10 (== val_check_interval,
+                                 # frequent) so a future crash loses at most ~10 epochs (~2.3h),
+                                 # not the whole run.
+  max_epochs: 230
+  val_check_interval: 10
+  save_interval: 10
+
+overrides:                      # envs=24 crashed on the FIRST smoke attempt: pids-exhaustion
+                                 # ("pthread_create failed: Resource temporarily unavailable"),
+                                 # but this time with NO GPU replication at all (single GPU,
+                                 # NO_SHARD) -- meaning env COUNT itself costs pids/threads, not
+                                 # just multi-GPU replica doubling. Likely each LIBERO/MuJoCo env
+                                 # instance spawns its own EGL/physics threads, so more envs ==
+                                 # more threads even within one process (DummyVecEnv sequential
+                                 # stepping doesn't add processes, but env instances still exist
+                                 # concurrently once constructed). Stepping down to 8 (2x the
+                                 # proven envs=4 baseline, not 6x) to find the real ceiling before
+                                 # committing a 60h run to an untested envs count.
+  total_num_envs: 8
+  micro_batch_size: 16          # matches the dual-GPU run's proven-safe value
+  global_batch_size: 64         # = total_num_envs(8) * rollout_epoch(8, unchanged default) =
+                                 # rollout_size -- one full-batch gradient step per epoch, no
+                                 # extra data collection cost versus a smaller global_batch_size.
+  critic_warmup_steps: 0        # faithful to RLinf's own published N1.5 recipe throughout.
+  extra:
+    - env.eval.video_cfg.save_video=False
+    - env.train.video_cfg.save_video=False
+
+poll:
+  interval_sec: 3600            # hourly cadence per explicit user request
+
+report:
+  out_html: agents/docs/rlinf_gr00t_n17_libero_phase1_report.html

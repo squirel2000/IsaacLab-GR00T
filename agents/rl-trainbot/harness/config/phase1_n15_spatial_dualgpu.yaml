@@ -1,0 +1,120 @@
+# Orchestration config for RLinf GR00T-N1.5 LIBERO spatial RL reproduction -- DUAL GPU.
+# Read by agents/rl-trainbot/harness/{launch,poll,report}.py via --config-file. This is OUR config, NOT an
+# RLinf config. User-authorized exception to the "one GPU only" cooperative-use rule: both
+# Pegasus H100s confirmed idle (no processes, 0% util) and the user granted a 1-2 day window
+# to use both, specifically to test whether under-provisioned scale is the real reason the
+# single-GPU N1.5 spatial run (phase1_n15_spatial.yaml, 4 envs/batch 4/30 epochs) showed no
+# lift versus RLinf's published 41.4% -> 92.5%.
+#
+# RLinf's OWN published recipe (confirmed from examples/embodiment/config/libero_spatial_ppo_gr00t.yaml
+# and RLinf docs, docs/source-en/rst_source/examples/embodied/{gr00t,libero}.rst):
+#   total_num_envs=64 (train) / 500 (eval), global_batch_size=1024, micro_batch_size=128,
+#   max_epochs=1000, and the LIBERO doc page's own hardware badge states "1-2 nodes . 8-16 GPUs"
+#   for this family of runs. We have 2 GPUs, not 8-16, and our LIBERO env vector is IN-PROCESS
+#   (sequential stepping -- see patch_rlinf_clone.py; the real multi-process env workers crash in
+#   this container), so envs do not scale for free the way they would on RLinf's own hardware.
+# component_placement in libero_spatial_ppo_gr00t.yaml changed from "1" to "0-1" (both GPUs,
+# 1 process/GPU per group) for this run -- FSDP now actually shards (full_shard, world_size=2)
+# instead of falling back to NO_SHARD.
+
+suite: libero_spatial
+
+gpu:
+  prefer_index: 1              # cosmetic only for this config: placement is baked into the
+  require_free: true            # patched YAML ("0-1"), not driven by launch.py's CUDA_VISIBLE_DEVICES.
+  idle_mem_used_mb: 2000         # Both GPU0 and GPU1 idleness verified manually before launch.
+  idle_util_pct: 10
+
+remote:
+  rlinf_dir: /data/VLA/tingying/RLinf-n15
+  results_dir: /data/VLA/tingying/RLinf-n15/results
+  ckpt_dir: /data/VLA/tingying/RLinf-n15/checkpoints
+  venv_activate: /data/VLA/tingying/RLinf-n15/.venv/bin/activate
+
+rlinf:
+  install_model: gr00t
+  install_env: maniskill_libero
+  entry_script: examples/embodiment/run_embodiment.sh
+  base_config: libero_spatial_ppo_gr00t                      # upstream base, now patched to 0-1 placement
+  smoke_config: libero_spatial_ppo_gr00t_n15_dualgpu_smoke    # our run tag (log dir name only)
+  full_config: libero_spatial_ppo_gr00t_n15_dualgpu_phase1    # our run tag (log dir name only)
+
+checkpoints:
+  single_tier: true
+  model_path: RLinf-Gr00t-SFT-Spatial
+
+env_exports:
+  MUJOCO_GL: egl
+  PYOPENGL_PLATFORM: egl
+  ROBOT_PLATFORM: LIBERO
+
+runtime:                       # NOTE: 2 crashes so far, both cgroup pids.max=2048 exhaustion
+                                # (EAGAIN), just surfacing in different subsystems each time:
+                                #  attempt 1 (cpu_cores=8): ProcessGroupNCCL init -> "Resource
+                                #    temporarily unavailable" at pids.current=2008/2048.
+                                #  attempt 2 (cpu_cores=4, envs=8): ChannelWorker thread spawn ->
+                                #    "RuntimeError: can't start new thread" (crashed between polls,
+                                #    so the exact peak pids.current at failure wasn't captured).
+                                # Root cause: 2 GPUs doesn't just double the actor/rollout/env
+                                # replica count -- it multiplies out (each replica's own NCCL
+                                # threads, ChannelWorkers, etc.), and unreapable zombies from prior
+                                # crashes (jupyter as PID1 never reaps them) permanently eat into
+                                # the same 2048 budget and only grow across the session. Cut BOTH
+                                # cpu_cores (idle Ray worker pool) and total_num_envs (below) this
+                                # time rather than tweaking one knob at a time.
+  cpu_cores: 4                 # 3rd crash even at cpu_cores=2 (still pids-exhaustion, "Resource
+                                # temporarily unavailable" + "can't start new thread") -- all 3
+                                # crashes happened during ACTOR-GRAPH STARTUP (~1-2 min in, before
+                                # any real training), so the problem was never envs/batch size, it
+                                # was doubling ALL THREE groups (actor+rollout+env) for 2 GPUs.
+                                # Switched component_placement (see patch_asymmetric_placement.sh /
+                                # memory) to actor:0-1 (real 2-GPU FSDP sharding, the only group
+                                # that needs both cards) while env/rollout stay on GPU1 alone, same
+                                # as the proven single-GPU topology -- avoids doubling THEIR
+                                # process/thread count. Restored cpu_cores to 4 accordingly.
+  thread_env:
+    OMP_NUM_THREADS: 1
+    MKL_NUM_THREADS: 1
+    OPENBLAS_NUM_THREADS: 1
+    NUMEXPR_NUM_THREADS: 1
+    TOKENIZERS_PARALLELISM: "false"
+    TORCHINDUCTOR_COMPILE_THREADS: 1
+    RAYON_NUM_THREADS: 1
+
+metrics:
+  success_key: env/success_once
+  tb_subdir: logs
+
+smoke:                          # measure real per-epoch wall-clock on this NEW code path
+  max_epochs: 3                 # (first time using >1 GPU / real FSDP sharding in this project)
+  val_check_interval: 1
+  save_interval: 3
+
+full:                           # smoke test (asymmetric placement, envs=4, batch=32/16) measured
+                                 # ~455-466s/epoch and, critically, explained_variance came back
+                                 # NUMERIC (-0.477, -0.229, +0.341) instead of NaN for the first
+                                 # time across any of our runs -- direct empirical support for the
+                                 # report's batch-size theory (5B). 72 epochs x ~460s ~= 9.2h, a
+                                 # reasonable multi-hour budget within the user's 1-2 day window.
+  max_epochs: 72
+  val_check_interval: 6
+  save_interval: 24
+
+overrides:                      # envs pulled back to 4 (same as single-GPU) after 2 pids-exhaustion
+                                 # crashes at envs=8 -- the primary lever we're actually testing is
+                                 # BATCH SIZE (gradient-noise-scale / advantage-normalization theory,
+                                 # see report SCALE_HTML), not env count, so keeping envs conservative
+                                 # and batch bigger (via real 2-GPU FSDP sharding) is the right trade.
+  total_num_envs: 4
+  micro_batch_size: 16
+  global_batch_size: 32
+  critic_warmup_steps: 0
+  extra:
+    - env.eval.video_cfg.save_video=False
+    - env.train.video_cfg.save_video=False
+
+poll:
+  interval_sec: 1500
+
+report:
+  out_html: agents/docs/rlinf_gr00t_n17_libero_phase1_report.html

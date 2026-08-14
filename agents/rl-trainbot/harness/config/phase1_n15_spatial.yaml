@@ -1,0 +1,93 @@
+# Orchestration config for RLinf GR00T-N1.5 LIBERO spatial RL reproduction.
+# Read by agents/rl-trainbot/harness/{launch,poll,report}.py via --config-file. This is OUR config,
+# NOT an RLinf config. Goal: reproduce RLinf's published 41.4% -> 92.5% libero_spatial
+# lift as a ground-truth check that our pipeline CAN show a genuine improvement,
+# to compare against the N1.7 run (phase1.yaml) which showed none.
+
+suite: libero_spatial
+
+gpu:
+  prefer_index: 1
+  require_free: true
+  idle_mem_used_mb: 2000
+  idle_util_pct: 10
+
+remote:                        # separate clone: avoids touching the working N1.7 venv/deps
+  rlinf_dir: /data/VLA/tingying/RLinf-n15
+  results_dir: /data/VLA/tingying/RLinf-n15/results
+  ckpt_dir: /data/VLA/tingying/RLinf-n15/checkpoints
+  venv_activate: /data/VLA/tingying/RLinf-n15/.venv/bin/activate
+
+rlinf:
+  install_model: gr00t
+  install_env: maniskill_libero
+  entry_script: examples/embodiment/run_embodiment.sh
+  base_config: libero_spatial_ppo_gr00t              # upstream base (do not edit)
+  smoke_config: libero_spatial_ppo_gr00t_n15_smoke    # our run tag (log dir name only)
+  full_config: libero_spatial_ppo_gr00t_n15_phase1    # our run tag (log dir name only)
+
+checkpoints:
+  single_tier: true            # RLinf/RLinf-Gr00t-SFT-Spatial is self-contained (no gated backbone)
+  model_path: RLinf-Gr00t-SFT-Spatial   # relative to remote.ckpt_dir
+
+env_exports:
+  MUJOCO_GL: egl
+  PYOPENGL_PLATFORM: egl
+  ROBOT_PLATFORM: LIBERO
+
+runtime:
+  cpu_cores: 4
+  thread_env:
+    OMP_NUM_THREADS: 1
+    MKL_NUM_THREADS: 1
+    OPENBLAS_NUM_THREADS: 1
+    NUMEXPR_NUM_THREADS: 1
+    TOKENIZERS_PARALLELISM: "false"
+    TORCHINDUCTOR_COMPILE_THREADS: 1
+    RAYON_NUM_THREADS: 1
+
+metrics:
+  success_key: env/success_once
+  tb_subdir: logs
+
+smoke:
+  max_epochs: 3
+  val_check_interval: 1
+  save_interval: 3
+
+full:                          # RLinf published recipe: max_epochs 1000, critic_warmup 0, no
+                                # explicit early-stop. Smoke test (3 epochs, micro_batch_size=1)
+                                # measured ~935s/epoch (rollout 365s + actor run_training 527s +
+                                # eval 40s) -- run_training dominated because micro_batch_size=1
+                                # forces 128 tiny sequential fwd/bwd calls per update. Bumping
+                                # micro_batch_size to 4 (below) should cut that ~4x; even so, one
+                                # epoch here costs ~10-20x an N1.7 epoch (~38s), so max_epochs is
+                                # bounded far below 1000 to fit a single-GPU Phase-1 budget (~hours,
+                                # not days) rather than matching RLinf's multi-GPU epoch count.
+  max_epochs: 30
+  val_check_interval: 3
+  save_interval: 15
+
+overrides:                     # shrink N1.5's multi-GPU defaults (envs 64/eval 500, batch 1024/128)
+                                # to fit one GPU. critic_warmup_steps: 0 matches RLinf's own published
+                                # N1.5 recipe (unlike our N1.7 fix of 40) -- kept faithful on purpose,
+                                # so a divergence from the published curve is itself informative.
+                                # world_size=1 (single GPU): batch_size_per_rank = global_batch_size.
+                                # rollout_size is a runtime-computed multiple of total_num_envs (=4),
+                                # so global_batch_size=4 (== total_num_envs, single rank) always divides
+                                # it. micro_batch_size=4 (== global_batch_size, no accumulation) --
+                                # the smoke test used 1 only because 128 (N1.5's multi-GPU default)
+                                # doesn't divide global_batch_size=4; 4 does and is much faster.
+  total_num_envs: 4
+  micro_batch_size: 4
+  global_batch_size: 4
+  critic_warmup_steps: 0
+  extra:
+    - env.eval.video_cfg.save_video=False   # skip disk video writes on the shared container
+    - env.train.video_cfg.save_video=False  # ditto for train rollouts (long run -> avoid disk growth)
+
+poll:
+  interval_sec: 1500          # ~25 min: matches the user's "update at least every 30 min" ask
+
+report:
+  out_html: agents/docs/rlinf_gr00t_n17_libero_phase1_report.html

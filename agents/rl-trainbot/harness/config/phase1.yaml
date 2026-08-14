@@ -1,0 +1,75 @@
+# Orchestration config for RLinf GR00T-N1.7 LIBERO RL ??Phase 1.
+# Read by agents/rl-trainbot/harness/{launch,poll,report}.py. This is OUR config, NOT an RLinf config.
+# Values resolved from the RLinf GR00T-N1.7 docs (2026-06-30); see the design doc.
+
+suite: libero_spatial          # NVIDIA ships a ready GR00T-N1.7-LIBERO/libero_spatial checkpoint
+
+gpu:
+  prefer_index: 1              # default to GPU1 per the cooperative-use rule
+  require_free: true           # abort if no idle GPU (never disrupt other users)
+  idle_mem_used_mb: 2000       # "idle" if used memory below this ...
+  idle_util_pct: 10            # ... and utilization below this
+
+remote:                        # paths on Pegasus (/data is the Jupyter root; CONFIRM the user area)
+  rlinf_dir: /data/VLA/tingying/RLinf
+  results_dir: /data/VLA/tingying/RLinf/results
+  ckpt_dir: /data/VLA/tingying/RLinf/checkpoints
+  venv_activate: /data/VLA/tingying/RLinf/.venv/bin/activate
+
+rlinf:
+  install_model: gr00t_n1d7
+  install_env: maniskill_libero
+  entry_script: examples/embodiment/run_embodiment.sh
+  base_config: libero_spatial_ppo_gr00t_n1d7            # upstream base (do not edit)
+  smoke_config: libero_spatial_ppo_gr00t_n1d7_smoke     # generated derived config (tiny budget)
+  full_config: libero_spatial_ppo_gr00t_n1d7_phase1     # generated derived config (full run)
+
+checkpoints:
+  backbone_repo: nvidia/Cosmos-Reason2-2B          # GATED on HF; we reuse a local copy instead:
+  backbone_local_path: /data/VLA/tingying/IsaacLab-GR00T/artifacts/vlm_lora/Cosmos-Reason2-2B-base
+  task_repo: nvidia/GR00T-N1.7-LIBERO              # public; downloaded
+  task_subdir: libero_spatial
+
+env_exports:                   # belt-and-suspenders; run_embodiment.sh already sets MUJOCO_GL/PYOPENGL_PLATFORM
+  MUJOCO_GL: egl
+  PYOPENGL_PLATFORM: egl
+  ROBOT_PLATFORM: LIBERO
+
+runtime:                       # container has cgroup pids.max=2048; cap Ray/thread fan-out to fit
+  cpu_cores: 4                 # taskset cores -> Ray sees this many CPUs -> fewer idle workers
+                               # (lowered 8->4: leftover zombies from prior runs sit at ~295 pids;
+                               #  jupyter PID1 won't reap them, so we need more headroom for the long run)
+  thread_env:                  # one math thread per worker (avoid threads = workers x cores blow-up)
+    OMP_NUM_THREADS: 1
+    MKL_NUM_THREADS: 1
+    OPENBLAS_NUM_THREADS: 1
+    NUMEXPR_NUM_THREADS: 1
+    TOKENIZERS_PARALLELISM: "false"
+    TORCHINDUCTOR_COMPILE_THREADS: 1   # torch.compile spawns a 64-wide compile-worker pool otherwise
+    RAYON_NUM_THREADS: 1               # rust/tokenizers thread pool
+
+metrics:
+  success_key: env/success_once  # TensorBoard scalar used as task success rate
+  tb_subdir: logs                # run_embodiment.sh writes logs/<timestamp>-<config>/
+
+smoke:                         # tiny budget to gate the long run (only fewer epochs;
+  max_epochs: 3                # same env/batch profile as full, so OOM gating is faithful)
+  val_check_interval: 1
+  save_interval: 3
+
+full:                          # bounded Phase-1 run (~hours): eval every 10 epochs for a success trend
+  max_epochs: 120              # ~20 epochs critic warmup + ~100 epochs policy training
+  val_check_interval: 10
+  save_interval: 60
+
+overrides:                     # single-GPU memory + thread fallbacks (apply to BOTH smoke and full)
+  total_num_envs: 4            # in-process Dummy vec env (multi-EGL verified OK): 4 trials/eval -> cleaner success rate
+  micro_batch_size: null       # base default is 2 (e.g. 1)
+  global_batch_size: 32        # must divide rollout_size (=4 envs x 16 = 64); 64 % 32 == 0
+  critic_warmup_steps: 40      # warm the (randomly-init) value head before policy updates (~20 epochs at ~2 opt-steps/epoch); fixes the cold-critic decline
+
+poll:
+  interval_sec: 60
+
+report:
+  out_html: agents/docs/rlinf_gr00t_n17_libero_phase1_report.html

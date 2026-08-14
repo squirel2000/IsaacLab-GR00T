@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1140" height="376" viewBox="0 0 1140 376" font-family="Arial">
+<defs><marker id="m_e8730a" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto"><path d="M0 0 L9 4 L0 8 z" fill="#e8730a"/></marker><marker id="m_1f8a4c" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto"><path d="M0 0 L9 4 L0 8 z" fill="#1f8a4c"/></marker><marker id="m_2f6fd0" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto"><path d="M0 0 L9 4 L0 8 z" fill="#2f6fd0"/></marker><marker id="m_c62828" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto"><path d="M0 0 L9 4 L0 8 z" fill="#c62828"/></marker><marker id="m_94a3b8" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto"><path d="M0 0 L9 4 L0 8 z" fill="#94a3b8"/></marker></defs>
+<rect width="1140" height="376" fill="#ffffff"/>
+<text x="40" y="34" font-size="19" font-weight="800" fill="#1b2330" font-family="Arial">PPO 訓練迴圈（每 epoch）＋ critic warmup 閘門</text>
+<text x="40" y="54" font-size="12.5" fill="#56616f" font-family="Arial">actor 產生動作、critic 估計價值；warmup 期間只更新 critic</text>
+<path d="M230 147.0 H255.0 V147.0 H280" fill="none" stroke="#2f6fd0" stroke-width="2" marker-end="url(#m_2f6fd0)"/>
+<rect x="240.6" y="137.0" width="28.8" height="20" rx="9" fill="#fff" stroke="#2f6fd0"/>
+<text x="255.0" y="151.0" font-size="12" font-weight="600" fill="#2f6fd0" text-anchor="middle" font-family="Arial">軌跡</text>
+<path d="M460 147.0 H485.0 V147.0 H510" fill="none" stroke="#2f6fd0" stroke-width="2" marker-end="url(#m_2f6fd0)"/>
+<rect x="466.9" y="137.0" width="36.2" height="20" rx="9" fill="#fff" stroke="#2f6fd0"/>
+<text x="485.0" y="151.0" font-size="12" font-weight="600" fill="#2f6fd0" text-anchor="middle" font-family="Arial">A_t</text>
+<path d="M700 147.0 H725.0 V147.0 H750" fill="none" stroke="#2f6fd0" stroke-width="2" marker-end="url(#m_2f6fd0)"/>
+<path d="M900 147.0 H925.0 V147.0 H950" fill="none" stroke="#1f8a4c" stroke-width="2" marker-end="url(#m_1f8a4c)"/>
+<path d="M950 147.0 H590.0 V147.0 H230" fill="none" stroke="#94a3b8" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#m_94a3b8)"/>
+<path d="M425.0 250 V217.0 H370.0 V184" fill="none" stroke="#c62828" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#m_c62828)"/>
+<rect x="364.6" y="207.0" width="65.80000000000001" height="20" rx="9" fill="#fff" stroke="#c62828"/>
+<text x="397.5" y="221.0" font-size="12" font-weight="600" fill="#c62828" text-anchor="middle" font-family="Arial">V(s) 估計</text>
+<path d="M610 293.0 H655.0 V147.0 H700" fill="none" stroke="#e8730a" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#m_e8730a)"/>
+<rect x="607.3" y="210.0" width="95.4" height="20" rx="9" fill="#fff" stroke="#e8730a"/>
+<text x="655.0" y="224.0" font-size="12" font-weight="600" fill="#e8730a" text-anchor="middle" font-family="Arial">凍結/放行 actor</text>
+<rect x="60" y="110" width="170" height="74" rx="10" fill="#e8effd" stroke="#2f6fd0" stroke-width="1.6"/>
+<text x="145.0" y="137.5" font-size="15" font-weight="700" fill="#1b2330" text-anchor="middle" font-family="Arial">1. Rollout</text>
+<text x="145.0" y="156.5" font-size="13" font-weight="400" fill="#1b2330" text-anchor="middle" font-family="Arial">policy 在 LIBERO</text>
+<text x="145.0" y="173.5" font-size="13" font-weight="400" fill="#1b2330" text-anchor="middle" font-family="Arial">互動蒐集軌跡</text>
+<rect x="280" y="110" width="180" height="74" rx="10" fill="#e8effd" stroke="#2f6fd0" stroke-width="1.6"/>
+<text x="370.0" y="137.5" font-size="15" font-weight="700" fill="#1b2330" text-anchor="middle" font-family="Arial">2. 估計 Advantage</text>
+<text x="370.0" y="156.5" font-size="13" font-weight="400" fill="#1b2330" text-anchor="middle" font-family="Arial">critic 估 V(s)</text>
+<text x="370.0" y="173.5" font-size="13" font-weight="400" fill="#1b2330" text-anchor="middle" font-family="Arial">GAE 算 A_t</text>
+<rect x="510" y="110" width="190" height="74" rx="10" fill="#e8effd" stroke="#2f6fd0" stroke-width="1.6"/>
+<text x="605.0" y="137.5" font-size="15" font-weight="700" fill="#1b2330" text-anchor="middle" font-family="Arial">3. PPO 更新</text>
+<text x="605.0" y="156.5" font-size="13" font-weight="400" fill="#1b2330" text-anchor="middle" font-family="Arial">clip 目標更新 actor</text>
+<text x="605.0" y="173.5" font-size="13" font-weight="400" fill="#1b2330" text-anchor="middle" font-family="Arial">MSE 更新 critic</text>
+<rect x="750" y="110" width="150" height="74" rx="10" fill="#e8effd" stroke="#2f6fd0" stroke-width="1.6"/>
+<text x="825.0" y="137.5" font-size="15" font-weight="700" fill="#1b2330" text-anchor="middle" font-family="Arial">4. Eval</text>
+<text x="825.0" y="156.5" font-size="13" font-weight="400" fill="#1b2330" text-anchor="middle" font-family="Arial">每 10 epochs</text>
+<text x="825.0" y="173.5" font-size="13" font-weight="400" fill="#1b2330" text-anchor="middle" font-family="Arial">success_once</text>
+<path d="M950 121.84 a75.0 11.84 0 0 1 150 0 v50.32 a75.0 11.84 0 0 1 -150 0 z" fill="#eaf6ee" stroke="#1f8a4c" stroke-width="1.6"/><path d="M950 121.84 a75.0 11.84 0 0 0 150 0" fill="none" stroke="#1f8a4c" stroke-width="1.6"/>
+<text x="1025.0" y="146.0" font-size="15" font-weight="700" fill="#1b2330" text-anchor="middle" font-family="Arial">5. 存檔</text>
+<text x="1025.0" y="165.0" font-size="13" font-weight="400" fill="#1b2330" text-anchor="middle" font-family="Arial">checkpoint</text>
+<polygon points="315.0,250 535.0,250 550,293.0 535.0,336 315.0,336 300,293.0" fill="#fde7e7" stroke="#c62828" stroke-width="1.6"/>
+<text x="425.0" y="283.5" font-size="15" font-weight="700" fill="#1b2330" text-anchor="middle" font-family="Arial">critic / value head</text>
+<text x="425.0" y="302.5" font-size="13" font-weight="400" fill="#1b2330" text-anchor="middle" font-family="Arial">隨機初始化</text>
+<text x="425.0" y="319.5" font-size="13" font-weight="400" fill="#1b2330" text-anchor="middle" font-family="Arial">→ 需 warmup</text>
+<polygon points="653.0,250 1040,250 997.0,336 610,336" fill="#fff4e6" stroke="#e8730a" stroke-width="1.6"/>
+<text x="620" y="283.5" font-size="15" font-weight="700" fill="#1b2330" text-anchor="start" font-family="Arial">critic warmup 閘門 (optimizer_steps &lt; 40)</text>
+<text x="620" y="302.5" font-size="13" font-weight="400" fill="#1b2330" text-anchor="start" font-family="Arial">warmup 期間凍結 actor、只更新 critic；</text>
+<text x="620" y="319.5" font-size="13" font-weight="400" fill="#1b2330" text-anchor="start" font-family="Arial">避免用『垃圾 advantage』把 policy 帶壞</text>
+</svg>

@@ -1,0 +1,103 @@
+# Orchestration config for RLinf GR00T-N1.5 LIBERO spatial RL reproduction -- SCALED DUAL-GPU,
+# 72-HOUR BUDGET. Read by agents/rl-trainbot/harness/{launch,poll,report}.py via --config-file. OUR config, not
+# an RLinf config.
+#
+# History: single-GPU envs=24 and envs=8 both crashed (cgroup pids.max=2048 exhaustion) while
+# GPU0 was busy with another user's real fine-tune job (torchrun, gr00t_n1d6). That job ended on
+# its own (confirmed via ps/nvidia-smi before touching anything -- we never killed it); once GPU0
+# was idle again, envs=8 single-GPU succeeded cleanly (3/3 epochs, ~870-897s/epoch, no crash) --
+# proving the earlier crashes were resource CONTENTION with the other job, not env=8 itself being
+# infeasible. User then authorized using BOTH GPUs again (confirmed GPU0 ended its job on its own,
+# not something we stopped) and extended the budget to 72h, asking to maximize GPU utilization.
+#
+# This config: re-applies the proven asymmetric placement (actor: 0-1 real FSDP shard; env/
+# rollout stay on GPU1 alone, same topology as every proven single-GPU run -- avoids doubling
+# their thread/process cost) and pushes total_num_envs to 16 (2x the just-proven-safe 8, 25% of
+# RLinf's official 64) as a deliberately incremental step up given how many pids-exhaustion
+# crashes this session has already hit -- not jumping straight back to the previously-crashed 24.
+# global_batch_size scales with total_num_envs (= rollout_size, no extra data-collection cost,
+# same trick validated by the first dual-GPU run and the single-GPU envs=8 smoke test).
+
+suite: libero_spatial
+
+gpu:
+  prefer_index: 1
+  require_free: true
+  idle_mem_used_mb: 2000
+  idle_util_pct: 10
+
+remote:
+  rlinf_dir: /data/VLA/tingying/RLinf-n15
+  results_dir: /data/VLA/tingying/RLinf-n15/results
+  ckpt_dir: /data/VLA/tingying/RLinf-n15/checkpoints
+  venv_activate: /data/VLA/tingying/RLinf-n15/.venv/bin/activate
+
+rlinf:
+  install_model: gr00t
+  install_env: maniskill_libero
+  entry_script: examples/embodiment/run_embodiment.sh
+  base_config: libero_spatial_ppo_gr00t                            # re-patched to asymmetric 0-1/1/1 placement
+  smoke_config: libero_spatial_ppo_gr00t_n15_scaled_dualgpu_smoke   # our run tag (log dir name only)
+  full_config: libero_spatial_ppo_gr00t_n15_scaled_dualgpu_phase1   # our run tag (log dir name only)
+
+checkpoints:
+  single_tier: true
+  model_path: RLinf-Gr00t-SFT-Spatial
+
+env_exports:
+  MUJOCO_GL: egl
+  PYOPENGL_PLATFORM: egl
+  ROBOT_PLATFORM: LIBERO
+
+runtime:
+  cpu_cores: 4                  # unchanged -- proven value across every successful run so far
+  thread_env:
+    OMP_NUM_THREADS: 1
+    MKL_NUM_THREADS: 1
+    OPENBLAS_NUM_THREADS: 1
+    NUMEXPR_NUM_THREADS: 1
+    TOKENIZERS_PARALLELISM: "false"
+    TORCHINDUCTOR_COMPILE_THREADS: 1
+    RAYON_NUM_THREADS: 1
+
+metrics:
+  success_key: env/success_once
+  tb_subdir: logs
+
+smoke:                          # measure real per-epoch wall-clock at envs=16/batch=128, dual-GPU
+  max_epochs: 3                 # asymmetric sharding, before committing max_epochs for 72h.
+  val_check_interval: 1
+  save_interval: 3
+
+full:                           # Smoke test (3/3 epochs, val_check_interval=1) measured
+                                 # 1692.352s and 1708.285s (avg ~1700s) INCLUDING eval every
+                                 # epoch. Full run evaluates only every 10th epoch, so the
+                                 # average drops: non-eval epoch ~= rollout(1257) + train(291)
+                                 # ~= 1550s; amortized eval cost ~= 159/10 ~= 16s/epoch ->
+                                 # ~1566s/epoch average. Target: fit safely inside the user's
+                                 # 58h deadline (finish well before Monday 10:00 so the GPUs are
+                                 # free for colleagues), not just under 72h. 125 * 1566 ~= 195700s
+                                 # ~= 54.4h, leaving ~3.6h buffer inside the 58h target itself.
+  max_epochs: 125
+  val_check_interval: 10
+  save_interval: 30            # FIXED: RLinf asserts save_interval % val_check_interval == 0;
+                                # 25 is not divisible by 10 -- crashed on the very first
+                                # eval/checkpoint check (after epoch 1's rollout completed fine).
+                                # 30 is a valid multiple of val_check_interval=10.
+
+overrides:
+  total_num_envs: 16            # 2x the just-proven envs=8; 25% of official's 64
+  micro_batch_size: 16          # proven-safe value from the first dual-GPU run
+  global_batch_size: 128        # = total_num_envs(16) * rollout_epoch(8, unchanged default) =
+                                 # rollout_size -- one full-batch gradient step per epoch, no
+                                 # extra data-collection cost.
+  critic_warmup_steps: 0        # faithful to RLinf's own published N1.5 recipe throughout.
+  extra:
+    - env.eval.video_cfg.save_video=False
+    - env.train.video_cfg.save_video=False
+
+poll:
+  interval_sec: 3600            # hourly cadence per explicit user request (this turn)
+
+report:
+  out_html: agents/docs/rlinf_gr00t_n17_libero_phase1_report.html
