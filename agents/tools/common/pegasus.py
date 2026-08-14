@@ -305,7 +305,7 @@ def _open_ws(s, kid, timeout):
 
 def _exec(s, code, timeout, on_stream=None):
     """Run `code` in a fresh kernel, gather its stream output, then delete the kernel."""
-    r = s.post(f"{BASE}/api/kernels", headers=_xsrf(s), json={"name": "python3"})
+    r = s.post(f"{BASE}/api/kernels", headers=_xsrf(s), json={"name": "python3"}, timeout=timeout)
     r.raise_for_status()
     kid = r.json()["id"]
     ws = _open_ws(s, kid, timeout)
