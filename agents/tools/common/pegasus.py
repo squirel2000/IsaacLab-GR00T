@@ -23,7 +23,8 @@ CLI:
     python pegasus.py rm   REMOTE                # recursive
     python pegasus.py mkdir REMOTE_DIR
     python pegasus.py run  "shell command ..."   # streams stdout/stderr live
-    python pegasus.py run  --file local_script.sh
+    python pegasus.py run  --file local_script.sh    # inlines the script body as the command
+    python pegasus.py run  --script local_script.sh  # uploads + runs by path (preferred)
 """
 import argparse, base64, hashlib, json, math, os, re, ssl, sys, time, uuid, pathlib
 
@@ -440,6 +441,51 @@ def _parse_rc(out):
     return "".join(lines), rc, expected
 
 
+SCRIPT_DIR = "VLA/tingying/pegasus_runs/_scripts"
+
+
+def run_script(s, local_script, remote_name=None, timeout=86400, interpreter=None, args=""):
+    """Upload a local script and run it BY PATH, streaming output. Returns exit code.
+
+    Prefer this over `run(s, open(script).read())` for anything non-trivial. Passing a script
+    *body* to `run()` puts every string in that script onto the remote command line (it becomes
+    the `bash -lc` argument), which breaks two ways:
+
+      * any `pgrep -f <pattern>` inside the script matches the wrapper carrying its own source —
+        that has reported phantom jobs and once killed our own shell (see README rule 4);
+      * a lone apostrophe in a comment ends the shell's quoting early, and Python-side escaping
+        cannot fix it because the text sits inside a bash single-quoted argument.
+
+    Running by path keeps the command line to `<interpreter> <path>`, sidestepping both.
+
+    The interpreter is inferred from the shebang, else the extension (`.py` -> python3,
+    otherwise bash) — getting this wrong hands a Python file to bash, which reports a confusing
+    cascade of shell syntax errors from Python source. Pass `interpreter=` to override, e.g. a
+    specific venv's python. `args` is appended verbatim after the path.
+    """
+    local_script = pathlib.Path(local_script)
+    remote = f"{SCRIPT_DIR}/{remote_name or local_script.name}"
+
+    if interpreter is None:
+        first = ""
+        try:
+            with open(local_script, "r", encoding="utf-8", errors="replace") as fh:
+                first = fh.readline()
+        except OSError:
+            pass
+        if first.startswith("#!"):
+            interpreter = first[2:].strip()          # honour the script's own choice
+        elif local_script.suffix == ".py":
+            interpreter = "python3"
+        else:
+            interpreter = "bash"
+
+    _ensure_remote_dir(s, SCRIPT_DIR)
+    put_file(s, str(local_script), remote)
+    cmd = f"{interpreter} /data/{remote}" + (f" {args}" if args else "")
+    return run(s, cmd, timeout=timeout)
+
+
 def run(s, command, timeout=86400):
     """Run a bash command on the server, streaming stdout/stderr live. Returns exit code."""
     code = ("import subprocess,sys\n"
@@ -534,7 +580,10 @@ def main():
 
     p = sub.add_parser("run", help="run a bash command on the server (live output)")
     p.add_argument("command", nargs="?", help="shell command string to run")
-    p.add_argument("--file", help="run the contents of a local script file instead")
+    p.add_argument("--file", help="inline a local script's CONTENTS as the command "
+                                  "(puts the whole body on the remote command line — see --script)")
+    p.add_argument("--script", help="upload a local script and run it by path (preferred for "
+                                    "anything non-trivial; see run_script's docstring)")
 
     args = ap.parse_args()
 
@@ -550,9 +599,11 @@ def main():
     elif args.cmd == "mkdir":
         mkdir(s, args.path)
     elif args.cmd == "run":
+        if args.script:
+            sys.exit(run_script(s, args.script))
         cmd = pathlib.Path(args.file).read_text(encoding="utf-8") if args.file else args.command
         if not cmd:
-            ap.error("run needs a command or --file")
+            ap.error("run needs a command, --file, or --script")
         sys.exit(run(s, cmd))
 
 

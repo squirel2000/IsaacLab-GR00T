@@ -93,6 +93,15 @@ One GPU needs a smaller per-device cap because **DeepSpeed ZeRO only engages wit
 (`experiment.py:180` gates it on `num_gpus > 1 and not use_ddp`), so a single card carries the
 whole optimiser state: ~72 GB versus ~36.5 GB/card on two.
 
+**Don't assume a second card buys throughput here.** These are **H100 PCIe with no NVLink**, so
+DDP all-reduce cost tracks trainable-parameter count over a comparatively slow interconnect —
+which predicts that a LoRA run (RLDX-1: ~26.6 M trainable, ~53 MB bf16 grads/step) should scale
+better than a fully-tuned head (N1.7: ~1 GB/step). Measured at fixed effective batch 64, the
+opposite happened: RLDX-1 **0.98×** (no gain), N1.7 **1.10×**. At realistic step counts the fixed
+per-step synchronisation overhead dominates the payload size, so **neither adaptation style is
+worth a second H100 at this batch size** — verify before spending a card, don't reason from
+gradient volume alone. Full measurement: `openspec/changes/add-rldx1-cansorting-eval/tasks.md` §6.6.
+
 ## Transport quirks `pegasus.py` now handles
 
 * **Jupyter drops large iopub output silently.** The data-rate limit (~1 MB/s) discards stream
@@ -115,10 +124,24 @@ whole optimiser state: ~72 GB versus ~36.5 GB/card on two.
   used to crash the client on cp950.
 * **Don't rapid-fire logins.** Back-to-back sessions can trigger a temporary 401 lockout. Reuse
   one session, and pause a running poller before launching something else.
-* **Inlining a script via `python -c <repr(script)>` breaks if the script's own quoting nests
-  badly inside `sh()`'s `bash -lc "..."` wrapper** — e.g. an apostrophe in a comment. Upload the
-  script with `put_file` and run it by path instead; this sidesteps the nesting entirely rather
-  than trying to get the escaping right.
+* **The kernel-WebSocket ack for a detached `setsid nohup` launch can stall indefinitely** — the
+  job is already running, but the call never returns, so a launcher that waits on the ack looks
+  hung and can be killed while its job survives. Fire the launch in a daemon thread and confirm
+  it started by polling the job's own status file / log over the Contents API instead of waiting
+  on the ack. (Contents-API reads keep working even when kernel creation itself is failing —
+  which is also how a disk-full incident stayed diagnosable.)
+* **Inlining a script — via `python -c <repr(script)>` or `run --file` — breaks if the script's
+  own quoting nests badly inside the `bash -lc "..."` wrapper** (e.g. an apostrophe in a comment),
+  and puts the script's whole body on the remote command line, where any `pgrep -f` inside it
+  matches the wrapper carrying its own source (rule 4 below). Use **`run_script(s, path)`** /
+  `pegasus.py run --script <file>` — it uploads and runs by path, keeping the command line to
+  `bash <path>`. Both failure modes disappear rather than needing the escaping to be right.
+* **`put()` on a directory is recursive but NOT resumable.** The download direction has
+  `download_resumable`; the upload direction has no counterpart, so a re-run re-uploads every
+  file. For a large mirror, index the remote side first
+  (`find <dir> -printf '%s %P\n'`) and skip files whose size already matches. Single-file
+  uploads above ~48 MiB are chunked and size-verified (see above), but that is per-file
+  integrity, not whole-directory resume.
 * **A PID that shows up in `nvidia-smi --query-compute-apps` can be completely invisible to
   `ps`/`/proc/<pid>` from this session** — `stat /proc/<pid>` returns "No such file or
   directory" (not "Permission denied"), which means a different PID namespace (e.g. a
@@ -134,12 +157,17 @@ Found once, the expensive way, while getting `env_isaaclab` running on Pegasus. 
 are Pegasus-specific quirks — they'll recur on any fresh Linux box with no root and an H100/RTX
 GPU, so check here before re-diagnosing from scratch.
 
-* **IsaacSim's RTX renderer needs a Vulkan ICD, and there usually isn't one installed.** No
-  `nvidia_icd.json` under any standard `/usr/share/vulkan/icd.d`-style path, and that directory
-  is typically root-owned anyway. NVIDIA's Vulkan implementation is actually baked into
-  `libGLX_nvidia.so.0`, which *is* there — the fix is a hand-written ICD manifest JSON pointing
-  at that `.so`, with `VK_ICD_FILENAMES`/`VK_DRIVER_FILES` set to it. No root required. Without
-  this, Kit's startup table shows `llvmpipe` (software rendering) instead of the real GPU.
+* **IsaacSim's RTX renderer needs a Vulkan ICD, and a fresh box often hasn't got one.** If
+  there's no `nvidia_icd.json` under any standard `/usr/share/vulkan/icd.d`-style path (and that
+  directory is typically root-owned, so you can't just add one), Kit's startup table falls back to
+  `llvmpipe` — software rendering. NVIDIA's Vulkan implementation is actually baked into
+  `libGLX_nvidia.so.0`, which *is* present, so the fix is a hand-written ICD manifest pointing at
+  that `.so` with `VK_ICD_FILENAMES`/`VK_DRIVER_FILES` set to it — no root required.
+  **Check before applying it:** run `vulkan_icd_probe.py` (via `pegasus.py run --script`), which
+  enumerates devices with system ICDs alone and then with the hand-written manifest. As of
+  2026-08-30 Pegasus's *system* ICDs already enumerate both H100s, so the workaround is currently
+  unnecessary there — it was needed earlier, and the probe is how you tell which situation you're
+  in rather than assuming.
 * **`isaaclab.sh --install` needs `egl_probe`, which needs EGL/GL dev headers that usually
   aren't there.** `conda install -c conda-forge libglvnd-devel mesalib libglu` (no sudo), then
   install with **`--no-build-isolation`** — otherwise `egl_probe`'s build sees an isolated venv
@@ -147,15 +175,30 @@ GPU, so check here before re-diagnosing from scratch.
 * **`isaaclab.sh --install` silently pulls an incompatible cu130 torch build**, overwriting
   whatever torch/torchvision was pinned beforehand. Force-reinstall torch/torchvision from the
   cu128 wheel index (`--index-url https://download.pytorch.org/whl/cu128`) **after** the
-  installer runs, not just before.
+  installer runs, not just before. The combination that actually works on this box:
+  `isaacsim[all,extscache]==5.1.0` (from `https://pypi.nvidia.com`) with `torch==2.7.0` /
+  `torchvision==0.22.0` from the cu128 index, in a `conda create -p` env under `/data`.
+* **LIBERO's per-project `config.yaml` needs exactly five keys**, or tasks die on
+  "`<task>.bddl` does not exist": `assets`, `bddl_files`, `benchmark_root`, `datasets`,
+  `init_states` — all pointing into `<checkout>/libero/libero` (with `datasets` at `../datasets`).
+  See the isolation rule below for *where* to put that file.
 * **Headless Kit blocks on an interactive EULA prompt and dies on EOF** unless
   `OMNI_KIT_ACCEPT_EULA=YES` is set.
 * **Conda envs must be created with `-p <path under /data>`, never `-n`** — the default env
   location lands on a nearly-full overlay filesystem on this box.
+* **`/tmp` on Pegasus is only ~1 GB, and Kit unpacks its shader caches into it** — a headless
+  IsaacSim run dies on a full filesystem unless `TMPDIR`, `TMP`, `TEMP`, `OMNI_CACHE_ROOT` and
+  `XDG_CACHE_HOME` are *all* redirected under `/data`. Same root cause as the conda `-p` rule
+  above: almost nothing outside `/data` has room on this box.
+* **Import name ≠ pip name** for several deps on this stack, and the non-obvious one bites during
+  IsaacLab setup: `pink` → **`pin-pink`** (also `cv2` → `opencv-python`, `PIL` → `pillow`,
+  `yaml` → `pyyaml`, `sklearn` → `scikit-learn`).
 * **LIBERO resolves all its asset/dataset paths from one shared `$HOME/.libero/config.yaml`.**
   Two projects on the same account using different LIBERO checkouts silently clobber each
   other's config through that one file. Give each project an isolated `HOME` override with its
   own `.libero/config.yaml` rather than sharing the real one.
+* **Pegasus has no outbound SSH/gh-auth to GitHub.** Git remotes must use HTTPS there — an SSH
+  remote just hangs/times out.
 * **robosuite 1.4.0's `mujoco>=2.3.0` pin is too loose** — it happily pulls mujoco 3.11.0, which
   renamed `MjData.qM` and breaks robosuite's `mj_fullM` call. Verified working ceiling:
   `mujoco==3.2.7`. Don't assume a newer mujoco is fine just because the version pin allows it —
