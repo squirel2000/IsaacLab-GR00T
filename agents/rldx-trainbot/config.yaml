@@ -1,0 +1,60 @@
+# rldx-trainbot — agent settings (paths always via workspace.yaml keys)
+agent: rldx-trainbot
+purpose: research evaluation of RLWRLD RLDX-1 against the GR00T N1.7 baseline
+
+engines:
+  - rldx1                 # engines/vla/RLDX-1, pinned cf67c31 (v1.0.2)
+  - isaac_gr00t_n1d7      # symmetric LoRA baseline
+  - isaaclab              # closed-loop eval client
+
+# Non-commercial, share-alike weights: derivatives MUST NOT go to gr00t_checkpoints.
+# See charter.md.
+checkpoints: artifacts/rldx1
+
+model:
+  # Single-frame by decision (2026-08-17): the GR00T N1.7 baselines send one frame per step,
+  # so PT-IMG keeps the comparison symmetric and the adapter free of frame buffering.
+  # Consequence to state in the report: with video_length 1 the motion module is inert, and
+  # memory/physics are off too, so Phase 1 tests the Qwen3-VL+MSAT backbone rather than any
+  # of RLDX-1's three headline capabilities.
+  base: RLWRLD/RLDX-1-PT-IMG
+  base_alt: RLWRLD/RLDX-1-PT      # video variant, if a multi-frame follow-up is ever run
+  reference_ckpt: RLWRLD/RLDX-1-FT-LIBERO   # used for the Phase-0 reproduction gate
+  embodiment_tag: GENERAL_EMBODIMENT
+  modality_config: agents/rldx-trainbot/harness/configs/openarm_o6_modality.py
+  physics: false          # no tactile/torque on our hardware; P stream stays masked out
+  memory: false           # can-sorting is one pick-and-place per episode
+  motion: false           # inert at video_length 1
+  video_length: 1
+
+finetune:
+  dataset: OpenArm_O6_CanSorting_MultiTask_Sim_Dataset_0403   # needs LeRobot v2.1 conversion
+  method: lora
+  lora_rank: 16
+  lora_alpha: 32
+  lora_surfaces: [action_model, backbone]
+
+eval:
+  task: Isaac-Can-Sorting-OpenArm-DexHand-v0
+  episodes: 100
+  harness: eval_harness   # evalbot's run_eval.py; RLDX-1 is just another backend
+  policy_config: rldx1_openarm_o6.json
+
+remote:
+  host: pegasus           # pa-jp-v1, 2x H100 PCIe 80GB
+  workdir: /data/VLA/tingying/RLDX-1
+  # /tmp is only 1 GB on that box - always redirect these
+  tmpdir: /data/VLA/tingying/tmp
+  uv_cache: /data/VLA/tingying/pip_cache/uv
+  hf_home: /data/.cache/huggingface
+  libero_config_path: /data/VLA/tingying/rldx_home/.libero  # isolated from RLinf's copy
+
+outputs:
+  logs: var/logs
+  results: artifacts/rldx1
+
+entrypoints:
+  patch_env: bash agents/rldx-trainbot/harness/patch_libero_venv.sh
+  supervise: bash agents/rldx-trainbot/harness/eval_supervisor.sh
+  tally: python agents/rldx-trainbot/harness/tally.py
+  monitor: python agents/rldx-trainbot/harness/monitor/poller.py

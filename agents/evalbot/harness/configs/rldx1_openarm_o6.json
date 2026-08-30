@@ -1,0 +1,21 @@
+{
+  "host": "127.0.0.1",
+  "port": 5556,
+  "task": "Isaac-Can-Sorting-OpenArm-DexHand-v0",
+  "model_path": "artifacts/rldx1/lora/openarm_o6_multitask_ptimg_dataset_0403/checkpoint-final",
+  "version": "RLDX-1",
+  "embodiment_tag": "GENERAL_EMBODIMENT",
+  "openarm_hand_type": "linkerhand_o6",
+  "server_repo": "engines/vla/RLDX-1",
+  "server_venv": ".venv",
+  "client_pythonpath": "engines/vla/RLDX-1",
+  "modality_config_path": "agents/rldx-trainbot/harness/configs/openarm_o6_modality.py",
+  "timeout_ms": 30000,
+  "connect_timeout": 900,
+  "_notes": {
+    "port": "5556 rather than the GR00T default 5555, so an RLDX-1 run can sit alongside a GR00T server without a port clash.",
+    "embodiment_tag": "RLDX-1 ships no general_embodiment entry in MODALITY_CONFIGS, so modality_config_path is mandatory, not optional.",
+    "video": "Single frame (RLDX-1-PT-IMG, video_length 1, delta_indices [0]) to stay symmetric with the single-frame GR00T baselines. The adapter therefore needs no frame buffer.",
+    "session_id": "Omitted on purpose: the memory module is disabled for can-sorting, so no session bookkeeping is sent."
+  }
+}

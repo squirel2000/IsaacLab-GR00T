@@ -205,7 +205,7 @@ cd agentbot && (在 config/agentbot.yaml 設 backbone: redis、vlm.backend: gr00
 
 ## 7. AgentBot — 操作（UI · 指令 · 監控）
 
-**權威操作指南：[`agentbot/docs/USING_VLM_BRAIN.md`](../agentbot/docs/USING_VLM_BRAIN.md)** — 設定、4 程序啟動、UI、指令、監控、排錯的完整細節都在那，本檔不重複。
+**權威操作指南：[`agentbot/docs/USING_VLM_BRAIN.md`](../../agentbot/docs/USING_VLM_BRAIN.md)** — 設定、4 程序啟動、UI、指令、監控、排錯的完整細節都在那，本檔不重複。
 一句話流程：UI 於 `:8080` 輸入指令（或 `POST /v1/commands`）→ Brain 規劃出 `tool_calls` → `SkillCall` → Orchestrator 逐一派工 → Monitor 確認 → `done`。Brain I/O：`messages`(+`image_url`)+`tools` → OpenAI `tool_calls`（`{name, arguments}`）。
 
 ---

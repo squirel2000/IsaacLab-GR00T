@@ -1,0 +1,15 @@
+{
+  "host": "localhost",
+  "port": 5555,
+  "task": "Isaac-Can-Sorting-OpenArm-DexHand-v0",
+  "model_path": "artifacts/checkpoints/gr00t/openarm_linkerhando6_multitask_N17_150k_dataset_0403_no_tune_visual/checkpoint-150000",
+  "version": "N1.7",
+  "embodiment_tag": "new_embodiment",
+  "openarm_hand_type": "linkerhand_o6",
+  "server_repo": "Isaac-GR00T_n1d7",
+  "server_venv": ".venv",
+  "client_pythonpath": "Isaac-GR00T_n1d7",
+  "_notes": {
+    "why_this_copy_exists": "Same as ../gr00t_n17_openarm_o6.json except server_repo/client_pythonpath/model_path drop the local repo's engines/vla/ prefix — Pegasus has no engines/ directory at all, it's a flatter pre-restructure layout (IsaacLab-GR00T/Isaac-GR00T_n1d7 directly)."
+  }
+}

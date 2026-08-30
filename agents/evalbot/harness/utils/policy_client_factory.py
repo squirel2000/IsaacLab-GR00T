@@ -31,6 +31,7 @@ SCRIPT_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY_CONFIGS = {
     "starvla": SCRIPT_DIR / "configs" / "starvla_openarm_o6.json",
     "gr00t": SCRIPT_DIR / "configs" / "gr00t_n15_openarm_o6.json",
+    "rldx": SCRIPT_DIR / "configs" / "rldx1_openarm_o6.json",
 }
 
 
@@ -96,6 +97,22 @@ def build_policy_client(args_cli):
             embodiment_key=config.get("embodiment_key"),
             action_split=action_split,
             starvla_repo=_resolve_path(config["starvla_repo"]),
+        )
+
+    if policy == "rldx":
+        # RLDX-1 (RLWRLD): Qwen3-VL-8B + MSAT, non-commercial weights, research comparison
+        # only. Needs the RLDX-1 checkout importable — see 'client_pythonpath' in the config.
+        from utils.rldx_client_adapter import RldxClientAdapter
+
+        host = _override(args_cli.host, config.get("host", "127.0.0.1"))
+        port = int(_override(args_cli.port, config.get("port", 5556)))
+        return RldxClientAdapter(
+            host=host,
+            port=port,
+            timeout_ms=int(config.get("timeout_ms", 30000)),
+            api_token=config.get("api_token"),
+            connect_timeout=float(config.get("connect_timeout", 900.0)),
+            session_id=config.get("session_id"),
         )
 
     raise ValueError(

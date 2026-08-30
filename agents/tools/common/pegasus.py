@@ -23,9 +23,10 @@ CLI:
     python pegasus.py rm   REMOTE                # recursive
     python pegasus.py mkdir REMOTE_DIR
     python pegasus.py run  "shell command ..."   # streams stdout/stderr live
-    python pegasus.py run  --file local_script.sh
+    python pegasus.py run  --file local_script.sh    # inlines the script body as the command
+    python pegasus.py run  --script local_script.sh  # uploads + runs by path (preferred)
 """
-import argparse, base64, hashlib, json, os, ssl, sys, time, uuid, pathlib
+import argparse, base64, hashlib, json, math, os, re, ssl, sys, time, uuid, pathlib
 
 BASE = os.environ.get("PEGASUS_BASE", "https://service-cpu-bdml.asus.com/pegasus")
 PEGASUS_PASSWORD = os.environ.get("PEGASUS_PASSWORD", "eksncl#20260410_PE")
@@ -142,10 +143,9 @@ def _ensure_remote_dir(s, path):
         s.put(f"{BASE}/api/contents/{cur}", headers=_xsrf(s), json={"type": "directory"})
 
 
-def put_file(s, local, remote):
-    """Upload one local file to the server (text, or base64 if it is binary)."""
-    remote = relpath(remote)
-    data = pathlib.Path(local).read_bytes()
+def _put_bytes(s, data, remote):
+    """PUT raw bytes to one server file path (already relpath'd). One request, no chunking —
+    the caller is responsible for keeping `data` under the server's per-request ceiling."""
     try:
         body = {"type": "file", "format": "text", "content": data.decode("utf-8")}
     except UnicodeDecodeError:                            # not UTF-8 -> send as base64
@@ -153,7 +153,65 @@ def put_file(s, local, remote):
                 "content": base64.b64encode(data).decode("ascii")}
     _ensure_remote_dir(s, "/".join(remote.split("/")[:-1]))
     s.put(f"{BASE}/api/contents/{remote}", headers=_xsrf(s), json=body).raise_for_status()
-    print(f"put  {local}  ->  {remote}  ({len(data):,} B)")
+
+
+PUT_CHUNK_SIZE = 48 << 20   # 48 MiB: a single /api/contents PUT fails outright somewhere above
+                            # ~64 MB (undocumented server-side ceiling; tighter still for binary
+                            # files, since base64 inflates the body ~33%) -- found the expensive
+                            # way uploading an IsaacLab tarball, hand-patched at the time by
+                            # chunking client-side and reassembling with `cat` on the server.
+                            # That patch is folded in here so every caller gets it for free.
+
+
+def put_file(s, local, remote, _max_tries=6):
+    """Upload one local file to the server (text, or base64 if it is binary).
+
+    Files at or under PUT_CHUNK_SIZE go up in a single request, same as before. Larger files
+    are split into PUT_CHUNK_SIZE pieces, each uploaded to a temp remote dir with its own
+    retry+relogin (one flaky chunk no longer restarts the whole transfer), then reassembled
+    server-side with `cat` and verified against the local size before the temp dir is removed.
+    """
+    remote = relpath(remote)
+    local_path = pathlib.Path(local)
+    size = local_path.stat().st_size
+    if size <= PUT_CHUNK_SIZE:
+        _put_bytes(s, local_path.read_bytes(), remote)
+        print(f"put  {local}  ->  {remote}  ({size:,} B)")
+        return
+
+    tmp_dir = f"{remote}.pegasus_upload_tmp"
+    n = math.ceil(size / PUT_CHUNK_SIZE)
+    print(f"put  {local}  ->  {remote}  ({size:,} B, {n} chunks -- over the single-request ceiling)")
+    with open(local_path, "rb") as f:
+        for i in range(n):
+            data = f.read(PUT_CHUNK_SIZE)
+            for attempt in range(1, _max_tries + 1):
+                try:
+                    _put_bytes(s, data, f"{tmp_dir}/part{i:04d}")
+                    break
+                except Exception as e:
+                    if attempt == _max_tries:
+                        raise RuntimeError(
+                            f"pegasus.put_file: chunk {i}/{n} of {remote} failed after "
+                            f"{_max_tries} attempts ({type(e).__name__}: {e})") from e
+                    print(f"  chunk {i + 1}/{n} attempt {attempt} failed: "
+                          f"{type(e).__name__}; reconnecting and retrying")
+                    try:
+                        relogin(s)
+                    except Exception:
+                        pass
+            print(f"  uploaded chunk {i + 1}/{n}")
+
+    abs_dir, abs_remote = f"/data/{tmp_dir}", f"/data/{remote}"
+    out, rc = sh(s, f"cat {abs_dir}/part* > {abs_remote} && stat -c%s {abs_remote} && "
+                    f"rm -rf {abs_dir}", timeout=120)
+    if rc != 0:
+        raise RuntimeError(f"pegasus.put_file: server-side reassembly of {remote} failed "
+                            f"(rc={rc}): {out[:300]}")
+    reassembled = int(out.strip().splitlines()[-1])
+    if reassembled != size:
+        raise RuntimeError(f"pegasus.put_file: reassembled {remote} is {reassembled:,} B, "
+                            f"local file is {size:,} B -- upload is corrupt, not left in place")
 
 
 def put(s, local, remote):
@@ -317,7 +375,7 @@ def _exec(s, code, timeout, on_stream=None):
         "content": {"code": code, "silent": False, "store_history": False,
                     "user_expressions": {}, "allow_stdin": False, "stop_on_error": True},
         "channel": "shell"}))
-    buf = []
+    buf, finished = [], False
     try:
         deadline = time.time() + timeout
         while time.time() < deadline:
@@ -335,22 +393,97 @@ def _exec(s, code, timeout, on_stream=None):
                 if on_stream:
                     on_stream(tb + "\n")
             elif mt == "status" and c["execution_state"] == "idle":  # execution finished
+                finished = True
                 break
     finally:
         ws.close()
         s.delete(f"{BASE}/api/kernels/{kid}", headers=_xsrf(s))      # always free the kernel
+    if not finished:
+        # Falling out of the loop on the deadline used to return whatever had arrived so far,
+        # and because the RC sentinel is printed last, _parse_rc then reported rc=0 — a timeout
+        # was indistinguishable from a successful empty result. Callers must be told.
+        raise TimeoutError(f"kernel did not finish within {timeout}s "
+                           f"({sum(len(b) for b in buf)} chars received)")
     return "".join(buf)
 
 
+_SECRET_ENV_RE = re.compile(
+    r"((?:WANDB_API_KEY|[A-Z_]*(?:TOKEN|SECRET|PASSWORD|API_KEY))=)\S+")
+
+
+def _redact(command: str) -> str:
+    """Blank out `VAR=value` for any env var whose name looks like a secret.
+
+    Commands built by callers (e.g. launch_training.py's wandb key injection) put credentials
+    in a `VAR=value` prefix rather than a flag so a wrapper's `set -x` never echoes them — but
+    an error path that echoes the command itself would undo that. Anything shaped like
+    `*TOKEN=`, `*SECRET=`, `*PASSWORD=`, `*API_KEY=` (or `WANDB_API_KEY=` explicitly) is masked
+    before this module ever prints or raises with a command string.
+    """
+    return _SECRET_ENV_RE.sub(r"\1***", command)
+
+
 def _parse_rc(out):
-    """Split __PEGASUS_RC__ sentinel from captured output; return (clean_text, exit_code)."""
-    rc, lines = 0, []
+    """Split the sentinels from captured output.
+
+    Returns (clean_text, exit_code, expected_len) where expected_len is the payload length the
+    server said it was sending, or None if it never got that far. The caller compares it against
+    what actually arrived, because Jupyter drops iopub messages silently (see `sh`).
+    """
+    rc, expected, lines = 0, None, []
     for line in out.splitlines(keepends=True):
         if line.startswith("__PEGASUS_RC__="):
             rc = int(line.split("=", 1)[1])
+        elif line.startswith("__PEGASUS_LEN__="):
+            expected = int(line.split("=", 1)[1])
         else:
             lines.append(line)
-    return "".join(lines), rc
+    return "".join(lines), rc, expected
+
+
+SCRIPT_DIR = "VLA/tingying/pegasus_runs/_scripts"
+
+
+def run_script(s, local_script, remote_name=None, timeout=86400, interpreter=None, args=""):
+    """Upload a local script and run it BY PATH, streaming output. Returns exit code.
+
+    Prefer this over `run(s, open(script).read())` for anything non-trivial. Passing a script
+    *body* to `run()` puts every string in that script onto the remote command line (it becomes
+    the `bash -lc` argument), which breaks two ways:
+
+      * any `pgrep -f <pattern>` inside the script matches the wrapper carrying its own source —
+        that has reported phantom jobs and once killed our own shell (see README rule 4);
+      * a lone apostrophe in a comment ends the shell's quoting early, and Python-side escaping
+        cannot fix it because the text sits inside a bash single-quoted argument.
+
+    Running by path keeps the command line to `<interpreter> <path>`, sidestepping both.
+
+    The interpreter is inferred from the shebang, else the extension (`.py` -> python3,
+    otherwise bash) — getting this wrong hands a Python file to bash, which reports a confusing
+    cascade of shell syntax errors from Python source. Pass `interpreter=` to override, e.g. a
+    specific venv's python. `args` is appended verbatim after the path.
+    """
+    local_script = pathlib.Path(local_script)
+    remote = f"{SCRIPT_DIR}/{remote_name or local_script.name}"
+
+    if interpreter is None:
+        first = ""
+        try:
+            with open(local_script, "r", encoding="utf-8", errors="replace") as fh:
+                first = fh.readline()
+        except OSError:
+            pass
+        if first.startswith("#!"):
+            interpreter = first[2:].strip()          # honour the script's own choice
+        elif local_script.suffix == ".py":
+            interpreter = "python3"
+        else:
+            interpreter = "bash"
+
+    _ensure_remote_dir(s, SCRIPT_DIR)
+    put_file(s, str(local_script), remote)
+    cmd = f"{interpreter} /data/{remote}" + (f" {args}" if args else "")
+    return run(s, cmd, timeout=timeout)
 
 
 def run(s, command, timeout=86400):
@@ -367,19 +500,46 @@ def run(s, command, timeout=86400):
         if t:
             sys.stdout.write(t); sys.stdout.flush()
 
-    _, rc = _parse_rc(_exec(s, code, timeout, on_stream=emit))
+    _, rc, _ = _parse_rc(_exec(s, code, timeout, on_stream=emit))
     return rc
 
 
+SH_CHUNK = 16 << 10          # bytes per iopub stream message
+SH_PACE = 0.03               # seconds between chunks -> ~530 KB/s, under the 1 MB/s limit
+SH_MAX_INLINE = 4 << 20      # beyond this, truncate LOUDLY in the middle
+
+
 def sh(s, command, timeout=300):
-    """Run a bash command, capture output. Returns (stdout_text, exit_code). Non-streaming."""
-    code = ("import subprocess\n"
+    """Run a bash command, capture output. Returns (stdout_text, exit_code). Non-streaming.
+
+    The output is emitted in paced chunks rather than one big print because Jupyter enforces an
+    iopub data-rate limit (default 1 MB/s): output arriving faster is DROPPED, and the warning
+    goes to the server's own log, not to us. A single `print(r.stdout)` of a few hundred KB
+    therefore came back as an empty string with exit code 0 — which callers read as "the command
+    produced nothing" rather than "the transport ate it". A monitor built on that silently
+    reported healthy runs as "not started".
+
+    Belt and braces: the server also announces the payload length, and we verify what arrived
+    against it. A short read raises instead of returning a plausible-looking partial result.
+    """
+    code = ("import subprocess,sys,time\n"
             "r=subprocess.run(['bash','-lc'," + repr(command) + "],"
             "capture_output=True,text=True)\n"
-            "print(r.stdout,end='')\n"
-            "print(r.stderr,end='')\n"
-            "print('__PEGASUS_RC__=%d'%r.returncode)\n")
-    return _parse_rc(_exec(s, code, timeout))
+            "_o=r.stdout+r.stderr\n"
+            f"_max={SH_MAX_INLINE}\n"
+            "if len(_o)>_max:\n"
+            "    _h=_max//2\n"
+            "    _o=_o[:_h]+('\\n__PEGASUS_TRUNCATED__ %d chars omitted\\n'%(len(_o)-_max))+_o[-_h:]\n"
+            "print('__PEGASUS_LEN__=%d'%len(_o))\n"
+            f"for _i in range(0,len(_o),{SH_CHUNK}):\n"
+            f"    sys.stdout.write(_o[_i:_i+{SH_CHUNK}]); sys.stdout.flush(); time.sleep({SH_PACE})\n"
+            "print('\\n__PEGASUS_RC__=%d'%r.returncode)\n")
+    out, rc, expected = _parse_rc(_exec(s, code, timeout))
+    if expected is not None and len(out) not in (expected, expected + 1):
+        # +1 allows for the newline that precedes the RC sentinel.
+        raise RuntimeError(f"pegasus.sh: truncated response — server sent {expected} chars, "
+                           f"{len(out)} arrived (iopub drop?). command: {_redact(command)[:120]}")
+    return out, rc
 
 
 # --------------------------------------------------------------------------- #
@@ -387,6 +547,14 @@ def sh(s, command, timeout=300):
 # --------------------------------------------------------------------------- #
 def main():
     """CLI entry point: parse arguments, log in, then dispatch the chosen command."""
+    # Remote output is UTF-8 (progress bars, check marks). A non-UTF-8 console
+    # codepage (e.g. cp950 on zh-TW Windows) would raise UnicodeEncodeError mid-stream
+    # and kill the client while the remote job keeps running — degrade instead.
+    for _stream in (sys.stdout, sys.stderr):
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
     ap = argparse.ArgumentParser(description="Pegasus Jupyter automation client")
     ap.add_argument("--insecure", action="store_true",
                     help="skip TLS verification (only if truststore is unavailable)")
@@ -412,7 +580,10 @@ def main():
 
     p = sub.add_parser("run", help="run a bash command on the server (live output)")
     p.add_argument("command", nargs="?", help="shell command string to run")
-    p.add_argument("--file", help="run the contents of a local script file instead")
+    p.add_argument("--file", help="inline a local script's CONTENTS as the command "
+                                  "(puts the whole body on the remote command line — see --script)")
+    p.add_argument("--script", help="upload a local script and run it by path (preferred for "
+                                    "anything non-trivial; see run_script's docstring)")
 
     args = ap.parse_args()
 
@@ -428,9 +599,11 @@ def main():
     elif args.cmd == "mkdir":
         mkdir(s, args.path)
     elif args.cmd == "run":
+        if args.script:
+            sys.exit(run_script(s, args.script))
         cmd = pathlib.Path(args.file).read_text(encoding="utf-8") if args.file else args.command
         if not cmd:
-            ap.error("run needs a command or --file")
+            ap.error("run needs a command, --file, or --script")
         sys.exit(run(s, cmd))
 
 

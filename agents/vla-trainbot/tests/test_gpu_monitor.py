@@ -18,9 +18,17 @@ class ParseTests(unittest.TestCase):
         text = "0, 5, 1024\n1, 97, 71000\n"
         gpus = gm.parse_nvidia_smi(text)
         self.assertEqual(len(gpus), 2)
-        self.assertEqual(gpus[0], {"index": 0, "util": 5, "mem_gb": 1024 / 1024})
+        self.assertEqual(gpus[0]["index"], 0)
+        self.assertEqual(gpus[0]["util"], 5)
+        self.assertAlmostEqual(gpus[0]["mem_gb"], 1024 / 1024)
         self.assertEqual(gpus[1]["index"], 1)
         self.assertAlmostEqual(gpus[1]["mem_gb"], 71000 / 1024)
+
+    def test_reports_free_memory_when_total_is_given(self):
+        # memory.total is the 4th column; free = total - used drives the "can this run fit?" test
+        gpus = gm.parse_nvidia_smi("0, 0, 1024, 81559\n")
+        self.assertAlmostEqual(gpus[0]["total_gb"], 81559 / 1024)
+        self.assertAlmostEqual(gpus[0]["free_gb"], (81559 - 1024) / 1024)
 
     def test_ignores_blank_and_garbage_lines(self):
         text = "\nindex, utilization.gpu, memory.used\n0, 0, 12\n"  # header-ish line skipped
