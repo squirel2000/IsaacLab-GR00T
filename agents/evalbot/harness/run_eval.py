@@ -81,6 +81,23 @@ def find_conda_sh(configured) -> str:
     raise SystemExit("conda.sh not found — set env.conda_sh in eval_config.yaml")
 
 
+def isaaclab_activate(env_cfg: dict) -> str:
+    """Shell snippet that makes the IsaacLab conda env's interpreter the one `python3` finds.
+
+    Prefers `env.isaaclab_conda_prefix` (an explicit path to the env directory) over
+    `conda activate NAME` when set. Needed on Pegasus: that box's `env_isaaclab` has isaacsim
+    and isaaclab correctly installed (verified in the section-3 spike) but the env has no
+    `bin/activate` and there is no working `conda` binary anywhere on the box — only a package
+    cache under `conda/`. `conda activate` there isn't a slow path, it's not a path at all;
+    `find_conda_sh()` would raise SystemExit before a single run got a chance to start.
+    """
+    prefix = env_cfg.get("isaaclab_conda_prefix")
+    if prefix:
+        return f"export PATH={shlex.quote(str(resolve_path(prefix)))}/bin:$PATH"
+    conda_sh = find_conda_sh(env_cfg.get("conda_sh"))
+    return f"source {shlex.quote(conda_sh)} && conda activate {env_cfg['isaaclab_conda_env']}"
+
+
 def resolve_checkpoint(path: Path) -> Path:
     """A parent dir holding checkpoint-* subdirs resolves to the latest (highest step)."""
     if path.name.startswith("checkpoint-"):
@@ -97,7 +114,7 @@ def server_workdir_activate(policy: str, cfg: dict, env: dict) -> tuple[Path, st
     if policy == "starvla":
         return resolve_path(cfg["starvla_repo"]), f"source {shlex.quote(conda_sh)} && conda activate starVLA"
     workdir = resolve_path(cfg.get("server_repo", "engines/vla/Isaac-GR00T"))
-    if cfg.get("server_venv"):  # N1.7 lives in a uv/.venv, not conda
+    if cfg.get("server_venv"):  # N1.7 and RLDX-1 both live in a uv/.venv, not conda
         return workdir, f"source {shlex.quote(str(workdir / cfg['server_venv']))}/bin/activate"
     return workdir, f"source {shlex.quote(conda_sh)} && conda activate {cfg.get('server_conda_env', 'env_gr00t')}"
 
@@ -110,6 +127,14 @@ def server_cmd(policy: str, cfg: dict, ckpt: Path) -> list[str]:
         if "denoising_steps" in cfg:
             a += ["--denoising_steps", str(cfg["denoising_steps"])]
         return a + (["--use_bf16"] if cfg.get("use_bf16", True) else [])
+    if policy == "rldx":
+        # RLDX-1's own entrypoint (rldx/eval/run_rldx_server.py) — this branch was simply
+        # missing before: any "rldx" run fell through to the GR00T command below, which
+        # would try to launch a module RLDX-1 doesn't have. Verified against 6.5's smoke
+        # test (agents/rldx-trainbot/harness), same flags, same server_client.PolicyServer wire.
+        return ["python3", "-u", "-m", "rldx.eval.run_rldx_server",
+                "--model-path", str(ckpt), "--embodiment-tag", cfg["embodiment_tag"],
+                "--host", cfg.get("host", "127.0.0.1"), "--port", str(cfg["port"])]
     # GR00T N1.6 tyro parses the enum NAME (NEW_EMBODIMENT); N1.7 takes the value.
     ver = cfg.get("version", "N1.5")
     emb = cfg["embodiment_tag"].upper() if ver == "N1.6" else cfg["embodiment_tag"]
@@ -200,7 +225,8 @@ def server_error_hint(server_log: Path) -> str:
     return f" (last server log: {lines[-1][:160]})" if lines else ""
 
 
-def run_batch(r: dict, d: dict, env: dict, isaaclab: Path, logdir: Path, headless: bool, port=None) -> None:
+def run_batch(r: dict, d: dict, env: dict, isaaclab: Path, isaaclab_act: str, logdir: Path,
+             headless: bool, port=None) -> None:
     tag = r["tag"]
     t0 = time.time()
     if port is not None:
@@ -238,7 +264,7 @@ def run_batch(r: dict, d: dict, env: dict, isaaclab: Path, logdir: Path, headles
             clog = logdir / f"{tag}_client_attempt{attempt}.log"
             log(f"=== {tag}: client attempt {attempt} -- need {need} more (have {done}/{d['target']}) ===")
             cc = shlex.join(client_cmd(r, need, d, headless))
-            cbash = f"cd {shlex.quote(str(isaaclab))} && source {shlex.quote(env['conda_sh'])} && conda activate {env['isaaclab_conda_env']} && exec {cc}"
+            cbash = f"cd {shlex.quote(str(isaaclab))} && {isaaclab_act} && exec {cc}"
             rc = 0
             with open(clog, "w") as f:
                 try:
@@ -284,8 +310,14 @@ def main() -> None:
     headless = d["headless"]
 
     isaaclab = resolve_path(env_cfg["isaaclab_repo"])
-    run_env = dict(os.environ, conda_sh=find_conda_sh(env_cfg.get("conda_sh")),
-                   isaaclab_conda_env=env_cfg["isaaclab_conda_env"])
+    isaaclab_act = isaaclab_activate(env_cfg)   # computed once; see that function for why
+    try:                                         # only a non-venv server path still needs this;
+        conda_sh = find_conda_sh(env_cfg.get("conda_sh"))   # don't let its absence block
+    except SystemExit:                                       # every run before any of them start
+        conda_sh = ""
+    run_env = dict(os.environ, conda_sh=conda_sh, isaaclab_conda_env=env_cfg["isaaclab_conda_env"],
+                   OMNI_KIT_ACCEPT_EULA="YES")   # headless Kit otherwise blocks on an
+                                                  # interactive EULA prompt and dies on EOF
     if not headless:
         run_env.update({k: str(v) for k, v in env_cfg.get("display", {}).items()})
 
@@ -306,13 +338,14 @@ def main() -> None:
         # Each concurrent run gets its own server port (5555+i) and is reaped independently.
         log(f"=== evaluating {len(to_eval)} runs, up to {jobs} in parallel ===")
         with ThreadPoolExecutor(max_workers=jobs) as ex:
-            futures = [ex.submit(run_batch, load_run(run, cfg_dir), d, run_env, isaaclab, logdir, headless, 5555 + i)
+            futures = [ex.submit(run_batch, load_run(run, cfg_dir), d, run_env, isaaclab,
+                                 isaaclab_act, logdir, headless, 5555 + i)
                        for i, run in enumerate(to_eval)]
             for f in futures:
                 f.result()
     else:
         for run in to_eval:
-            run_batch(load_run(run, cfg_dir), d, run_env, isaaclab, logdir, headless)
+            run_batch(load_run(run, cfg_dir), d, run_env, isaaclab, isaaclab_act, logdir, headless)
 
     # hand off to analysis: comparison table + figure
     items = [(run["tag"], logdir / f"{run['tag']}_combined_episodes.log", load_run(run, cfg_dir)["ckpt"])

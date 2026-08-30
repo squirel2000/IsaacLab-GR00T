@@ -12,6 +12,7 @@ keys, never hardcoded paths.
 | [`agentbot/`](agentbot/) | **Orchestrator** — Brain→Skill→VLA execution; wakes/monitors the whole sim/real stack via `python -m agentbot.stack` | executable package (own repo) |
 | [`vla-trainbot/`](vla-trainbot/) | VLA model training (GR00T N1.x / starVLA) — automated H100 train→eval→deploy | charter + harness |
 | [`vlm-trainbot/`](vlm-trainbot/) | VLM training (Cosmos-R2 VQA LoRA → merge → swap) | charter + runbook |
+| [`rldx-trainbot/`](rldx-trainbot/) | Research evaluation of RLWRLD RLDX-1 vs the GR00T N1.7 baseline (**non-commercial weights** — see its charter) | charter + harness |
 | [`evalbot/`](evalbot/) | Post-training closed-loop evaluation in IsaacLab | charter + harness |
 | [`rosbot/`](rosbot/) | OpenArm ROS2 bring-up (sim / RViz / controllers) | charter + runbook |
 | [`teleopbot/`](teleopbot/) | Teleoperation + demonstration data collection | charter + runbook |

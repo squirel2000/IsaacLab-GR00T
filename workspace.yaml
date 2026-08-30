@@ -19,6 +19,7 @@ vla_harness: agents/vla-trainbot/harness
 # --- engines (execution plane) ---
 isaac_gr00t: engines/vla/Isaac-GR00T
 isaac_gr00t_n1d7: engines/vla/Isaac-GR00T_n1d7
+rldx1: engines/vla/RLDX-1
 starvla: engines/vla/starVLA
 vla_control: engines/vla/vla_control
 isaac_gr00t_vlm: engines/vlm/Isaac-GR00T-VLM

@@ -1,0 +1,34 @@
+# Pegasus-adjusted eval config: ONE run, a small episode count, WITH save_video on — this is
+# what caught the missing-pyarrow bug the target=2/save_video=false version of this file
+# didn't (that path never touches EpisodeDataSaver._save_episode_parquet() at all). Re-run
+# this (with a fresh save_id / cleared log) any time gr00t_infer_agent.py's data-saving path
+# changes, before trusting a long real sweep to it again.
+defaults:
+  task: Isaac-Can-Sorting-OpenArm-DexHand-v0
+  target: 3
+  max_attempts: 4
+  jobs: 1
+  headless: true
+  save_video: true
+  filter: true
+  multitask: true
+  pov_list: [head]
+  openarm_hand_type: linkerhand_o6
+  client_timeout_s: 1800
+  server_ready_timeout_s: 900
+  server_ready_string: "Server is ready and listening"
+  logdir: /data/VLA/tingying/pegasus_runs/evalbot_smoke/logs
+
+env:
+  isaaclab_repo: IsaacLab                    # -> /data/VLA/tingying/IsaacLab-GR00T/IsaacLab
+  isaaclab_conda_env: env_isaaclab
+  isaaclab_conda_prefix: /data/VLA/tingying/envs/env_isaaclab   # no bin/activate, no working
+                                                                 # conda binary on this box —
+                                                                 # see run_eval.py:isaaclab_activate
+  conda_sh:
+
+runs:
+  - tag: n17_lr5e5_150k_0614
+    config: gr00t_n17_openarm_o6.json
+    checkpoint: artifacts/checkpoints/gr00t/N1_7_fft_0614_150k_lr5e5_no_tune_visual/checkpoint-150000
+    save_id: n17_lr5e5_150k_0614_multitask_checkpoint-150000

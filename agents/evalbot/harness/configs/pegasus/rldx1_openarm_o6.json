@@ -1,0 +1,16 @@
+{
+  "host": "127.0.0.1",
+  "port": 5556,
+  "task": "Isaac-Can-Sorting-OpenArm-DexHand-v0",
+  "model_path": "/data/VLA/tingying/artifacts/rldx1/lora_right_only/openarm_o6_ptimg_lora_rightonly_0403/checkpoint-30000",
+  "version": "RLDX-1",
+  "embodiment_tag": "GENERAL_EMBODIMENT",
+  "openarm_hand_type": "linkerhand_o6",
+  "server_repo": "/data/VLA/tingying/RLDX-1",
+  "server_venv": ".venv",
+  "client_pythonpath": "/data/VLA/tingying/RLDX-1",
+  "_notes": {
+    "why_absolute_paths": "Unlike Isaac-GR00T_n1d7 (which sits under the IsaacLab-GR00T root evalbot's workspace.yaml marker resolves against), RLDX-1 lives as a SIBLING checkout at /data/VLA/tingying/RLDX-1, one level up. A ROOT-relative path here would resolve to <root>/RLDX-1, which doesn't exist. Absolute paths bypass resolve_path()'s ROOT resolution entirely.",
+    "port": "5556, not 5555, so an RLDX-1 run can sit alongside a GR00T server without a port clash (matches the main configs/rldx1_openarm_o6.json)."
+  }
+}

@@ -375,7 +375,15 @@ def main():
                       f"({len(infer_time_per_epi)} infer nums)")
                 
                 if data_saver: # and (terminated or truncated): # or other condition (currently only records truncated/terminated)
-                    data_saver.save_episode(episode_counter, image_list, action_list, joint_pos_list, episode_result)
+                    # The success/failure result above is the metric this whole run exists to
+                    # collect; video/parquet/plot saving is supplementary. A save failure (seen
+                    # in practice: a missing pandas parquet engine) must not cost the remaining
+                    # episodes of a long run — log it and keep collecting.
+                    try:
+                        data_saver.save_episode(episode_counter, image_list, action_list, joint_pos_list, episode_result)
+                    except Exception as e:  # noqa: BLE001
+                        print(f"[WARN] data_saver.save_episode failed for episode {episode_counter}: "
+                              f"{type(e).__name__}: {e}")
 
                 obs, _ = env.reset()  # Reset the environment
                 obs = run_stabilization(env, default_idle_actions_tensor) # Run stabilization again
@@ -425,6 +433,39 @@ def main():
 
 if __name__ == "__main__":
     # run the main function
-    main()
-    # close sim app
-    simulation_app.close()
+    #
+    # main() is wrapped, not called bare: an exception raised inside it (observed in
+    # practice — a missing pyarrow engine made every episode's data_saver.save_episode()
+    # call raise ImportError, right after that episode's own "finished after N steps" line
+    # had already been printed and logged) happens *after* SimulationApp has started, which
+    # on this box hangs Kit's teardown just as reliably as the "successful run" case below
+    # does. Un-wrapped, that meant: the log already showed the episode as complete, but the
+    # process never reached the exit code needed for run_eval.py to notice — it sat there
+    # until client_timeout_s (hours) killed it, then retried and hit the exact same bug
+    # again. Wrapping this means any future exception here fails in seconds, with its
+    # traceback logged, instead of silently burning the full timeout every single attempt.
+    exit_code = 0
+    try:
+        main()
+    except BaseException:
+        import traceback
+        traceback.print_exc()
+        exit_code = 1
+    # Close the sim app, but don't trust it to actually return: Kit's teardown has been
+    # observed to hang indefinitely after a fully successful run too (not just after an
+    # exception). Every result main() produces before this point is already flushed to
+    # disk (finalize_manifest/write_manifest/simulation_note.txt, and this process's own
+    # stdout via -u), so there is nothing left to lose by not waiting for a clean shutdown.
+    import os
+    import threading
+
+    def _close():
+        try:
+            simulation_app.close()
+        except Exception:  # noqa: BLE001 - about to exit either way
+            pass
+
+    t = threading.Thread(target=_close, daemon=True)
+    t.start()
+    t.join(timeout=15)
+    os._exit(exit_code)

@@ -1,0 +1,54 @@
+# Phase 1 three-way comparison (openspec change add-rldx1-cansorting-eval, section 7), run on
+# Pegasus. See agents/evalbot/harness/README.md "Running on Pegasus" for the full handoff guide
+# (env, paths, known fixes) — this file only needs to differ from the main configs/eval_config.yaml
+# in env: (Pegasus's flat, pre-restructure layout + no working conda) and in using absolute or
+# Pegasus-relative checkpoint paths.
+#
+# run_eval.py reuses a run's log untouched if it already has `target` episodes — so
+# n17_lr5e5_150k_0614's 2-episode smoke test result gets replaced by a full 100-episode run the
+# first time this file is used with target=100, and every later re-run of this SAME file reuses
+# all three once they each reach 100.
+defaults:
+  task: Isaac-Can-Sorting-OpenArm-DexHand-v0
+  target: 100
+  max_attempts: 12
+  jobs: 1                      # sequential — see README for why, and how to raise it once this
+                                # first full run is confirmed reliable
+  headless: true
+  save_video: true
+  filter: true
+  multitask: true
+  pov_list: [head]
+  openarm_hand_type: linkerhand_o6
+  client_timeout_s: 14400
+  server_ready_timeout_s: 900
+  server_ready_string: "Server is ready and listening"
+  logdir: /data/VLA/tingying/pegasus_runs/evalbot_phase1/logs
+
+env:
+  isaaclab_repo: IsaacLab                    # -> /data/VLA/tingying/IsaacLab-GR00T/IsaacLab
+  isaaclab_conda_env: env_isaaclab
+  isaaclab_conda_prefix: /data/VLA/tingying/envs/env_isaaclab
+  conda_sh:
+
+runs:
+  # 6.6/7's upper-bound reference — already proven at target=2 (100% success, loss 0.0088,
+  # 2026-08-19); this run upgrades it to the real 100-episode number.
+  - tag: n17_lr5e5_150k_0614
+    config: gr00t_n17_openarm_o6.json
+    checkpoint: /data/VLA/tingying/IsaacLab-GR00T/artifacts/checkpoints/gr00t/N1_7_fft_0614_150k_lr5e5_no_tune_visual/checkpoint-150000
+    save_id: n17_lr5e5_150k_0614_multitask_checkpoint-150000
+
+  # 6.2 — the matched N1.7 baseline (30k steps, effective batch 64, right_only/13-dim, same
+  # dataset and step budget as 6.1b below).
+  - tag: n17_rightonly_30k_batch64_lr1e4
+    config: gr00t_n17_openarm_o6.json
+    checkpoint: /data/VLA/tingying/artifacts/gr00t_n17_match/N1_7_rightonly_30k_batch64_lr1e4/checkpoint-30000
+    save_id: n17_rightonly_30k_batch64_lr1e4_checkpoint-30000
+
+  # 6.1b — RLDX-1 LoRA, right_only/13-dim, same matched budget.
+  - tag: rldx1_lora_rightonly_30k
+    policy: rldx
+    config: rldx1_openarm_o6.json
+    checkpoint: /data/VLA/tingying/artifacts/rldx1/lora_right_only/openarm_o6_ptimg_lora_rightonly_0403/checkpoint-30000
+    save_id: rldx1_lora_rightonly_30k_checkpoint-30000
