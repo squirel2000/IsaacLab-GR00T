@@ -1,0 +1,609 @@
+<title>RLDX-1 Field Report</title>
+<style>
+:root{
+  --paper:#f4f6f7; --card:#ffffff; --card-2:#eef2f3;
+  --ink:#121a20; --ink-2:#48575f; --ink-3:#76848d;
+  --rule:#dbe1e5; --rule-2:#c3ced3;
+  --accent:#0f5f6b; --accent-soft:#e0edef; --accent-ink:#0b474f;
+  --good:#1b6842; --good-soft:#dbeee4;
+  --warn:#875508; --warn-soft:#f6e8cf;
+  --bad:#992a2a; --bad-soft:#f5dcdc;
+  --serif:'Iowan Old Style','Palatino Linotype','Book Antiqua',Palatino,Georgia,'Times New Roman',serif;
+  --mono:'Cascadia Mono',Consolas,'SF Mono',ui-monospace,'DejaVu Sans Mono',monospace;
+  --sans:'Segoe UI Variable Text','Segoe UI',-apple-system,system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0c1116; --card:#131b21; --card-2:#18232a;
+    --ink:#e5ecef; --ink-2:#a1afb7; --ink-3:#6d7d86;
+    --rule:#223037; --rule-2:#2e3f48;
+    --accent:#57b6c3; --accent-soft:#10303a; --accent-ink:#8ad3dd;
+    --good:#5ed398; --good-soft:#12301f;
+    --warn:#dda63f; --warn-soft:#33260c;
+    --bad:#ef6d6d; --bad-soft:#341717;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0c1116; --card:#131b21; --card-2:#18232a;
+  --ink:#e5ecef; --ink-2:#a1afb7; --ink-3:#6d7d86;
+  --rule:#223037; --rule-2:#2e3f48;
+  --accent:#57b6c3; --accent-soft:#10303a; --accent-ink:#8ad3dd;
+  --good:#5ed398; --good-soft:#12301f;
+  --warn:#dda63f; --warn-soft:#33260c;
+  --bad:#ef6d6d; --bad-soft:#341717;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--serif); font-size:17px; line-height:1.68;
+  -webkit-font-smoothing:antialiased;
+}
+.page{max-width:1120px; margin:0 auto; padding:44px 26px 90px}
+.col{max-width:68ch}
+h1,h2,h3,h4{text-wrap:balance; margin:0}
+h1{font-size:clamp(34px,5vw,53px); line-height:1.04; letter-spacing:-.015em; font-weight:600}
+h2{font-size:clamp(23px,2.6vw,30px); line-height:1.18; margin:0 0 12px; font-weight:600}
+h3{font-size:19px; margin:0 0 7px; font-weight:600}
+p{margin:0 0 15px}
+a{color:var(--accent); text-decoration:none; border-bottom:1px solid var(--rule-2)}
+a:hover{border-bottom-color:var(--accent)}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-offset:3px}
+strong{font-weight:600}
+code,kbd{font-family:var(--mono); font-size:.87em; background:var(--card-2); padding:1px 5px; border-radius:3px; border:1px solid var(--rule)}
+
+/* masthead */
+.mast{border-bottom:2px solid var(--ink); padding-bottom:20px; margin-bottom:14px}
+.kicker{
+  font-family:var(--mono); font-size:11px; letter-spacing:.2em; text-transform:uppercase;
+  color:var(--accent); margin-bottom:13px;
+}
+.dek{font-size:20px; color:var(--ink-2); margin:14px 0 0; max-width:62ch; line-height:1.5}
+.byline{
+  font-family:var(--mono); font-size:11.5px; color:var(--ink-3); margin-top:16px;
+  display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+}
+.byline span{white-space:nowrap}
+.byline i{width:1px;height:11px;background:var(--rule-2);display:inline-block}
+.themebtn{
+  font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+  background:var(--card); color:var(--ink-2); border:1px solid var(--rule-2);
+  padding:5px 10px; border-radius:3px; cursor:pointer; margin-left:auto;
+}
+.themebtn:hover{border-color:var(--accent); color:var(--accent)}
+
+/* verdict strip */
+.verdict{
+  background:var(--card); border:1px solid var(--rule); border-left:4px solid var(--accent);
+  border-radius:4px; padding:20px 22px; margin:26px 0 34px;
+}
+.verdict h3{font-family:var(--mono); font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); margin-bottom:9px}
+.verdict p{margin:0 0 10px; font-size:17.5px}
+.verdict p:last-child{margin-bottom:0}
+
+/* numbers band */
+.band{display:grid; grid-template-columns:repeat(auto-fit,minmax(158px,1fr)); gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:4px; overflow:hidden; margin:0 0 34px}
+.nb{background:var(--card); padding:15px 17px}
+.nb .k{font-family:var(--mono); font-size:9.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-3)}
+.nb .v{font-family:var(--mono); font-size:26px; font-weight:600; margin-top:5px; font-variant-numeric:tabular-nums; line-height:1.1}
+.nb .n{font-size:11.5px; color:var(--ink-3); font-family:var(--sans); margin-top:3px}
+.v.good{color:var(--good)} .v.warn{color:var(--warn)} .v.bad{color:var(--bad)} .v.acc{color:var(--accent)}
+
+section{margin:0 0 46px}
+.sechead{display:flex; align-items:baseline; gap:12px; margin-bottom:16px; border-bottom:1px solid var(--rule); padding-bottom:9px}
+.sechead .num{font-family:var(--mono); font-size:11px; color:var(--ink-3); letter-spacing:.1em}
+
+/* tables */
+.tw{overflow-x:auto; margin:20px 0; border:1px solid var(--rule); border-radius:4px; background:var(--card)}
+table{width:100%; border-collapse:collapse; font-family:var(--mono); font-size:13px; font-variant-numeric:tabular-nums}
+caption{caption-side:bottom; text-align:left; font-family:var(--sans); font-size:12.5px; color:var(--ink-3); padding:9px 13px; line-height:1.5}
+th{text-align:right; padding:10px 13px; font-size:9.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3); font-weight:600; border-bottom:1px solid var(--rule-2); white-space:nowrap; background:var(--card-2)}
+th:first-child{text-align:left}
+td{text-align:right; padding:9px 13px; border-bottom:1px solid var(--rule)}
+td:first-child{text-align:left; font-family:var(--sans); font-size:13.5px}
+tbody tr:last-child td{border-bottom:0}
+tr.hi td{background:var(--accent-soft); font-weight:600}
+tr.hi td:first-child{color:var(--accent-ink)}
+.win{color:var(--good); font-weight:600}
+
+/* pills */
+.pill{font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase; padding:2px 7px; border-radius:3px; white-space:nowrap}
+.pill.ok{background:var(--good-soft); color:var(--good)}
+.pill.no{background:var(--bad-soft); color:var(--bad)}
+.pill.mid{background:var(--warn-soft); color:var(--warn)}
+
+/* defect list */
+.defects{display:flex; flex-direction:column; gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:4px; overflow:hidden}
+.dfx{background:var(--card); padding:16px 19px; display:grid; grid-template-columns:34px 1fr; gap:15px}
+.dfx .n{font-family:var(--mono); font-size:19px; color:var(--ink-3); font-weight:600; line-height:1.2}
+.dfx h4{font-size:16.5px; margin:0 0 5px; font-weight:600}
+.dfx p{margin:0 0 7px; font-size:15.5px; color:var(--ink-2); line-height:1.55}
+.dfx p:last-child{margin-bottom:0}
+.dfx .err{font-family:var(--mono); font-size:12px; color:var(--bad); background:var(--bad-soft); padding:6px 9px; border-radius:3px; display:block; overflow-x:auto; white-space:pre; margin:7px 0}
+
+figure{margin:26px 0; padding:0}
+figure svg{display:block; max-width:100%; height:auto; margin:0 auto}
+figcaption{font-family:var(--sans); font-size:12.5px; color:var(--ink-3); margin-top:11px; line-height:1.55; text-align:left}
+.fwrap{background:var(--card); border:1px solid var(--rule); border-radius:4px; padding:22px; overflow-x:auto}
+
+blockquote{margin:20px 0; padding:2px 0 2px 18px; border-left:3px solid var(--accent); color:var(--ink-2); font-style:italic}
+ul,ol{margin:0 0 15px; padding-left:24px}
+li{margin-bottom:7px}
+.foot{border-top:1px solid var(--rule); padding-top:18px; font-family:var(--sans); font-size:13px; color:var(--ink-3)}
+.foot ol{padding-left:20px}
+.foot a{font-size:13px}
+@media (max-width:640px){
+  body{font-size:16px}
+  .dfx{grid-template-columns:1fr; gap:6px}
+}
+</style>
+
+<div class="page">
+
+<header class="mast">
+  <div class="kicker">Internal evaluation · IsaacLab-GR00T</div>
+  <h1>RLDX-1 Field Report</h1>
+  <p class="dek">Is RLWRLD's dexterity-first VLA usable for OpenArm + LinkerHand O6 — and does it need the tactile and torque sensing we don't have?</p>
+  <div class="byline">
+    <span>Phase 0 reproduction gate</span><i></i>
+    <span>Pegasus <code>pa-jp-v1</code> · 2×H100</span><i></i>
+    <span>RLDX-1 v1.0.2 <code>cf67c31</code></span><i></i>
+    <span>15 Aug 2026</span>
+    <button class="themebtn" id="tb">◐ Theme</button>
+  </div>
+</header>
+
+<div class="verdict">
+  <h3>Verdict</h3>
+  <p><strong>Phase 0 passed. Suite mean 97.47% against the 97.4% target (+0.07 pp), all 1100 episodes.</strong> Their released checkpoint reproduces their published LIBERO figure on our hardware, so downstream comparisons against it are meaningful. Details in <a href="#repro">the reproduction section</a>.</p>
+  <p><strong>Suitable, with one hard limit.</strong> Tactile and torque are <em>optional</em> in RLDX-1, not load-bearing — the released LIBERO checkpoint that set their headline number has the physics stream switched off entirely, and the paper's own OpenArm experiments ran without it. So a no-tactile setup like ours loses nothing on the main path.</p>
+  <p>The hard limit is licensing: the <strong>weights are non-commercial with share-alike</strong>, so anything we fine-tune inherits that. Fine for the research comparison we agreed; unusable in a product.</p>
+  <p>The caveat is engineering quality. Their documented LIBERO evaluation <strong>does not run out of the box</strong> — we hit four distinct defects plus one collision with our own RLinf install before a single episode executed. Treat their benchmark table as vendor-reported until we finish reproducing it.</p>
+</div>
+
+<div class="band">
+  <div class="nb"><div class="k">Base model</div><div class="v acc">6.9B</div><div class="n">Qwen3-VL-8B + MSAT</div></div>
+  <div class="nb"><div class="k">Physics stream</div><div class="v good">OFF</div><div class="n">in FT-LIBERO ckpt</div></div>
+  <div class="nb"><div class="k">Weights licence</div><div class="v bad">NC</div><div class="n">+ share-alike</div></div>
+  <div class="nb"><div class="k">Defects found</div><div class="v warn">4+1</div><div class="n">before first episode</div></div>
+  <div class="nb"><div class="k">Repro result</div><div class="v good">97.47%</div><div class="n">target 97.4 · PASS</div></div>
+</div>
+
+<!-- ============================================ -->
+<section>
+  <div class="sechead"><h2>What RLDX-1 actually is</h2></div>
+  <div class="col">
+    <p>A correction worth making up front: despite sitting in the same problem space as GR00T, RLDX-1 is <strong>not GR00T-derived</strong>. It is built on a fine-tuned <strong>Qwen3-VL-8B</strong> backbone feeding a <strong>Multi-Stream Action Transformer</strong> (MSAT) — an MMDiT-style block borrowed from FLUX, trained with flow matching, emitting 16-step action chunks.</p>
+    <p>What it <em>does</em> share with GR00T is the plumbing. RLDX-1 explicitly follows NVIDIA's GR00T N1.7 conventions: <code>EmbodimentTag</code> routing into per-robot MLP encoder/decoder heads, a <code>meta/modality.json</code> that slices flat state vectors into named joint groups, LeRobot datasets, and <code>max_state_dim = 64</code>. That is why our existing dataset layout transfers almost unchanged even though the model lineage is unrelated.</p>
+    <p>The architectural idea that matters for us is the stream separation. Cognition, action, and physical sensing each get their own token stream, coupled only through joint self-attention — which is precisely what lets the physics stream be removed cleanly.</p>
+  </div>
+
+  <figure>
+    <div class="fwrap">
+      <svg viewBox="0 0 880 400" role="img" aria-label="MSAT couples a vision-language stream, a state-action stream and an optional physics stream through joint self-attention; the physics stream is masked out when no tactile or torque signal exists.">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+          <marker id="arA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#0f5f6b"/>
+          </marker>
+        </defs>
+
+        <!-- inputs -->
+        <text x="14" y="26" font-family="monospace" font-size="10" fill="currentColor" opacity=".55" letter-spacing="1.5">INPUTS</text>
+
+        <rect x="14" y="42" width="150" height="46" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+        <text x="89" y="62" text-anchor="middle" font-family="monospace" font-size="12" fill="currentColor">video ×4 frames</text>
+        <text x="89" y="77" text-anchor="middle" font-family="monospace" font-size="10" fill="currentColor" opacity=".6">+ language</text>
+
+        <rect x="14" y="150" width="150" height="46" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+        <text x="89" y="170" text-anchor="middle" font-family="monospace" font-size="12" fill="currentColor">joint state</text>
+        <text x="89" y="185" text-anchor="middle" font-family="monospace" font-size="10" fill="currentColor" opacity=".6">+ noised actions</text>
+
+        <rect x="14" y="266" width="150" height="52" rx="3" fill="none" stroke="#0f5f6b" stroke-width="1.4" stroke-dasharray="5 4"/>
+        <text x="89" y="288" text-anchor="middle" font-family="monospace" font-size="12" fill="#0f5f6b">tactile / torque</text>
+        <text x="89" y="304" text-anchor="middle" font-family="monospace" font-size="10" fill="#0f5f6b">OPTIONAL</text>
+
+        <!-- streams -->
+        <text x="214" y="26" font-family="monospace" font-size="10" fill="currentColor" opacity=".55" letter-spacing="1.5">STREAMS</text>
+        <rect x="214" y="42" width="118" height="46" rx="3" fill="currentColor" opacity=".07"/>
+        <rect x="214" y="42" width="118" height="46" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+        <text x="273" y="70" text-anchor="middle" font-family="monospace" font-size="12" fill="currentColor">VL stream</text>
+
+        <rect x="214" y="150" width="118" height="46" rx="3" fill="currentColor" opacity=".07"/>
+        <rect x="214" y="150" width="118" height="46" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+        <text x="273" y="178" text-anchor="middle" font-family="monospace" font-size="12" fill="currentColor">SA stream</text>
+
+        <rect x="214" y="269" width="118" height="46" rx="3" fill="none" stroke="#0f5f6b" stroke-width="1.4" stroke-dasharray="5 4"/>
+        <text x="273" y="297" text-anchor="middle" font-family="monospace" font-size="12" fill="#0f5f6b">P stream</text>
+
+        <line x1="164" y1="65" x2="208" y2="65" stroke="currentColor" stroke-width="1.2" marker-end="url(#ar)"/>
+        <line x1="164" y1="173" x2="208" y2="173" stroke="currentColor" stroke-width="1.2" marker-end="url(#ar)"/>
+        <line x1="164" y1="292" x2="208" y2="292" stroke="#0f5f6b" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arA)"/>
+        <text x="186" y="58" text-anchor="middle" font-family="monospace" font-size="9" fill="currentColor" opacity=".6">64 cog</text>
+
+        <!-- joint attention -->
+        <rect x="392" y="42" width="128" height="273" rx="4" fill="currentColor" opacity=".05"/>
+        <rect x="392" y="42" width="128" height="273" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <text x="456" y="166" text-anchor="middle" font-family="monospace" font-size="13" fill="currentColor">joint</text>
+        <text x="456" y="184" text-anchor="middle" font-family="monospace" font-size="13" fill="currentColor">self-attn</text>
+        <text x="456" y="204" text-anchor="middle" font-family="monospace" font-size="10" fill="currentColor" opacity=".6">+ SwiGLU</text>
+
+        <line x1="332" y1="65" x2="386" y2="120" stroke="currentColor" stroke-width="1.2" marker-end="url(#ar)"/>
+        <line x1="332" y1="173" x2="386" y2="173" stroke="currentColor" stroke-width="1.2" marker-end="url(#ar)"/>
+        <line x1="332" y1="292" x2="386" y2="235" stroke="#0f5f6b" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arA)"/>
+
+        <!-- outputs -->
+        <text x="580" y="26" font-family="monospace" font-size="10" fill="currentColor" opacity=".55" letter-spacing="1.5">FLOW-MATCHING OUTPUTS</text>
+        <rect x="580" y="120" width="180" height="46" rx="3" fill="none" stroke="currentColor" stroke-width="1.4"/>
+        <text x="670" y="141" text-anchor="middle" font-family="monospace" font-size="12" fill="currentColor">action chunk</text>
+        <text x="670" y="156" text-anchor="middle" font-family="monospace" font-size="10" fill="currentColor" opacity=".6">16 steps</text>
+
+        <rect x="580" y="222" width="180" height="46" rx="3" fill="none" stroke="#0f5f6b" stroke-width="1.4" stroke-dasharray="5 4"/>
+        <text x="670" y="243" text-anchor="middle" font-family="monospace" font-size="12" fill="#0f5f6b">future physics</text>
+        <text x="670" y="258" text-anchor="middle" font-family="monospace" font-size="10" fill="#0f5f6b">auxiliary loss</text>
+
+        <line x1="520" y1="143" x2="574" y2="143" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+        <line x1="520" y1="245" x2="574" y2="245" stroke="#0f5f6b" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arA)"/>
+
+        <!-- the removal note -->
+        <line x1="352" y1="356" x2="352" y2="336" stroke="#0f5f6b" stroke-width="1.2"/>
+        <line x1="352" y1="356" x2="700" y2="356" stroke="#0f5f6b" stroke-width="1.2" stroke-dasharray="3 3"/>
+        <line x1="700" y1="356" x2="700" y2="336" stroke="#0f5f6b" stroke-width="1.2"/>
+        <text x="526" y="376" text-anchor="middle" font-family="monospace" font-size="11.5" fill="#0f5f6b">dashed path is masked out of attention when no tactile/torque exists</text>
+        <text x="526" y="392" text-anchor="middle" font-family="monospace" font-size="10" fill="currentColor" opacity=".55">use_physics = False · this is the configuration that scored 97.4% on LIBERO</text>
+      </svg>
+    </div>
+    <figcaption>The physics stream is a third peer, not a dependency. Because the three streams meet only at joint self-attention, dropping tactile/torque means masking those attention positions — the VL and SA paths are untouched. The auxiliary head that predicts <em>future</em> physical signals disappears with it.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================ -->
+<section>
+  <div class="sechead"><h2>Do we need tactile and torque?</h2></div>
+  <div class="col">
+    <p>This was the question that decided whether to look further, and the answer is well-evidenced: <strong>no, not for the main path.</strong> Four independent lines of evidence agree.</p>
+  </div>
+
+  <div class="tw">
+    <table>
+      <caption>Every check points the same way — physics sensing is an opt-in module bolted on at fine-tune time, not part of the pretrained representation.</caption>
+      <thead><tr><th>Evidence</th><th>Finding</th><th>Weight</th></tr></thead>
+      <tbody>
+        <tr class="hi">
+          <td>Released <code>FT-LIBERO</code> config.json</td>
+          <td><code>use_physics: false</code>, <code>physics_keys: []</code></td>
+          <td><span class="pill ok">decisive</span></td>
+        </tr>
+        <tr>
+          <td>Paper's OpenArm experiments</td>
+          <td>no torque, no tactile — still beat π0.5</td>
+          <td><span class="pill ok">decisive</span></td>
+        </tr>
+        <tr>
+          <td><code>RLDX-1-PT</code> model card</td>
+          <td>physics module "dormant"; activates only if wired at fine-tune</td>
+          <td><span class="pill ok">strong</span></td>
+        </tr>
+        <tr>
+          <td>Paper, architecture section</td>
+          <td>P stream "masked out" when signals unavailable</td>
+          <td><span class="pill ok">strong</span></td>
+        </tr>
+        <tr>
+          <td><code>MT-ALLEX</code> model card</td>
+          <td>advises <code>PT</code> or <code>MT-DROID</code> if hardware lacks the sensors</td>
+          <td><span class="pill mid">guidance</span></td>
+        </tr>
+        <tr>
+          <td>Training pipeline</td>
+          <td>physics appears in mid-training only, never pre-training</td>
+          <td><span class="pill mid">supporting</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p>The single most convincing item is the first. We inspected the checkpoint that produced their headline LIBERO score, and physics is off in it. The number we are reproducing was never a tactile result.</p>
+    <h3>But we probably do have torque</h3>
+    <p>An incidental discovery worth acting on. OpenArm drives DAMIAO motors over CAN-FD, and <code>enactic/openarm_can</code>'s <code>Motor</code> class already exposes <code>get_torque()</code> (backed by <code>state_tau_</code>) alongside position and velocity. The joints are QDD-backdrivable with bilateral force feedback for teleoperation, so that signal is real.</p>
+    <p>That is exactly the modality ALLEX uses — joint torque, no force/torque sensor — and it matches the report's "up to 7-dimensional torque signals". <strong>We simply aren't logging it.</strong> Both can-sorting datasets record 20-dim state and nothing else. Adding a 14-dim <code>observation.torque</code> field would unlock <code>--use-physics --physics-keys torque</code> whenever we want it.</p>
+    <p>The weak link is the hand, not the arm. The LinkerHand O6 is worm-gear driven and therefore non-backdrivable, so its torque reading reflects motor effort rather than contact force. Its genuine tactile call, <code>get_force()</code>, is documented for the L7/L10/L20/L25 — on the O6, fingertip tactile is an <em>optional add-on</em> worth confirming with the vendor.</p>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<section>
+  <div class="sechead"><h2>What they claim</h2></div>
+  <div class="col">
+    <p>RLDX-1 reports gains over GR00T N1.6 across every published suite. Two things to keep in mind while reading: there is <strong>no GR00T N1.7 comparison anywhere</strong> — our actual baseline is unmeasured against it — and the repo's own README quotes lower figures than the paper.</p>
+  </div>
+
+  <div class="tw">
+    <table>
+      <caption>From the technical report, Table 1. The robustness suites — LIBERO-Plus and SIMPLER Google-VA — show the widest margins, which is the axis that matters for generalising to unseen cans and deformable objects.</caption>
+      <thead><tr><th>Model</th><th>LIBERO avg</th><th>LIBERO-Plus</th><th>SIMPLER G-VA</th><th>SIMPLER WidowX</th><th>RoboCasa Kit.</th><th>RC365 avg</th></tr></thead>
+      <tbody>
+        <tr><td>π0</td><td>94.1</td><td>54.6</td><td>54.8</td><td>27.1</td><td>62.5</td><td>14.8</td></tr>
+        <tr><td>π0.5</td><td>96.9</td><td>86.5</td><td>68.4</td><td>46.9</td><td>62.1</td><td>16.9</td></tr>
+        <tr><td>GR00T N1.5</td><td>86.5</td><td>66.3</td><td>43.7</td><td>62.0</td><td>65.7</td><td>20.0</td></tr>
+        <tr><td>GR00T N1.6</td><td>96.7</td><td>72.6</td><td>57.1</td><td>57.1</td><td>66.2</td><td>26.9</td></tr>
+        <tr class="hi"><td>RLDX-1</td><td class="win">97.8</td><td class="win">86.7</td><td class="win">77.4</td><td class="win">71.9</td><td class="win">70.6</td><td class="win">32.1</td></tr>
+        <tr><td>GR00T N1.7 <em>(our baseline)</em></td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p>On real hardware the paper runs three platforms — ALLEX (48-DoF, joint torque), Franka FR3 (torque + AnySkin tactile), and <strong>OpenArm</strong> (28-DoF upper body, Inspire RH56F1 hands, no physics). The OpenArm results are the directly relevant ones: 87.5% on object grounding, and 54.2% on both unseen-object and unseen-task against π0.5's 45.8%.</p>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<section>
+  <div class="sechead"><span class="num">Phase 0</span><h2>Reproducing it ourselves</h2></div>
+  <div class="col">
+    <p>Before spending any training budget we gated on a single question: can we reproduce their published LIBERO number using their released checkpoint and their own code? If not, no downstream comparison would mean anything.</p>
+    <p>The evaluation is a two-process, two-environment affair, and that split is where most of the trouble lives. The 6.9B model runs as a ZeroMQ server in the main <code>uv</code> venv on torch 2.7. The rollout workers run in a <em>separate</em> venv on torch 2.5.1, because LIBERO and robosuite need an older, conflicting stack — yet those workers still <code>import rldx</code>, so they need the model dependencies too.</p>
+  </div>
+
+  <figure>
+    <div class="fwrap">
+      <svg viewBox="0 0 880 330" role="img" aria-label="The LIBERO evaluation splits across two Python environments: a model server in the main venv on GPU 0 and four rollout workers in an isolated simulator venv, talking over ZeroMQ. Four defects sat on this path.">
+        <defs>
+          <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <!-- main venv -->
+        <rect x="16" y="40" width="270" height="150" rx="4" fill="currentColor" opacity=".04"/>
+        <rect x="16" y="40" width="270" height="150" rx="4" fill="none" stroke="currentColor" stroke-width="1.4"/>
+        <text x="30" y="62" font-family="monospace" font-size="10.5" fill="currentColor" opacity=".6" letter-spacing="1.2">MAIN VENV · torch 2.7.0</text>
+        <rect x="34" y="76" width="234" height="60" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+        <text x="151" y="99" text-anchor="middle" font-family="monospace" font-size="12.5" fill="currentColor">run_rldx_server.py</text>
+        <text x="151" y="117" text-anchor="middle" font-family="monospace" font-size="10.5" fill="currentColor" opacity=".65">6.9B bf16 · 15.1 GB on GPU 0</text>
+        <text x="151" y="163" text-anchor="middle" font-family="monospace" font-size="10.5" fill="currentColor" opacity=".6">MSAT 1.24B · 4 denoise steps</text>
+
+        <!-- zmq -->
+        <line x1="286" y1="106" x2="366" y2="106" stroke="currentColor" stroke-width="1.4" marker-end="url(#a2)"/>
+        <line x1="366" y1="128" x2="286" y2="128" stroke="currentColor" stroke-width="1.4" marker-end="url(#a2)"/>
+        <text x="326" y="98" text-anchor="middle" font-family="monospace" font-size="10" fill="currentColor" opacity=".7">obs</text>
+        <text x="326" y="146" text-anchor="middle" font-family="monospace" font-size="10" fill="currentColor" opacity=".7">actions</text>
+        <text x="326" y="188" text-anchor="middle" font-family="monospace" font-size="10" fill="currentColor" opacity=".5">ZeroMQ</text>
+        <text x="326" y="202" text-anchor="middle" font-family="monospace" font-size="10" fill="currentColor" opacity=".5">127.0.0.1</text>
+
+        <!-- sim venv -->
+        <rect x="366" y="40" width="290" height="150" rx="4" fill="currentColor" opacity=".04"/>
+        <rect x="366" y="40" width="290" height="150" rx="4" fill="none" stroke="currentColor" stroke-width="1.4"/>
+        <text x="380" y="62" font-family="monospace" font-size="10.5" fill="currentColor" opacity=".6" letter-spacing="1.2">SIM VENV · torch 2.5.1</text>
+        <g font-family="monospace" font-size="10.5" fill="currentColor">
+          <rect x="382" y="74" width="124" height="30" rx="3" fill="none" stroke="currentColor" stroke-width="1.1"/>
+          <text x="444" y="93" text-anchor="middle">rollout ×1</text>
+          <rect x="516" y="74" width="124" height="30" rx="3" fill="none" stroke="currentColor" stroke-width="1.1"/>
+          <text x="578" y="93" text-anchor="middle">rollout ×2</text>
+          <rect x="382" y="112" width="124" height="30" rx="3" fill="none" stroke="currentColor" stroke-width="1.1"/>
+          <text x="444" y="131" text-anchor="middle">rollout ×3</text>
+          <rect x="516" y="112" width="124" height="30" rx="3" fill="none" stroke="currentColor" stroke-width="1.1"/>
+          <text x="578" y="131" text-anchor="middle">rollout ×4</text>
+        </g>
+        <text x="511" y="165" text-anchor="middle" font-family="monospace" font-size="10.5" fill="currentColor" opacity=".65">robosuite 1.4.0 · mujoco · EGL</text>
+        <text x="511" y="180" text-anchor="middle" font-family="monospace" font-size="10" fill="currentColor" opacity=".5">5 envs each · imports rldx</text>
+
+        <!-- output -->
+        <line x1="656" y1="115" x2="716" y2="115" stroke="currentColor" stroke-width="1.4" marker-end="url(#a2)"/>
+        <rect x="716" y="82" width="148" height="66" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+        <text x="790" y="105" text-anchor="middle" font-family="monospace" font-size="12" fill="currentColor">1100 episodes</text>
+        <text x="790" y="122" text-anchor="middle" font-family="monospace" font-size="10.5" fill="currentColor" opacity=".65">40 tasks · 4 suites</text>
+        <text x="790" y="138" text-anchor="middle" font-family="monospace" font-size="10.5" fill="currentColor" opacity=".65">success/failure mp4</text>
+
+        <!-- defect callouts -->
+        <text x="16" y="240" font-family="monospace" font-size="10" fill="#992a2a" letter-spacing="1.4">WHERE IT BROKE</text>
+        <line x1="16" y1="250" x2="864" y2="250" stroke="#992a2a" stroke-width="1" opacity=".45"/>
+
+        <line x1="500" y1="190" x2="500" y2="264" stroke="#992a2a" stroke-width="1.1" stroke-dasharray="3 3"/>
+        <text x="500" y="278" text-anchor="middle" font-family="monospace" font-size="11" fill="#992a2a">1·2·3 sim venv deps</text>
+        <text x="500" y="293" text-anchor="middle" font-family="monospace" font-size="9.5" fill="currentColor" opacity=".6">diffusers missing · transformers too old</text>
+        <text x="500" y="306" text-anchor="middle" font-family="monospace" font-size="9.5" fill="currentColor" opacity=".6">mujoco unpinned → robosuite API gone</text>
+
+        <line x1="240" y1="190" x2="240" y2="264" stroke="#992a2a" stroke-width="1.1" stroke-dasharray="3 3"/>
+        <text x="200" y="278" text-anchor="middle" font-family="monospace" font-size="11" fill="#992a2a">4 readiness probe</text>
+        <text x="200" y="293" text-anchor="middle" font-family="monospace" font-size="9.5" fill="currentColor" opacity=".6">ss -lnt, but no iproute2</text>
+
+        <line x1="790" y1="148" x2="790" y2="264" stroke="#992a2a" stroke-width="1.1" stroke-dasharray="3 3"/>
+        <text x="782" y="278" text-anchor="middle" font-family="monospace" font-size="11" fill="#992a2a">5 asset paths</text>
+        <text x="782" y="293" text-anchor="middle" font-family="monospace" font-size="9.5" fill="currentColor" opacity=".6">stale ~/.libero from RLinf</text>
+      </svg>
+    </div>
+    <figcaption>Two environments, one import graph. The rollout workers live in the older simulator venv but still import the model package, so every model dependency must exist on both sides — which is what upstream's <code>--no-deps</code> install misses.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================ -->
+<section>
+  <div class="sechead"><h2>Five things we had to fix</h2></div>
+  <div class="col">
+    <p>These are ordered as encountered — each one hid the next, so they could only be found serially. Upstream's <code>setup_libero.sh</code> reports success throughout, because its own verification step is non-fatal.</p>
+  </div>
+
+  <div class="defects">
+    <div class="dfx">
+      <div class="n">1</div>
+      <div>
+        <h4>Missing <code>diffusers</code></h4>
+        <p><code>setup_libero.sh</code> installs the <code>rldx</code> package with <code>--no-deps</code> and never adds <code>diffusers</code>, which <code>action_model/attention.py</code> imports at module scope. The rollout client imports <code>rldx.data.embodiment_tags</code>, and <code>rldx/__init__.py:66</code> eagerly pulls in the entire model stack.</p>
+        <span class="err">ModuleNotFoundError: No module named 'diffusers'</span>
+      </div>
+    </div>
+    <div class="dfx">
+      <div class="n">2</div>
+      <div>
+        <h4>Their own transformers pin is too old for their own code</h4>
+        <p>The setup script pins <code>transformers==4.51.3</code>, but <code>modeling_qwen3_vl.py</code> imports <code>transformers.masking_utils.create_causal_mask</code>, which only exists from 4.52. Aligned to 4.57.0 to match the model server.</p>
+        <span class="err">ModuleNotFoundError: No module named 'transformers.masking_utils'</span>
+      </div>
+    </div>
+    <div class="dfx">
+      <div class="n">3</div>
+      <div>
+        <h4>Unpinned mujoco drifted past robosuite's API</h4>
+        <p>LIBERO pins <code>robosuite==1.4.0</code>; robosuite declares only <code>mujoco>=2.3.0</code> with no ceiling, so the resolver took <strong>3.11.0</strong>. Newer MuJoCo renamed the mass matrix — <code>MjData.qM</code> is gone, replaced by <code>M</code>/<code>qLD</code>/<code>qLDiagInv</code> — while robosuite's OSC controller still calls <code>mj_fullM(..., sim.data.qM)</code>. We found the working ceiling empirically against the real reset test rather than guessing: <strong>mujoco 3.2.7</strong>.</p>
+        <span class="err">AttributeError: 'MjData' object has no attribute 'qM'</span>
+      </div>
+    </div>
+    <div class="dfx">
+      <div class="n">4</div>
+      <div>
+        <h4>Readiness probe assumes a tool this host doesn't have</h4>
+        <p><code>eval_libero.sh</code> waits for the server by grepping <code>ss -lnt</code>. Pegasus ships neither iproute2 nor net-tools, so the probe never matches: their script waits 120s and exits 1, even though the server is up and listening. We verified via <code>/proc/net/tcp</code> that the port was in state <code>0A</code> the whole time, and replaced the probe with a direct kernel-table read.</p>
+        <span class="err">[!] Server died before binding to :PORT   # it hadn't</span>
+      </div>
+    </div>
+    <div class="dfx">
+      <div class="n">5</div>
+      <div>
+        <h4>Collision with our own RLinf install <span class="pill mid">not upstream's fault</span></h4>
+        <p>LIBERO caches absolute asset paths in a per-user <code>~/.libero/config.yaml</code>. Ours was written in June by the RLinf N1.7 work and pointed at <code>/data/VLA/tingying/RLinf/.venv/libero/...</code>, a tree that no longer exists — so every task died looking for its <code>.bddl</code>. Upstream <em>preserves</em> this file unless <code>FORCE_CLEAN=1</code>, which is defensible but bit us. Fixed non-destructively with <code>LIBERO_CONFIG_PATH</code> pointing at an isolated config, leaving the shared one intact for RLinf.</p>
+        <span class="err">AssertionError: .../libero_goal/turn_on_the_stove.bddl does not exist!</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <p>Taken together these corroborate the two open reproducibility issues upstream (<a href="https://github.com/RLWRLD/RLDX-1/issues/24">#24</a>, where GR1 Tabletop reproduces at 55.75% against a reported 58.7%, and <a href="https://github.com/RLWRLD/RLDX-1/issues/25">#25</a>). None of the five is deep — but a benchmark suite that cannot execute unmodified is a benchmark suite nobody has re-run.</p>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<section id="repro">
+  <div class="sechead"><h2>Reproduction: passed</h2></div>
+  <div class="col">
+    <p>With the environment repaired, the sweep ran under a resumable supervisor: per-task completion markers, automatic server restart, and up to three retry passes, so an interruption re-runs only what didn't finish. It completed all 40 tasks in one pass on a single H100 — zero task failures, zero server restarts.</p>
+  </div>
+
+  <div class="tw">
+    <table>
+      <caption>Final result, computed from <code>simulation_results.csv</code>. Exactly 1100 episodes, no task short of target, no duplicate rows.</caption>
+      <thead><tr><th>Suite</th><th>Success</th><th>Episodes</th><th>Rate</th><th>Published</th><th>Δ</th></tr></thead>
+      <tbody>
+        <tr><td>Spatial</td><td>195</td><td>200</td><td>97.50%</td><td>98.6</td><td>−1.10</td></tr>
+        <tr><td>Object</td><td>198</td><td>200</td><td class="win">99.00%</td><td>98.6</td><td class="win">+0.40</td></tr>
+        <tr><td>Goal</td><td>198</td><td>200</td><td class="win">99.00%</td><td>98.6</td><td class="win">+0.40</td></tr>
+        <tr><td>Long <em>(libero_10)</em></td><td>472</td><td>500</td><td>94.40%</td><td>95.3</td><td>−0.90</td></tr>
+        <tr class="hi"><td>Suite mean — the gate</td><td>1063</td><td>1100</td><td class="win">97.47%</td><td>97.4</td><td class="win">+0.07</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p>Every suite lands within about a point of its published value, and the aggregate clears the README target. Against the paper's 97.8 it is −0.33 pp — close enough that the repo README (97.4) looks like the more honest figure for the released checkpoint.</p>
+
+    <h3>Two measurement traps worth recording</h3>
+    <p>Getting a <em>trustworthy</em> number turned out to be harder than getting a number, and both traps would silently bias anyone else's reproduction.</p>
+    <p><strong>Don't count video files.</strong> The obvious tally — globbing <code>*success*.mp4</code> — is wrong twice over. Episodes that hit the 720-step cap without finishing are skipped for video recording entirely (<strong>148 of our 1100</strong>), so they vanish from the denominator. And <code>rollout_policy.py</code> targets <code>int(n_episodes/n_envs)</code> per env but only breaks once <em>every</em> env reaches that target, so faster envs overshoot and write extra videos — we saw 68 files for a 50-episode target. Filename counting gave 94.06% where the real figure was 95.45% on the same partial data: a 1.4 pp error, which against a 97.4 threshold is decision-changing. <code>simulation_results.csv</code> is the real record — one row per <code>(env_idx, episode_idx)</code> with an explicit <code>int(success)</code>.</p>
+    <p><strong>Don't episode-weight the average.</strong> LIBERO is conventionally reported as the mean over its four suites, each equally weighted. But <code>libero_10</code> runs 50 episodes per task against 20 for the others, so it takes 500 of 1100 episodes — 45% — and it is the hardest suite. Episode-weighting our own final data gives <strong>96.64%</strong>, which would have read as a MISS. The suite mean is 97.47%, a PASS. Same episodes, same successes, different arithmetic.</p>
+    <div class="tw" style="margin-top:18px">
+      <table>
+        <caption>Independent cross-check. <code>rollout_policy.py</code> prints its own per-task success rate on completion; averaging those 40 values is a completely separate derivation from our CSV tally, and it agrees to 0.01 pp.</caption>
+        <thead><tr><th>Derivation</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td>Our tally over <code>simulation_results.csv</code></td><td class="win">97.47%</td></tr>
+          <tr><td>Mean of the 40 per-task rates printed by upstream's own rollout</td><td class="win">97.48%</td></tr>
+          <tr><td>Video-filename counting <em>(rejected)</em></td><td>94.06%</td></tr>
+          <tr><td>Episode-weighted mean <em>(wrong aggregation)</em></td><td>96.64%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<section>
+  <div class="sechead"><h2>Fit against our hardware and data</h2></div>
+
+  <div class="tw">
+    <table>
+      <caption>The state/action layout already conforms. The real gaps are camera count and LeRobot version — and both are cheap to close, benefiting our GR00T N1.7 baseline just as much.</caption>
+      <thead><tr><th>Dimension</th><th>What we have</th><th>What RLDX-1 wants</th><th></th></tr></thead>
+      <tbody>
+        <tr><td>State / action</td><td>20-dim, grouped: arms 7+7, hand 6</td><td>≤64, via <code>modality.json</code></td><td><span class="pill ok">ok</span></td></tr>
+        <tr><td>Embodiment</td><td>custom OpenArm + O6</td><td><code>GENERAL_EMBODIMENT</code> slot</td><td><span class="pill ok">ok</span></td></tr>
+        <tr><td>LeRobot version</td><td>v2.0</td><td>v2.1</td><td><span class="pill mid">convert</span></td></tr>
+        <tr><td>Cameras in dataset</td><td>1 (head only, 480×640)</td><td>multi-view; FR3 used wrist + 3rd person</td><td><span class="pill no">gap</span></td></tr>
+        <tr><td>Cameras on robot</td><td>2 (head + wrist, both RGB)</td><td>—</td><td><span class="pill ok">re-export</span></td></tr>
+        <tr><td>Torque logged</td><td>none</td><td>optional</td><td><span class="pill ok">n/a</span></td></tr>
+        <tr><td>Sim data volume</td><td>2000 eps / 882k frames</td><td>unspecified</td><td><span class="pill ok">adequate</span></td></tr>
+        <tr><td>Real data volume</td><td>101 eps / 41.9k frames</td><td>unspecified</td><td><span class="pill mid">thin</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p><strong>Stereo is not a requirement.</strong> "Stereo egocentric cameras" in the paper describes the ALLEX and OpenArm <em>hardware</em>, not a model constraint. There is no disparity or depth machinery anywhere in the architecture; cameras are independent <code>video.&lt;key&gt;</code> entries and nothing pairs them. Their FR3 experiments used wrist plus third-person — the same topology as our head plus wrist — and the LIBERO result we're reproducing uses monocular agentview plus eye-in-hand. A <code>PT-IMG</code> checkpoint even exists for single-frame, single-view use.</p>
+    <p>Our own datasets, however, contain only one camera stream despite the robot carrying two. Re-exporting with both is the highest-value cheap change available, and it is not RLDX-specific.</p>
+    <p>On compute: the model occupies 15.1 GB in bf16, so inference fits comfortably on one H100 and would fit a 24 GB RTX 4090 — usefully, the 4090 is sm_89 and takes the standard prebuilt <code>flash-attn</code> wheels, avoiding the source build that sm_120 requires. Full fine-tuning of 6.9B with AdamW needs roughly 110 GB of weights, gradients and optimiser state, so on two H100s <strong>LoRA is the realistic path</strong>, which is also what "just confirm the result" calls for.</p>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<section>
+  <div class="sechead"><h2>Shortcomings</h2></div>
+  <div class="col">
+    <ol>
+      <li><strong>Non-commercial weights, share-alike.</strong> RLWRLD Model License v1.0 §3.1 limits use to research, education, personal or evaluation purposes; §3.5 bars military use. Derivatives inherit the terms, so a fine-tuned OpenArm checkpoint could never ship. Apache-2.0 on the code does not rescue this. <em>This is the decisive constraint.</em></li>
+      <li><strong>Reproducibility unverified by anyone else.</strong> Two open issues report gaps; a third asks for external verification and is still open.</li>
+      <li><strong>No GR00T N1.7 comparison exists.</strong> Our real baseline has never been measured against it.</li>
+      <li><strong>2–2.3× the parameters of GR00T N1.5</strong> for every train and inference cycle, permanently.</li>
+      <li><strong>Undocumented requirements.</strong> No VRAM figures, no minimum dataset size, and the paper omits demonstrations-per-task for the real-robot runs.</li>
+      <li><strong>The parts carrying much of the gain aren't released.</strong> Synthetic data lifts tabletop from 41.0% to 50.1% and RL refinement gives roughly 3× fewer attempts, but neither the generation pipeline nor the RL code ships — the repo is fine-tune and serve only.</li>
+      <li><strong>Stateful serving.</strong> The memory module needs <code>reset_memory</code> at episode boundaries and stable session IDs; our eval harness and RL rollout loop both need changes to stay correct.</li>
+      <li><strong>Single-camera data underuses the architecture</strong> — video token compression, 4-frame input and the motion module all assume richer views.</li>
+      <li><strong>Young project.</strong> Created 27 Apr 2026, last push 3 Aug 2026; 10 open issues, mostly Dependabot, plus contributor friction.</li>
+      <li><strong>Ecosystem cost.</strong> Adopting it means maintaining a second VLA lineage — different backbone, trainer and serving stack — beside GR00T.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<section>
+  <div class="sechead"><h2>Where this goes</h2></div>
+  <div class="col">
+    <p>A bounded research comparison, not a stack migration.</p>
+    <ol>
+      <li><strong>Phase 0 — reproduce LIBERO. <span class="pill ok">passed</span></strong> 97.47% suite mean vs 97.4% target. The gate is cleared, so Phase 1 is authorised.</li>
+      <li><strong>Phase 1 — LoRA on sim can-sorting</strong> (2000 episodes, physics off) head-to-head against GR00T N1.7 on identical data and metrics.</li>
+      <li><strong>Phase 2 — does the memory module earn its keep?</strong> An A/B on multi-task can-sorting. This needs no new sensing and GR00T has no equivalent, which makes it the highest-information experiment available.</li>
+      <li><strong>Phase 3 — small and deformable objects</strong> from real collection, since these can't be built in sim. This is where contact-force feedback should start to matter and where logging OpenArm's torque gets reconsidered.</li>
+    </ol>
+    <p>Regardless of whether we adopt the model, two ideas are worth harvesting into our existing stack: Real-Time Chunking for smooth action-chunk boundaries, and their text-based-critic RL refinement — directly relevant to the RLinf N1.7 work, where scale rather than critic design turned out to be the bottleneck.</p>
+  </div>
+</section>
+
+<footer class="foot">
+  <p><strong>Sources.</strong></p>
+  <ol>
+    <li><a href="https://arxiv.org/abs/2605.03269">RLDX-1 Technical Report</a>, arXiv:2605.03269 — architecture, benchmark tables, real-robot experiments.</li>
+    <li><a href="https://github.com/RLWRLD/RLDX-1">RLWRLD/RLDX-1</a> — code (Apache-2.0), docs, eval scripts, issues #24/#25/#27.</li>
+    <li><a href="https://huggingface.co/RLWRLD/RLDX-1-FT-LIBERO">RLDX-1-FT-LIBERO</a> and <a href="https://huggingface.co/RLWRLD/RLDX-1-PT">RLDX-1-PT</a> — checkpoints, configs, RLWRLD Model License v1.0.</li>
+    <li><a href="https://github.com/enactic/openarm">enactic/openarm</a> and <code>openarm_can</code> — DAMIAO motor telemetry including <code>get_torque()</code>.</li>
+    <li><a href="https://github.com/linkerbotai/linker_hand_python_sdk">linker_hand_python_sdk</a> — <code>get_force()</code> / <code>get_torque()</code> coverage by hand model.</li>
+    <li><a href="https://www.therobotreport.com/rlwrld-releases-rldx-1-a-dexterity-first-foundation-model-for-robot-hands/">The Robot Report</a> — release coverage and the GR-1 Tabletop margin.</li>
+  </ol>
+  <p style="margin-top:14px">Measurements taken on Pegasus <code>pa-jp-v1</code> (2×H100 PCIe 80 GB, CUDA 12.8, Ubuntu 24.04) on a single H100: 40 tasks, 1100 episodes, one pass, zero task failures, zero server restarts. Phase-0 figures are final. A Traditional Chinese walkthrough of the paper itself is a separate document.</p>
+</footer>
+
+</div>
+
+<script>
+(function(){
+  var b=document.getElementById('tb');
+  b.addEventListener('click',function(){
+    var cur=document.documentElement.getAttribute('data-theme');
+    if(!cur){
+      cur=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+    }
+    document.documentElement.setAttribute('data-theme',cur==='dark'?'light':'dark');
+  });
+})();
+</script>

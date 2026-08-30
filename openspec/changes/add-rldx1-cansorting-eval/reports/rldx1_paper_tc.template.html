@@ -1,0 +1,499 @@
+<meta charset="utf-8">
+<title>RLDX-1 論文精讀</title>
+<style>
+:root{
+  --paper:#f6f7fb; --card:#ffffff; --card-2:#eef0f7; --sunk:#e7eaf3;
+  --ink:#13151f; --ink-2:#454a60; --ink-3:#767c94;
+  --rule:#dcdfeb; --rule-2:#c2c7da;
+  --accent:#343b8c; --accent-2:#0c6f68; --accent-soft:#e5e7f5;
+  --good:#1a6b45; --good-soft:#dcece4;
+  --warn:#8a5309; --warn-soft:#f5e7cf;
+  --bad:#98283a; --bad-soft:#f4dade;
+  --lat:'Palatino Linotype','Iowan Old Style','Book Antiqua',Palatino,Georgia,serif;
+  --cjk:'Microsoft JhengHei UI','Microsoft JhengHei','PingFang TC','Hiragino Sans CJK TC','Noto Sans TC','Noto Sans CJK TC',sans-serif;
+  --mono:'Cascadia Mono',Consolas,'SF Mono',ui-monospace,'DejaVu Sans Mono',monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0b0d14; --card:#141724; --card-2:#1a1e2d; --sunk:#10131d;
+    --ink:#e7e9f2; --ink-2:#a6acc2; --ink-3:#737a94;
+    --rule:#242a3c; --rule-2:#333b52;
+    --accent:#8e97ee; --accent-2:#4fb8ac; --accent-soft:#1b2043;
+    --good:#5fd39a; --good-soft:#123023;
+    --warn:#dda63f; --warn-soft:#32250c;
+    --bad:#ef7285; --bad-soft:#361820;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0b0d14; --card:#141724; --card-2:#1a1e2d; --sunk:#10131d;
+  --ink:#e7e9f2; --ink-2:#a6acc2; --ink-3:#737a94;
+  --rule:#242a3c; --rule-2:#333b52;
+  --accent:#8e97ee; --accent-2:#4fb8ac; --accent-soft:#1b2043;
+  --good:#5fd39a; --good-soft:#123023;
+  --warn:#dda63f; --warn-soft:#32250c;
+  --bad:#ef7285; --bad-soft:#361820;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--lat),var(--cjk); font-size:17px; line-height:1.9;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1080px; margin:0 auto; padding:40px 24px 96px}
+.col{max-width:46em}
+h1,h2,h3,h4{margin:0; text-wrap:balance; font-family:var(--lat),var(--cjk)}
+h1{font-size:clamp(32px,4.6vw,50px); line-height:1.22; font-weight:700; letter-spacing:-.01em}
+h2{font-size:clamp(22px,2.5vw,29px); line-height:1.36; font-weight:700}
+h3{font-size:19px; line-height:1.5; font-weight:700; margin:26px 0 8px}
+h4{font-size:16.5px; font-weight:700; margin:18px 0 6px}
+p{margin:0 0 16px}
+a{color:var(--accent); text-decoration:none; border-bottom:1px solid var(--rule-2)}
+a:hover{border-bottom-color:var(--accent)}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-offset:3px}
+code{font-family:var(--mono); font-size:.84em; background:var(--card-2); padding:1px 5px; border-radius:3px; border:1px solid var(--rule)}
+em{font-style:normal; background:linear-gradient(transparent 62%, var(--accent-soft) 62%); padding:0 2px}
+
+/* masthead */
+header.mast{border-bottom:3px double var(--rule-2); padding-bottom:24px; margin-bottom:30px}
+.kick{font-family:var(--mono); font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--accent); margin-bottom:14px}
+.dek{font-size:19px; color:var(--ink-2); margin:16px 0 0; max-width:44em; line-height:1.8}
+.meta{font-family:var(--mono); font-size:11.5px; color:var(--ink-3); margin-top:18px; display:flex; gap:9px; flex-wrap:wrap; align-items:center}
+.meta i{width:1px;height:11px;background:var(--rule-2);display:inline-block}
+.tbtn{font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; background:var(--card); color:var(--ink-2); border:1px solid var(--rule-2); padding:5px 11px; border-radius:3px; cursor:pointer; margin-left:auto}
+.tbtn:hover{border-color:var(--accent); color:var(--accent)}
+
+/* tldr */
+.tldr{background:var(--card); border:1px solid var(--rule); border-left:4px solid var(--accent); border-radius:4px; padding:22px 24px; margin:0 0 34px}
+.tldr h3{margin:0 0 10px; font-family:var(--mono); font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--accent)}
+.tldr p:last-child{margin-bottom:0}
+
+/* toc */
+nav.toc{background:var(--sunk); border:1px solid var(--rule); border-radius:4px; padding:18px 22px; margin:0 0 40px}
+nav.toc h3{margin:0 0 10px; font-family:var(--mono); font-size:10.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--ink-3)}
+nav.toc ol{margin:0; padding-left:22px; columns:2; column-gap:34px; font-size:15px; line-height:1.8}
+nav.toc li{margin:0 0 3px}
+nav.toc a{border-bottom:0; color:var(--ink-2)}
+nav.toc a:hover{color:var(--accent)}
+@media (max-width:660px){nav.toc ol{columns:1}}
+
+section{margin:0 0 52px; scroll-margin-top:20px}
+.shead{display:flex; align-items:baseline; gap:14px; border-bottom:1px solid var(--rule); padding-bottom:10px; margin-bottom:20px}
+.shead .n{font-family:var(--mono); font-size:12px; color:var(--accent); letter-spacing:.1em; flex:none; padding-top:4px}
+
+/* figures */
+figure{margin:28px 0; padding:0}
+figure img{display:block; width:100%; height:auto; border:1px solid var(--rule); border-radius:4px; background:var(--card)}
+figcaption{font-family:var(--cjk); font-size:13.5px; color:var(--ink-3); margin-top:11px; line-height:1.8}
+figcaption b{color:var(--ink-2); font-family:var(--mono); font-size:11.5px; letter-spacing:.06em; margin-right:6px}
+
+/* tables */
+.tw{overflow-x:auto; margin:22px 0; border:1px solid var(--rule); border-radius:4px; background:var(--card)}
+table{width:100%; border-collapse:collapse; font-family:var(--mono); font-size:13px; font-variant-numeric:tabular-nums}
+caption{caption-side:bottom; text-align:left; font-family:var(--cjk); font-size:13px; color:var(--ink-3); padding:10px 14px; line-height:1.75}
+th{text-align:right; padding:10px 14px; font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3); font-weight:700; border-bottom:1px solid var(--rule-2); background:var(--card-2); white-space:nowrap}
+th:first-child{text-align:left}
+td{text-align:right; padding:9px 14px; border-bottom:1px solid var(--rule)}
+td:first-child{text-align:left; font-family:var(--cjk); font-size:13.5px}
+tbody tr:last-child td{border-bottom:0}
+tr.hi td{background:var(--accent-soft); font-weight:700}
+.w{color:var(--good); font-weight:700}
+
+/* module cards */
+.mods{display:grid; grid-template-columns:repeat(auto-fit,minmax(268px,1fr)); gap:14px; margin:22px 0}
+.mod{background:var(--card); border:1px solid var(--rule); border-radius:4px; padding:17px 19px}
+.mod .tag{font-family:var(--mono); font-size:9.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent-2); margin-bottom:7px}
+.mod h4{margin:0 0 7px; font-size:17px}
+.mod p{font-size:14.5px; line-height:1.78; color:var(--ink-2); margin:0 0 8px}
+.mod p:last-child{margin-bottom:0}
+.mod .k{font-family:var(--mono); font-size:11.5px; color:var(--ink-3); border-top:1px dashed var(--rule); padding-top:8px; margin-top:9px; display:block}
+
+.note{background:var(--warn-soft); border:1px solid var(--rule); border-left:3px solid var(--warn); border-radius:3px; padding:14px 17px; margin:22px 0; font-size:15px; line-height:1.8}
+.note b{color:var(--warn)}
+.key{background:var(--good-soft); border:1px solid var(--rule); border-left:3px solid var(--good); border-radius:3px; padding:14px 17px; margin:22px 0; font-size:15px; line-height:1.8}
+.key b{color:var(--good)}
+
+ul,ol{margin:0 0 16px; padding-left:26px}
+li{margin-bottom:8px}
+dl{margin:0 0 16px}
+dt{font-weight:700; margin-top:12px}
+dd{margin:3px 0 0 0; color:var(--ink-2)}
+
+footer{border-top:1px solid var(--rule); padding-top:20px; margin-top:16px; font-size:13.5px; color:var(--ink-3); line-height:1.85}
+footer ol{padding-left:22px}
+.stack{display:flex; gap:8px; flex-wrap:wrap; margin:14px 0 0}
+.chip{font-family:var(--mono); font-size:10.5px; letter-spacing:.06em; padding:4px 9px; border-radius:3px; background:var(--card-2); border:1px solid var(--rule); color:var(--ink-2)}
+@media (max-width:640px){ body{font-size:16px; line-height:1.85} }
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <div class="kick">arXiv 2605.03269 · 論文精讀</div>
+  <h1>RLDX-1:以「靈巧操作」為核心的<br>機器人基礎模型</h1>
+  <p class="dek">RLWRLD 提出的 Vision-Language-Action 模型,主張現有 VLA 缺的不是語意理解,而是<em>動作感知、長期記憶與物理感測</em>三種功能性能力。本文逐節拆解它的架構、訓練流程與實驗結果。</p>
+  <div class="meta">
+    <span>Dongyoung Kim 等 68 位作者</span><i></i>
+    <span>RLWRLD</span><i></i>
+    <span>v1: 2026-05-05</span><i></i>
+    <span>程式 Apache-2.0 · 權重 非商用</span>
+    <button class="tbtn" id="tb">◐ 主題</button>
+  </div>
+</header>
+
+<div class="tldr">
+  <h3>一句話總結</h3>
+  <p>RLDX-1 把「認知」、「動作」、「物理訊號」拆成三條獨立的 token 流,只在 <b>joint self-attention</b> 交會,再加上動作、記憶、物理三個可插拔模組;因此它能在<em>有</em>觸覺/力矩時吃進這些訊號,也能在<em>沒有</em>時把那條流整個遮掉,而不動到其他部分。</p>
+  <p>在 LIBERO、SIMPLER、RoboCasa、GR-1 等模擬 benchmark 上全面超越 GR00T N1.6 與 π0.5;真實機器人則在 OpenArm、ALLEX、Franka FR3 三個平台驗證。</p>
+</div>
+
+<nav class="toc">
+  <h3>目錄</h3>
+  <ol>
+    <li><a href="#s1">研究動機:VLA 還缺什麼</a></li>
+    <li><a href="#s2">整體設計</a></li>
+    <li><a href="#s3">VLM 主幹與認知 token</a></li>
+    <li><a href="#s4">MSAT:多流動作轉換器</a></li>
+    <li><a href="#s5">三個可插拔模組</a></li>
+    <li><a href="#s6">合成資料框架</a></li>
+    <li><a href="#s7">三階段訓練</a></li>
+    <li><a href="#s8">模擬 benchmark 結果</a></li>
+    <li><a href="#s9">真實機器人實驗</a></li>
+    <li><a href="#s10">推論最佳化</a></li>
+    <li><a href="#s11">重點整理與限制</a></li>
+  </ol>
+</nav>
+
+<!-- ================= 1 ================= -->
+<section id="s1">
+  <div class="shead"><span class="n">01</span><h2>研究動機:VLA 還缺什麼</h2></div>
+  <div class="col">
+    <p>近年 VLA 模型從預訓練視覺語言模型繼承了「通用智能」——廣泛的場景理解與語言條件泛化。論文的出發點是:這種通用性不足以應付真實世界的複雜任務,因為還缺三類<b>功能性能力</b>:</p>
+    <dl>
+      <dt>動作感知 (motion awareness)</dt>
+      <dd>物體在動、環境在變時,單張影像看不出速度與方向。</dd>
+      <dt>長期記憶 (long-term memory)</dt>
+      <dd>「把盒子裡沒挑過的物件拿出來」這種任務,答案不在當前畫面裡。</dd>
+      <dt>物理感測 (physical sensing)</dt>
+      <dd>接觸豐富的操作需要力矩與觸覺,視覺看不到握力與重量。</dd>
+    </dl>
+    <p>RLDX-1 的主張是:這三件事應該由<em>架構</em>層級解決,而不是靠更多資料硬學。</p>
+  </div>
+  <figure>
+    <img src="{{FIG1}}" alt="RLDX-1 總覽圖,顯示模型整合多種功能性能力以進行真實世界的靈巧操作。">
+    <figcaption><b>圖 1</b>RLDX-1 總覽:一個整合多樣功能性能力、面向真實部署之靈巧操作的 VLA 模型。(圖片來源:論文 Figure 1)</figcaption>
+  </figure>
+</section>
+
+<!-- ================= 2 ================= -->
+<section id="s2">
+  <div class="shead"><span class="n">02</span><h2>整體設計</h2></div>
+  <div class="col">
+    <p>輸入端有四種模態:多幀影片、語言指令、本體感覺 (proprioception)、以及物理訊號 (力矩/觸覺)。它們先經過 VLM 得到認知特徵,再送進 Multi-Stream Action Transformer (MSAT) 產生動作。</p>
+    <p>輸出是 <b>16 步的動作 chunk</b>,以 flow matching 訓練;若啟用物理模組,還會額外預測未來的物理訊號作為輔助目標。</p>
+  </div>
+  <figure>
+    <img src="{{FIG2}}" alt="RLDX-1 架構總覽:影片、語言、本體感覺、物理訊號經 VLM 與多流動作轉換器產生動作預測。">
+    <figcaption><b>圖 2</b>系統架構:多模態輸入(影片、語言、本體感覺、物理訊號)經 VLM 與 MSAT 後輸出動作預測。(論文 Figure 2)</figcaption>
+  </figure>
+</section>
+
+<!-- ================= 3 ================= -->
+<section id="s3">
+  <div class="shead"><span class="n">03</span><h2>VLM 主幹與認知 token</h2></div>
+  <div class="col">
+    <p>主幹是 <b>Qwen3-VL 8B</b>,並用一份機器人專用 VQA 資料集微調,涵蓋空間關係、中間子任務、低階動作接地三類問題。論文提到這份 VQA 微調把成功率從 57.5% 提升到 60.9%。</p>
+
+    <h3>認知 token (cognition tokens)</h3>
+    <p>作者在輸入序列後面附加一組<b>可學習的 query token</b>(預設 64 個),專門用來從 VLM 抽取「與動作相關」的表徵。這組 token 是 VLM 與動作模型之間唯一的窄介面。</p>
+
+    <h3>取中間層,不取最後一層</h3>
+    <p>特徵取自 LLM 的<em>中間層</em>而非最終層,理由是高層已經為語言生成特化。消融實驗顯示第 18 層效果最好。</p>
+
+    <h3>影片 token 壓縮</h3>
+    <p>多幀觀測先依時間順序通過前幾層 LLM 累積上下文,之後「保留當前幀,並把過去的觀測用 average pooling 壓成單一 context token」。壓縮放在<b>第 4 層之後</b>(而非第 2 層),以保留 Qwen3-VL 的 DeepStack 多層特徵融合設計。</p>
+  </div>
+  <div class="stack">
+    <span class="chip">Qwen3-VL 8B</span>
+    <span class="chip">64 cognition tokens</span>
+    <span class="chip">中間層第 18 層</span>
+    <span class="chip">影片壓縮於第 4 層後</span>
+    <span class="chip">robot VQA 微調 +3.4pp</span>
+  </div>
+</section>
+
+<!-- ================= 4 ================= -->
+<section id="s4">
+  <div class="shead"><span class="n">04</span><h2>MSAT:多流動作轉換器</h2></div>
+  <div class="col">
+    <p>這是全篇最核心的設計。MSAT 借用 FLUX 的 MMDiT 概念,把不同模態各給一條獨立的 token 流,再用 <b>joint self-attention</b> 讓它們互通:</p>
+    <ul>
+      <li><b>VL 流</b>:投影後的認知 token,加上(可選的)VLM 原始 hidden states。</li>
+      <li><b>SA 流</b>:加噪的動作 chunk 與狀態 token,預設用 RoPE 位置編碼。</li>
+      <li><b>P 流</b>:僅在 <code>use_physics=True</code> 時存在,承載投影後的物理 token。</li>
+    </ul>
+    <p>每個 block 做 modulated pre-norm → 跨串接流的 multi-head self-attention → SwiGLU MLP。前段是三流 block,後段收斂成雙流 block。</p>
+
+    <div class="key">
+      <b>關鍵性質</b> — 因為三條流只在 attention 交會,論文明確指出「當物理訊號不可用時,我們可以<em>把 attention 運算遮掉</em>來停用 P 流」。這就是沒有觸覺/力矩硬體時仍能使用此模型的架構基礎:P 流不是依賴,而是對等的第三條路。
+    </div>
+
+    <h3>跨形體的動作頭</h3>
+    <p><code>MultiEmbodimentActionEncoder</code> 把 <code>(B, horizon, max_action_dim)</code> 映射到共享潛在空間,再由各類別的 decoder 投影回去;每個 embodiment index 對應一個線性頭,因此單一 checkpoint 可支援多台機器人。<code>max_state_dim</code> 為 64,物理訊號同樣 pad 到這個維度。</p>
+  </div>
+  <figure>
+    <img src="{{FIG3}}" alt="RLDX-1 詳細架構:視覺語言模型、動作與記憶模組,以及處理異質輸入的多流動作轉換器。">
+    <figcaption><b>圖 3</b>詳細架構:VLM、motion/memory 模組,以及處理異質輸入的 MSAT。(論文 Figure 3)</figcaption>
+  </figure>
+</section>
+
+<!-- ================= 5 ================= -->
+<section id="s5">
+  <div class="shead"><span class="n">05</span><h2>三個可插拔模組</h2></div>
+  <div class="col">
+    <p>對應第 1 節的三項缺口,各有一個模組。三者都是<b>可選的</b>,在 mid-training 階段才引入,預訓練 checkpoint 中處於休眠狀態。</p>
+  </div>
+
+  <div class="mods">
+    <div class="mod">
+      <div class="tag">motion awareness</div>
+      <h4>Motion Module</h4>
+      <p>把<b>時空自相似性</b>(space-time self-similarity, STSS)算進視覺編碼器的中間層,以殘差方式更新影片特徵。做法是計算每個時空特徵與其局部鄰域的相關性,得到 STSS 張量後再經 STSS encoder。</p>
+      <span class="k">置於 27 層視覺編碼器的第 9 層之後 — 作者觀察到物理相關線索出現在約 30% 深度</span>
+    </div>
+    <div class="mod">
+      <div class="tag">long-term memory</div>
+      <h4>Memory Module</h4>
+      <p>維護一個<b>顯式的認知特徵佇列</b>,每 H+1 個 timestep 快取一次;佇列與當前特徵串接後過一個 causal-attention 的輕量 Transformer,產生記憶特徵。原始與記憶增強的特徵都會送進動作模型。</p>
+      <span class="k">佇列長度 n<sub>mem</sub>=3;時間窗 ALLEX 120 步、FR3 48 步</span>
+    </div>
+    <div class="mod">
+      <div class="tag">physical sensing</div>
+      <h4>Physics Module</h4>
+      <p>把力矩與觸覺當成<b>原生模態</b>投影成 P 流。除動作外,還以 flow matching 預測未來 L 步的物理訊號作為<b>輔助目標</b>,促使模型內化接觸動力學。</p>
+      <span class="k">ALLEX 用關節力矩;FR3 用力矩 + AnySkin 觸覺。不可用時遮掉 attention 即可</span>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>對無觸覺硬體的意義</b> — 物理模組只在 mid-training 出現,<em>從未參與預訓練</em>。也就是說預訓練表徵本身不依賴物理訊號;<code>RLDX-1-PT</code> 的 model card 也說明 memory / motion / physics 三者在該 checkpoint 中為 dormant,只有在微調時接上對應 flag 才會啟用。
+  </div>
+</section>
+
+<!-- ================= 6 ================= -->
+<section id="s6">
+  <div class="shead"><span class="n">06</span><h2>合成資料框架</h2></div>
+  <div class="col">
+    <p>這是論文中貢獻很大但<b>未隨程式碼釋出</b>的部分。分兩階段:</p>
+    <h3>階段一:生成</h3>
+    <ol>
+      <li><b>場景增強</b> — 用 FLUX.2-dev 做 image-to-image 編輯(以 Canny edge 為條件),改變桌面外觀、物件身份、光照與背景。</li>
+      <li><b>任務增強</b> — 用 VLM 合成新指令,兩種策略:分解式指令組合(拆成行為/目標/放置位置/手),以及技能原語條件的變化。</li>
+      <li><b>影片生成</b> — image-to-video 模型產生影片,可再用 video-to-video 轉換增加多樣性。</li>
+      <li><b>動作標註</b> — 用逆動力學模型 (IDM) 預測動作標籤。</li>
+    </ol>
+    <h3>階段二:過濾</h3>
+    <ul>
+      <li><b>影片品質過濾</b> — VLM 以 1–5 分評判指令遵循度與軌跡合理性(深度感知、空間方向)。</li>
+      <li><b>運動一致性過濾</b> — 在模擬器中<em>重播 IDM 預測的動作</em>,渲染出 rollout 影片與合成影片比對;以 V-JEPA2 embedding 上訓練的 attentive probe 預測對齊分數,超過門檻才保留。</li>
+    </ul>
+    <p>效果:合成資料讓 GR-1 Tabletop 相對「僅用真實資料」提升 <b>9.1%</b>;合成比例從 0% 提到 100% 時,tabletop 表現由 41.0% 升至 50.1%。</p>
+  </div>
+  <figure>
+    <img src="{{FIG4}}" alt="兩階段合成資料流程:先做場景與任務增強並以逆動力學標註,再做品質與運動一致性過濾。">
+    <figcaption><b>圖 4</b>合成資料框架:(1) 以場景/任務增強生成並用逆動力學標註;(2) 以品質與運動一致性檢查過濾。(論文 Figure 4)</figcaption>
+  </figure>
+</section>
+
+<!-- ================= 7 ================= -->
+<section id="s7">
+  <div class="shead"><span class="n">07</span><h2>三階段訓練</h2></div>
+
+  <div class="tw">
+    <table>
+      <caption>三階段的資料與超參數。注意 mid-training 有 2K 步的 alignment warmup,期間凍結預訓練參數,讓新加入的模組先對齊。</caption>
+      <thead><tr><th>階段</th><th>資料</th><th>步數</th><th>global batch</th><th>lr</th><th>引入什麼</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Pre-training<br><span style="color:var(--ink-3);font-size:12px">泛化能力</span></td>
+          <td style="font-family:var(--mono);font-size:12px">1.5M episodes<br>+150K 合成 GR-1</td>
+          <td>100K</td><td>8192</td><td>1e-4</td>
+          <td>flow matching 基礎能力</td>
+        </tr>
+        <tr>
+          <td>Mid-training<br><span style="color:var(--ink-3);font-size:12px">功能能力</span></td>
+          <td style="font-family:var(--mono);font-size:12px">ALLEX: 遙操作+72K 合成 (5:5)<br>FR3: DROID 92K+自有 (8:2)</td>
+          <td>25K</td><td>1024</td><td>5e-5</td>
+          <td>motion / memory / physics</td>
+        </tr>
+        <tr>
+          <td>Post-training<br><span style="color:var(--ink-3);font-size:12px">任務適配</span></td>
+          <td style="font-family:var(--mono);font-size:12px">adaptive 資料收集<br>(base + refinement)</td>
+          <td>—</td><td>—</td><td>—</td>
+          <td>模仿學習 + 可選 RECAP RL</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p>Post-training 的 <b>adaptive 資料收集</b>值得一提:先把任務分解成原子動作原語,收集 base 資料;再針對觀察到的失敗模式,迭代收集 refinement 資料。</p>
+    <h3>RL 精修:文字型 critic</h3>
+    <p>論文用一個 <b>text-based VLM critic</b> 取代分布式 critic 來估計任務進度。圖 8 顯示它在 cube pick-and-place 上的 value 預測明顯更好;整體而言,相較純行為複製,RL 精修把 episode 長度與嘗試次數<em>各降低約 3 倍</em>。</p>
+  </div>
+
+  <figure>
+    <img src="{{FIG6}}" alt="預訓練資料組成,涵蓋單臂、雙臂與人形形體,末端執行器包含夾爪與靈巧手。">
+    <figcaption><b>圖 6</b>預訓練資料組成:1.5M episodes,跨單臂、雙臂、人形形體,末端含夾爪與靈巧手。來源包含 27 個 Open X-Embodiment 資料集(DROID、Bridge、Fractal、Language Table 等)以及 Galaxea、AgiBot World、ActionNet。(論文 Figure 6)</figcaption>
+  </figure>
+</section>
+
+<!-- ================= 8 ================= -->
+<section id="s8">
+  <div class="shead"><span class="n">08</span><h2>模擬 benchmark 結果</h2></div>
+  <figure>
+    <img src="{{FIG11}}" alt="模擬 benchmark 總覽,含 LIBERO、SIMPLER 等既有 benchmark 與 RoboCasa Kitchen、GR-1 Tabletop、RoboCasa365 等困難套件。">
+    <figcaption><b>圖 11</b>評測涵蓋既有 benchmark(LIBERO、SIMPLER)與困難套件(RoboCasa Kitchen、GR-1 Tabletop、RoboCasa365)。(論文 Figure 11)</figcaption>
+  </figure>
+
+  <div class="tw">
+    <table>
+      <caption>論文 Table 1 的成功率 (%)。最值得注意的不是 LIBERO 平均(各家都已接近飽和),而是 <b>LIBERO-Plus</b> 與 <b>SIMPLER Google-VA</b> 這兩個擾動/泛化套件的差距 — 那才是換到新物件、新場景時真正決定成敗的軸。</caption>
+      <thead><tr><th>模型</th><th>LIBERO avg</th><th>LIBERO-Plus</th><th>SIMPLER G-VM</th><th>SIMPLER G-VA</th><th>SIMPLER WidowX</th><th>RoboCasa Kit.</th><th>RC365 avg</th></tr></thead>
+      <tbody>
+        <tr><td>π0</td><td>94.1</td><td>54.6</td><td>58.8</td><td>54.8</td><td>27.1</td><td>62.5</td><td>14.8</td></tr>
+        <tr><td>π0.5</td><td>96.9</td><td>86.5</td><td>72.7</td><td>68.4</td><td>46.9</td><td>62.1</td><td>16.9</td></tr>
+        <tr><td>GR00T N1.5</td><td>86.5</td><td>66.3</td><td>52.4</td><td>43.7</td><td>62.0</td><td>65.7</td><td>20.0</td></tr>
+        <tr><td>GR00T N1.6</td><td>96.7</td><td>72.6</td><td>76.1</td><td>57.1</td><td>57.1</td><td>66.2</td><td>26.9</td></tr>
+        <tr class="hi"><td>RLDX-1</td><td class="w">97.8</td><td class="w">86.7</td><td class="w">81.5</td><td class="w">77.4</td><td class="w">71.9</td><td class="w">70.6</td><td class="w">32.1</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <b>讀表注意</b> — 全篇<em>沒有</em>與 GR00T N1.7 的比較,只到 N1.6。另外 GitHub repo 的 README 對同一個 LIBERO 數字給的是 <b>97.4%</b>(LIBERO-Plus 84.3%),比論文的 97.8 / 86.7 低一些;上游也有兩個尚未關閉的重現性 issue(GR-1 Tabletop 實測 55.75% vs 論文 58.7%)。這張表宜視為<b>作者自報</b>數據。
+  </div>
+</section>
+
+<!-- ================= 9 ================= -->
+<section id="s9">
+  <div class="shead"><span class="n">09</span><h2>真實機器人實驗</h2></div>
+  <div class="col">
+    <p>三個平台,各自驗證不同能力。<b>值得我們特別注意的是 OpenArm —— 與我們的硬體同型,而且該平台的實驗<em>沒有</em>使用力矩或觸覺。</b></p>
+  </div>
+  <figure>
+    <img src="{{FIG12}}" alt="三個真實機器人平台:OpenArm 搭載 Inspire 手、ALLEX 48-DoF 人形、Franka Research 3 搭配觸覺感測器。">
+    <figcaption><b>圖 12</b>真實平台:(a) OpenArm,28-DoF 上半身、6-DoF Inspire RH56F1 手;(b) ALLEX,48-DoF 人形、立體第一人稱相機;(c) Franka Research 3,7-DoF 單臂 + AnySkin 觸覺。(論文 Figure 12)</figcaption>
+  </figure>
+
+  <h3>OpenArm:通用智能六項任務</h3>
+  <figure>
+    <img src="{{FIG13}}" alt="OpenArm 的六項評測任務,涵蓋基本操作、方向性取放的兩種變體、未見物件與未見任務、以及物件接地。">
+    <figcaption><b>圖 13</b>OpenArm 六項任務:基本取放、方向性取放(層架/碗架兩種變體)、未見物件、未見任務、物件接地。(論文 Figure 13)</figcaption>
+  </figure>
+
+  <div class="tw">
+    <table>
+      <caption>OpenArm 結果。文字明確給出的是未見物件與未見任務兩項;其餘為圖 14 讀值,故標為約略值。此平台<b>未使用</b>力矩/觸覺。</caption>
+      <thead><tr><th>任務</th><th>RLDX-1</th><th>π0.5</th><th>備註</th></tr></thead>
+      <tbody>
+        <tr><td>基本取放</td><td class="w">≈80%</td><td>—</td><td>圖 14 讀值</td></tr>
+        <tr><td>方向性取放(層架)</td><td class="w">≈75%</td><td>—</td><td>圖 14 讀值</td></tr>
+        <tr><td>方向性取放(碗架)</td><td class="w">≈70%</td><td>—</td><td>圖 14 讀值</td></tr>
+        <tr class="hi"><td>未見物件(instance)</td><td class="w">54.2%</td><td>37.5%</td><td>文中明列 +16.7pp</td></tr>
+        <tr class="hi"><td>未見任務(placement)</td><td class="w">54.2%</td><td>45.8%</td><td>文中明列 +8.4pp</td></tr>
+        <tr><td>物件接地(grounding)</td><td class="w">≈65%</td><td>—</td><td>圖 14 讀值</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>ALLEX:功能能力驗證</h3>
+  <div class="tw">
+    <table>
+      <caption>ALLEX 的三項對照最能說明三個模組的價值。ALLEX 使用<b>關節力矩</b>(非力/torque 感測器)作為物理訊號。</caption>
+      <thead><tr><th>任務</th><th>驗證什麼</th><th>RLDX-1</th><th>基線</th></tr></thead>
+      <tbody>
+        <tr><td>輸送帶接物</td><td>動作感知</td><td class="w">&gt;87.5%</td><td>π0.5 &lt;29.2%</td></tr>
+        <tr><td>盒中物件挑選</td><td>長期記憶</td><td class="w">91.7%</td><td>N1.6 / π0.5 約 30%</td></tr>
+        <tr><td>卡片滑推取放</td><td>力矩接觸控制</td><td class="w">97.2%</td><td>—</td></tr>
+        <tr><td>壺倒水入杯</td><td>由力矩估重量</td><td class="w">70.8%</td><td>基線無法完成</td></tr>
+        <tr class="hi"><td>ALLEX 整體</td><td>—</td><td class="w">86.8%</td><td>π0.5 / N1.6 約 40%</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Franka Research 3</h3>
+  <div class="col">
+    <p>單臂夾爪平台,使用力矩 + AnySkin 觸覺、腕部與第三人稱相機。動作追蹤 97.9%;shell game(記憶推理)91.7%。</p>
+    <div class="key">
+      <b>推論</b> — 需要觸覺/力矩才有明顯優勢的是 ALLEX 與 FR3 上那些<em>接觸豐富</em>的任務(卡片滑推、倒水估重)。OpenArm 那組泛化任務在完全沒有物理訊號的情況下仍勝過 π0.5,說明「通用取放 + 泛化」這條主線不依賴這些感測器。
+    </div>
+  </div>
+</section>
+
+<!-- ================= 10 ================= -->
+<section id="s10">
+  <div class="shead"><span class="n">10</span><h2>推論最佳化</h2></div>
+  <div class="col">
+    <p>8B 級模型要跑到即時控制頻率,論文用兩招:</p>
+    <ul>
+      <li><b>靜態圖 (CUDA Graph) 捕捉</b> — 把 forward pass 錄成單一 CUDA Graph,消掉 kernel launch 開銷(圖 9)。提供 <code>submodule</code> 與 <code>fullgraph</code> 兩種編譯模式。</li>
+      <li><b>算子融合</b> — 自訂 kernel 把資料搬移與運算協調在一起,降低 short-prefill 工作負載的記憶體流量(圖 10)。</li>
+    </ul>
+    <div class="tw">
+      <table>
+        <caption>RTX 5090 上的單步延遲。另有 Real-Time Chunking (RTC) 兩種變體:<code>guided</code>(訓練無關、需 autograd)與 <code>trained</code>(checkpoint 已針對延遲前綴預訓練,較快且相容 fullgraph),用來讓相鄰 action chunk 銜接平滑。</caption>
+        <thead><tr><th>設定</th><th>每步延遲</th><th>約略頻率</th></tr></thead>
+        <tbody>
+          <tr><td>PyTorch Eager</td><td>71.2 ms</td><td>≈14 Hz</td></tr>
+          <tr class="hi"><td>最佳化後</td><td class="w">43.7 ms</td><td class="w">≈22 Hz</td></tr>
+          <tr><td colspan="3" style="text-align:left;font-family:var(--cjk);color:var(--ink-3)">加速 1.63×(含 4 步 denoising 與 MSAT forward)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 11 ================= -->
+<section id="s11">
+  <div class="shead"><span class="n">11</span><h2>重點整理與限制</h2></div>
+  <div class="col">
+    <h3>三個最值得帶走的設計</h3>
+    <ol>
+      <li><b>流的分離讓模態變成可選</b>。這不只是工程便利 —— 它讓同一個預訓練模型能服務有/無觸覺的兩種硬體,而不需要兩套權重。</li>
+      <li><b>記憶用顯式佇列而非隱狀態</b>。佇列 + causal Transformer 比 RNN 式隱狀態更容易控制與重置(部署時需在 episode 開始傳 <code>reset_memory</code> 並維持穩定 session ID)。</li>
+      <li><b>合成資料的過濾比生成更關鍵</b>。用模擬器重播 IDM 動作再比對影片,是很紮實的一致性檢查。</li>
+    </ol>
+
+    <h3>論文本身的限制</h3>
+    <ul>
+      <li>沒有明確的 limitations 章節。</li>
+      <li>真實機器人實驗<b>未給出每個任務的示範數量</b>,難以判斷資料效率。</li>
+      <li>圖 14 等部分結果只有圖、沒有數值表。</li>
+      <li>貢獻很大的合成資料管線與 RL 精修程式碼<b>未隨 repo 釋出</b>。</li>
+      <li>沒有與 GR00T N1.7 比較。</li>
+      <li>權重採 RLWRLD Model License v1.0:<b>僅限非商業</b>,且衍生模型需沿用同等限制。</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <p><b>資料來源</b></p>
+  <ol>
+    <li><a href="https://arxiv.org/abs/2605.03269">RLDX-1 Technical Report</a>, arXiv:2605.03269 — 本文所有架構描述、數值與圖片(圖 1、2、3、4、6、11、12、13)之來源。圖片版權屬原作者,此處僅為內部技術研讀之引用。</li>
+    <li><a href="https://github.com/RLWRLD/RLDX-1">RLWRLD/RLDX-1</a> — 程式碼(Apache-2.0)、README 數值、reproducibility issues #24 / #25 / #27。</li>
+    <li><a href="https://huggingface.co/RLWRLD/RLDX-1-PT">RLDX-1-PT</a> 與 <a href="https://huggingface.co/RLWRLD/RLDX-1-FT-LIBERO">RLDX-1-FT-LIBERO</a> — checkpoint 說明、模組休眠狀態、權重授權條款。</li>
+  </ol>
+  <p style="margin-top:12px">本文為 IsaacLab-GR00T 專案內部技術研讀,聚焦論文內容;我們自行重現 LIBERO 的測試過程與結果另見英文版 field report。</p>
+</footer>
+
+</div>
+
+<script>
+(function(){
+  document.getElementById('tb').addEventListener('click',function(){
+    var r=document.documentElement, cur=r.getAttribute('data-theme');
+    if(!cur){cur=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}
+    r.setAttribute('data-theme',cur==='dark'?'light':'dark');
+  });
+})();
+</script>
